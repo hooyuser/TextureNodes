@@ -289,6 +289,8 @@ public:
 
 	void initScene();
 
+	void initImgui();
+
 	void updateUniformBuffer(uint32_t currentImage);
 
 	void drawFrame();

@@ -5,6 +5,8 @@ get_filename_component(PROJECT_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 string(REPLACE " " "_" PROJECT_NAME ${PROJECT_NAME})
 project(${PROJECT_NAME})
 
+add_subdirectory(extern)
+
 file(GLOB SRC
     "source/*.cpp"
 )
@@ -33,27 +35,31 @@ add_custom_command(TARGET ${PROJECT_NAME}
 source_group("Source Files"            FILES ${SRC})
 source_group("Header Files"            FILES ${HEADER})
 source_group("GLSL Shaders"        FILES ${SHADERS})
-set(extern_dir
+
+set(EXTERN_DIR
     ${CMAKE_SOURCE_DIR}/extern
 )
 
 target_include_directories(${PROJECT_NAME}
     PUBLIC 
-        ${extern_dir}/vulkan/Include
-        ${extern_dir}/glm
-        ${extern_dir}/glfw/include
-        ${extern_dir}/stb
-        ${extern_dir}/tinyobjloader
-        ${extern_dir}/tinygltf
-        ${extern_dir}/tinyexr
-        ${extern_dir}/nlohmann
-        ${extern_dir}/RareCpp
+        ${EXTERN_DIR}/vulkan/Include
+        ${EXTERN_DIR}/glm
+        ${EXTERN_DIR}/glfw/include
+        ${EXTERN_DIR}/stb
+        ${EXTERN_DIR}/tinyobjloader
+        ${EXTERN_DIR}/tinygltf
+        ${EXTERN_DIR}/tinyexr
+        ${EXTERN_DIR}/nlohmann
+        ${EXTERN_DIR}/RareCpp
+        ${EXTERN_DIR}/imgui
+        ${EXTERN_DIR}/imgui/backends
 )
 
 target_link_libraries(${PROJECT_NAME}
     PUBLIC
-        ${extern_dir}/vulkan/Lib/vulkan-1.lib
-        ${extern_dir}/glfw/lib-vc2019/glfw3.lib
+        ${EXTERN_DIR}/vulkan/Lib/vulkan-1.lib
+        ${EXTERN_DIR}/glfw/lib-vc2019/glfw3.lib
+        imgui
 )
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
