@@ -130,7 +130,6 @@ public:
 
 struct RenderObject {
 	MeshPtr mesh;
-	//MaterialPtr material;
 	glm::mat4 transformMatrix;
 };
 
@@ -257,17 +256,9 @@ public:
 
 	bool hasStencilComponent(VkFormat format);
 
-	void createTextureImage();
-
-	void generateMipmaps(VkImage image, VkFormat imageFormat, int32_t texWidth, int32_t texHeight, uint32_t mipLevels, uint32_t layerCount = 1);
-
 	VkSampleCountFlagBits getMaxUsableSampleCount();
 
-	void createTextureImageView();
-
 	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription);
-
-	void copyBufferToImage(VkBuffer buffer, VkImage image, uint32_t width, uint32_t height, uint32_t layerCount = 1);
 
 	void loadModel();
 
@@ -276,8 +267,6 @@ public:
 	void createDescriptorPool();
 
 	void createDescriptorSets();
-
-	void createTexDescriptorSet(TexturePtr loadedTexture, VkDescriptorSet& texDescriptorSet);
 
 	VkCommandBuffer beginSingleTimeCommands();
 
@@ -326,13 +315,6 @@ public:
 	static void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
 	void setCamera();
-
-	/*inline engine::MaterialPtrV createMaterial(VkPipeline pipeline, VkPipelineLayout layout, const std::string& name)
-	{
-		auto pMat = std::make_shared<engine::Material>(pipeline, layout);
-		materials[name] = pMat;
-		return materials[name];
-	}*/
 
 	void createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBinding>&& descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout);
 };

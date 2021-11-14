@@ -1320,11 +1320,47 @@ void VulkanEngine::drawFrame() {
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
-	updateUniformBuffer(imageIndex);
+	ImGuiIO& io = ImGui::GetIO();
+
+	if (!io.WantCaptureMouse) {
+		updateUniformBuffer(imageIndex);
+	}
+
+	
 
 	// IMGUI RENDERING
 	gui->beginRender();
-	ImGui::ShowDemoWindow();
+
+
+	//ImGui::ShowDemoWindow();
+
+	{
+		static float f = 0.0f;
+		static int counter = 0;
+		static bool b = true;
+		static ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+
+
+		ImGui::Begin("Hello, world!");                          // Create a window called "Hello, world!" and append into it.
+
+		ImGui::Text("This is some useful text.");               // Display some text (you can use a format strings too)
+		ImGui::Checkbox("Demo Window", &b);      // Edit bools storing our window open/close state
+		//ImGui::Checkbox("Another Window", &show_another_window);
+
+		ImGui::SliderFloat("float", &f, 0.0f, 1.0f);            // Edit 1 float using a slider from 0.0f to 1.0f
+		ImGui::ColorEdit3("clear color", (float*)&clear_color); // Edit 3 floats representing a color
+
+		if (ImGui::Button("Button"))                            // Buttons return true when clicked (most widgets return true when edited/activated)
+			counter++;
+		ImGui::SameLine();
+		ImGui::Text("counter = %d", counter);
+
+		ImGui::Text("Application average %.3f ms/frame (%.1f FPS)", 1000.0f / io.Framerate, io.Framerate);
+		ImGui::End();
+	}
+
+
+
 	gui->endRender(this, imageIndex);
 
 	std::array<VkCommandBuffer, 2> submitCommandBuffers = { commandBuffers[imageIndex], gui->commandBuffers[imageIndex] };
@@ -1563,7 +1599,11 @@ void VulkanEngine::mouseCursorCallback(GLFWwindow* window, double xpos, double y
 	}
 	auto mouseCurrentPos = glm::vec2(xpos, ypos);
 	mouseDeltaPos = mouseCurrentPos - mousePreviousPos;
-	camera.rotate(-mouseDeltaPos.x, -mouseDeltaPos.y, 0.005f);
+
+	if (!ImGui::GetIO().WantCaptureMouse) {
+		camera.rotate(-mouseDeltaPos.x, -mouseDeltaPos.y, 0.005f);
+	}
+	
 	mousePreviousPos = mouseCurrentPos;
 }
 
@@ -1578,7 +1618,9 @@ void VulkanEngine::mouseButtonCallback(GLFWwindow* window, int button, int actio
 }
 
 void VulkanEngine::mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
-	camera.zoom((float)yoffset, 0.3f);
+	if (!ImGui::GetIO().WantCaptureMouse) {
+		camera.zoom((float)yoffset, 0.3f);
+	}
 }
 
 void VulkanEngine::setCamera() {
