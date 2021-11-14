@@ -5,6 +5,7 @@
 #include "imgui_impl_glfw.h"
 #include "vk_util.h"
 
+#include <filesystem>
 
 namespace engine {
 	void GUI::initRenderPass() {
@@ -139,8 +140,9 @@ namespace engine {
 		//this initializes the core structures of imgui
 		ImGui::CreateContext();
 		ImGuiIO& io = ImGui::GetIO(); (void)io;
+		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-		ImGui::StyleColorsDark();
+		//ImGui::StyleColorsDark();
 		//this initializes imgui for SDL
 		ImGui_ImplGlfw_InitForVulkan(engine->window, true);
 
@@ -158,6 +160,10 @@ namespace engine {
 		ImGui_ImplVulkan_Init(&init_info, renderPass);
 
 		//execute a gpu command to upload imgui font textures
+
+		ImFont* font = io.Fonts->AddFontFromFileTTF((std::filesystem::path(std::getenv("WINDIR")) / "Fonts" / "segoeui.ttf").string().c_str(), 22.0f);
+		assert(font != NULL);
+
 		immediateSubmit(engine, [&](VkCommandBuffer cmd) {
 			ImGui_ImplVulkan_CreateFontsTexture(cmd);
 			});
