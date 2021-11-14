@@ -35,7 +35,7 @@ namespace engine {
 
 		~Image();
 
-		static ImagePtr createImage(VulkanEngine& engine, uint32_t width, uint32_t height, uint32_t mipLevels,
+		static ImagePtr createImage(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mipLevels,
 			VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
 			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, CreateResourceFlagBits imageDescription);
 

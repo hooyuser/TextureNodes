@@ -178,7 +178,7 @@ VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo(std::span<VkDescript
 	return pipelineLayoutInfo;
 }
 
-VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent, const std::array<VkImageView, 3>& attachments)
+VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent, const std::span<VkImageView>& attachments)
 {
 	VkFramebufferCreateInfo framebufferInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 

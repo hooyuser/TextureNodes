@@ -172,13 +172,13 @@ namespace engine {
 		}
 	}
 
-	ImagePtr Image::createImage(VulkanEngine& engine, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, CreateResourceFlagBits imageDescription) {
-		auto pImage = std::make_shared<Image>(engine.device, engine.physicalDevice, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags);
+	ImagePtr Image::createImage(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, CreateResourceFlagBits imageDescription) {
+		auto pImage = std::make_shared<Image>(engine->device, engine->physicalDevice, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine.swapChainDeletionQueue : engine.mainDeletionQueue).push_function([=]() {
-				vkDestroyImageView(engine.device, pImage->imageView, nullptr);
-				vkDestroyImage(engine.device, pImage->image, nullptr);
-				vkFreeMemory(engine.device, pImage->memory, nullptr);
+			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->mainDeletionQueue).push_function([=]() {
+				vkDestroyImageView(engine->device, pImage->imageView, nullptr);
+				vkDestroyImage(engine->device, pImage->image, nullptr);
+				vkFreeMemory(engine->device, pImage->memory, nullptr);
 				pImage->image = VK_NULL_HANDLE;
 				pImage->imageView = VK_NULL_HANDLE;
 				pImage->memory = VK_NULL_HANDLE;

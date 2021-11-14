@@ -5,6 +5,7 @@
 #include "vk_buffer.h"
 #include "vk_image.h"
 #include "vk_material.h"
+#include "vk_gui.h"
 
 
 // #define GLFW_INCLUDE_VULKAN
@@ -28,6 +29,7 @@
 
 struct QueueFamilyIndices;
 struct SwapChainSupportDetails;
+class GUI;
 
 struct FrameData {
 	VkFence inFlightFence;
@@ -200,6 +202,8 @@ public:
 	static Camera camera;
 	static glm::vec2 mousePreviousPos;
 	static glm::vec2 mouseDeltaPos;
+
+	std::unique_ptr<engine::GUI> gui;
 
 	void initWindow();
 

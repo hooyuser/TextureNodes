@@ -10,6 +10,7 @@ build/*
 *.png
 *.bin
 *.gltf
+*.ini
 
 # User-specific files
 *.rsuser
