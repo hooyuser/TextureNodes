@@ -3,6 +3,7 @@
 #include "vk_shader.h"
 #include "vk_mesh.h"
 #include "vk_util.h"
+#include "vk_pipeline.h"
 
 
 #include <span>
@@ -491,7 +492,7 @@ void VulkanEngine::createRenderPass() {
 }
 
 
-void VulkanEngine::parseMaterialInfo(){
+void VulkanEngine::parseMaterialInfo() {
 	const std::string filename = "assets/gltf_models/dragon.gltf";
 	tinygltf::Model glTFModel;
 	tinygltf::TinyGLTF gltfContext;
@@ -500,22 +501,21 @@ void VulkanEngine::parseMaterialInfo(){
 	bool fileLoaded = gltfContext.LoadASCIIFromFile(&glTFModel, &error, &warning, filename);
 
 	if (fileLoaded) {
-		
+
 		for (size_t i = 0; i < glTFModel.images.size(); i++) {
 			tinygltf::Image& glTFImage = glTFModel.images[i];
 			loadedTexture2Ds.emplace_back(engine::Texture::load2DTextureFromHost(this, glTFImage.image.data(), glTFImage.width, glTFImage.height, glTFImage.component));
 		}
 
-		std::array<std::string, 2> shaderFilePaths{ 
-			"assets/shaders/pbr.vert.spv", 
-			"assets/shaders/pbr.frag.spv" 
+		std::array<std::string, 2> shaderFilePaths{
+			"assets/shaders/pbr.vert.spv",
+			"assets/shaders/pbr.frag.spv"
 		};
 
 		auto pbrShader = engine::Shader::createFromSpv(this, std::move(shaderFilePaths));
 
 		for (auto& glTFMaterial : glTFModel.materials) {
 			auto material = std::make_shared<PbrMaterial>();
-			//material->shaderFlagBits = PBR;
 			material->pShaders = pbrShader;
 			auto& paras = material->paras;
 
@@ -523,13 +523,12 @@ void VulkanEngine::parseMaterialInfo(){
 			paras.baseColorGreen = glTFMaterial.pbrMetallicRoughness.baseColorFactor[1];
 			paras.baseColorBlue = glTFMaterial.pbrMetallicRoughness.baseColorFactor[2];
 			paras.baseColorTextureID = glTFMaterial.pbrMetallicRoughness.baseColorTexture.index;
-		
+
 			paras.metalnessFactor = glTFMaterial.pbrMetallicRoughness.metallicFactor;
 			paras.roughnessFactor = glTFMaterial.pbrMetallicRoughness.roughnessFactor;
 			paras.metallicRoughnessTextureId = glTFMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
-			
+
 			loadedMaterials.emplace_back(material);
-			//meshPipelines.try_emplace(glTFMaterial.name, VK_NULL_HANDLE);
 			materials.try_emplace(glTFMaterial.name, std::move(material));
 		}
 
@@ -561,53 +560,6 @@ void VulkanEngine::parseMaterialInfo(){
 			}
 		}
 	}
-
-	//auto objectMaterialInfoJson = R"(
-	//{
-	//	"dragon": {
-	//		"shaders": ["assets/shaders/pbr.vert.spv", "assets/shaders/pbr.frag.spv"],
-	//		"paras": {
-	//			"baseColor": [0.5, 0.1, 0.7]
-	//		},
-	//		"textures": {
-	//			"baseColor": "assets/textures/Dragon_baseColor.png"
-	//		}
-	//	}
-	//}
-	//)"_json;
-
-	//for (auto& [name, matInfo] : objectMaterialInfoJson.items()) {
-
-	//	auto material = std::make_shared<engine::Material>();
-	//	material->pShaders = engine::Shader::createFromSpv(this, matInfo["shaders"].get<std::vector<std::string>>());
-
-	//	if (matInfo.contains("paras")) {
-
-	//		auto paras = matInfo["paras"];
-	//		if (paras.contains("baseColor")) {
-	//			material->paras.baseColorRed = paras["baseColor"][0].get<float>();
-	//			material->paras.baseColorGreen = paras["baseColor"][1].get<float>();
-	//			material->paras.baseColorBlue = paras["baseColor"][2].get<float>();
-	//		}
-	//	}
-	//	if (matInfo.contains("textures")) {
-
-	//		auto textures = matInfo["textures"];
-
-	//		if (textures.contains("baseColor")) {
-
-	//			material->paras.useBaseColorTexture = true;
-	//			material->textureSetFlagBits |= BASE_COLOR;  //deprecated
-	//			//engine::TextureSet textureSet(loadedTextures.size());
-	//			material->textureArrayIndex.emplace("baseColor", loadedTexture2Ds.size());
-	//			material->paras.baseColorTextureID = loadedTexture2Ds.size();
-	//			loadedTexture2Ds.emplace_back(engine::Texture::load2DTexture(this, textures["baseColor"].get<std::string>().c_str()));
-	//			//createTexDescriptorSet(loadedTextures.back(), textureSet.descriptorSet);
-	//		}
-	//	}
-	//	meshPipelines.emplace(material->textureSetFlagBits, VK_NULL_HANDLE);
-	//	materials.emplace(name, std::move(material));
-	//}
 
 	auto envMaterialInfoJson = R"(
 	{
@@ -698,19 +650,19 @@ void VulkanEngine::parseMaterialInfo(){
 			mat->paras.prefilteredMapId = loadedTextureCubemaps.size();
 		}
 		loadedTextureCubemaps.emplace_back(engine::Texture::loadPrefilteredMapTexture(this, envMaterialInfoJson["prefilteredMapPaths"].get<std::vector<std::vector<std::string>>>()));
-		
+
 		for (auto& mat : loadedMaterials) {
 			mat->paras.brdfLUTId = loadedTexture2Ds.size();
 		}
 		loadedTexture2Ds.emplace_back(engine::Texture::load2DTexture(this, envMaterialInfoJson["BRDF_2D_LUT"].get<std::string>(), false));
-	}	
+	}
 
 	for (auto& mat : loadedMaterials) {
 		mat->paras.texture2DArraySize = loadedTexture2Ds.size();
 	}
 
 	for (auto& [name, mat] : materials) {
-		std::visit([this](auto& obj) { 
+		std::visit([this](auto& obj) {
 			obj->paras.textureCubemapArraySize = loadedTextureCubemaps.size();
 			}, mat);
 	}
@@ -727,17 +679,12 @@ void VulkanEngine::createDescriptorSetLayouts() {
 	auto camUboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
 	auto texture2DArrayLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, loadedTexture2Ds.size());
 	auto cubemapArrayLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2, loadedTextureCubemaps.size());
-	
+
 	std::array<VkDescriptorSetLayoutBinding, 3> scenebindings = { camUboLayoutBinding, texture2DArrayLayoutBinding, cubemapArrayLayoutBinding };
 	createDescriptorSetLayout(scenebindings, sceneSetLayout);
-
-		
-	//auto texture2DsamplerLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
-	//std::array<VkDescriptorSetLayoutBinding, 1> meshbindings = { texture2DsamplerLayoutBinding };
-	//createDescriptorSetLayout(meshbindings, texSetLayout);
 }
 
-void VulkanEngine::createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBinding> && descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
+void VulkanEngine::createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBinding>&& descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfo.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size());
@@ -753,10 +700,9 @@ void VulkanEngine::createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBind
 }
 
 void VulkanEngine::createMeshPipeline() {
-	
+
 	PipelineBuilder pipelineBuilder(this);
 
-	//auto tempMeshPipelines = meshPipelines;
 	std::array<VkDescriptorSetLayout, 1> meshDescriptorSetLayouts = { sceneSetLayout };
 
 	VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(meshDescriptorSetLayouts);
@@ -769,36 +715,20 @@ void VulkanEngine::createMeshPipeline() {
 		vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
 		});
 
-	for (auto& material: loadedMaterials) {
-
-		/*if (tempMeshPipelines.contains(flagBit)) {
-
-			pipelineBuilder.shaderStages.clear();
-			for (auto shaderModule : material->pShaders->shaderModules) {
-				pipelineBuilder.shaderStages.emplace_back(
-					vkinit::pipelineShaderStageCreateInfo(shaderModule.stage, shaderModule.shader, material->paras));
-			}*/
-
-		//std::visit([](auto& obj) { pipelineBuilder.setShaderStages<decltype(obj)>(obj); }, material);
+	for (auto& material : loadedMaterials) {
 		pipelineBuilder.setShaderStages(material);
 
 		pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
-		
+
 		pipelineBuilder.buildPipeline(device, renderPass, meshPipelineLayout, material->pipeline);
 
 		swapChainDeletionQueue.push_function([=]() {
 			vkDestroyPipeline(device, material->pipeline, nullptr);
-			});		
+			});
 
-		//tempMeshPipelines.erase(material->shaderFlagBits);
-		//}
 		material->pipelineLayout = meshPipelineLayout;
-		//material->pipeline = meshPipelines[flagBit];
 	}
-
-	
-
 }
 
 void VulkanEngine::createEnvLightPipeline() {
@@ -829,37 +759,8 @@ void VulkanEngine::createEnvLightPipeline() {
 
 void VulkanEngine::createGraphicsPipeline() {
 	createMeshPipeline();
-	createEnvLightPipeline();	
+	createEnvLightPipeline();
 }
-
-//void VulkanEngine::createTexDescriptorSet(TexturePtr loadedTexture, VkDescriptorSet& texDescriptorSet) {
-//	VkDescriptorSetAllocateInfo allocTexInfo{};
-//	allocTexInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-//	allocTexInfo.descriptorPool = descriptorPool;
-//	allocTexInfo.descriptorSetCount = 1;
-//	allocTexInfo.pSetLayouts = &texSetLayout;
-//
-//	if (vkAllocateDescriptorSets(device, &allocTexInfo, &texDescriptorSet) != VK_SUCCESS) {
-//		throw std::runtime_error("failed to allocate descriptor sets!");
-//	}
-//
-//	VkDescriptorImageInfo textureInfo{};
-//	textureInfo.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-//	textureInfo.imageView = loadedTexture->imageView;
-//	textureInfo.sampler = loadedTexture->sampler;
-//
-//	std::array<VkWriteDescriptorSet, 1> descriptorWrites{};
-//
-//	descriptorWrites[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-//	descriptorWrites[0].dstSet = texDescriptorSet;
-//	descriptorWrites[0].dstBinding = 0;
-//	descriptorWrites[0].dstArrayElement = 0;
-//	descriptorWrites[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-//	descriptorWrites[0].descriptorCount = 1;
-//	descriptorWrites[0].pImageInfo = &textureInfo;
-//
-//	vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-//}
 
 void VulkanEngine::createFramebuffers() {
 	swapChainFramebuffers.resize(swapChainImageViews.size());
@@ -1057,7 +958,7 @@ void VulkanEngine::createDescriptorSets() {
 	sceneDescriptorSets.resize(swapChainImages.size());
 
 	for (size_t i = 0; i < swapChainImages.size(); i++) {
-		
+
 		if (vkAllocateDescriptorSets(device, &allocSceneInfo, &sceneDescriptorSets[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
@@ -1107,7 +1008,7 @@ void VulkanEngine::createDescriptorSets() {
 		descriptorWrites[2].pImageInfo = cubemapDescriptors.data();
 
 		vkUpdateDescriptorSets(device, static_cast<uint32_t>(descriptorWrites.size()), descriptorWrites.data(), 0, nullptr);
-	}	
+	}
 }
 
 VkCommandBuffer VulkanEngine::beginSingleTimeCommands() {
@@ -1199,7 +1100,7 @@ void VulkanEngine::createCommandBuffers() {
 			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, envPipelineLayout, 0, 1, &sceneDescriptorSets[i], 0, nullptr);
 
 			//only bind the pipeline if it doesnt match with the already bound one
-			
+
 			//only bind the mesh if its a different one from last bind
 			if (object.mesh != lastMesh) {
 				if (object.mesh->pMaterial != lastMaterial) {
@@ -1327,7 +1228,7 @@ void VulkanEngine::drawFrame() {
 		updateUniformBuffer(imageIndex);
 	}
 
-	
+
 
 	// IMGUI RENDERING
 	gui->beginRender();
@@ -1650,7 +1551,7 @@ void VulkanEngine::mouseCursorCallback(GLFWwindow* window, double xpos, double y
 	if (!ImGui::GetIO().WantCaptureMouse) {
 		camera.rotate(-mouseDeltaPos.x, -mouseDeltaPos.y, 0.005f);
 	}
-	
+
 	mousePreviousPos = mouseCurrentPos;
 }
 
@@ -1673,58 +1574,3 @@ void VulkanEngine::mouseScrollCallback(GLFWwindow* window, double xoffset, doubl
 void VulkanEngine::setCamera() {
 	camera.aspectRatio = swapChainExtent.width / (float)swapChainExtent.height;
 }
-
-PipelineBuilder::PipelineBuilder(VulkanEngine* engine) {
-	bindingDescriptions = Vertex::getBindingDescriptions();
-	attributeDescriptions = Vertex::getAttributeDescriptions();
-	vertexInput = vkinit::vertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
-	inputAssembly = vkinit::inputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
-
-	viewport.x = 0.0f;
-	viewport.y = (float)engine->swapChainExtent.height;
-	viewport.width = (float)engine->swapChainExtent.width;
-	viewport.height = -(float)engine->swapChainExtent.height;
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
-
-	scissor.offset = { 0, 0 };
-	scissor.extent = engine->swapChainExtent;
-
-	viewportState = vkinit::viewportStateCreateInfo(&viewport, &scissor);
-
-	rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
-
-	multisampling = vkinit::multisamplingStateCreateInfo(engine->msaaSamples);
-
-	depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
-
-	colorBlendAttachment = vkinit::colorBlendAttachmentState();
-
-	colorBlend = vkinit::colorBlendAttachmentCreateInfo(colorBlendAttachment);
-}
-
-void PipelineBuilder::buildPipeline(const VkDevice& device, const VkRenderPass& renderPass, const VkPipelineLayout& pipelineLayout, VkPipeline& graphicsPipeline) {
-	VkGraphicsPipelineCreateInfo pipelineInfo{};
-	pipelineInfo.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO;
-	pipelineInfo.stageCount = 2;
-	pipelineInfo.pStages = shaderStages.data();
-	pipelineInfo.pVertexInputState = &vertexInput;
-	pipelineInfo.pInputAssemblyState = &inputAssembly;
-	pipelineInfo.pViewportState = &viewportState;
-	pipelineInfo.pRasterizationState = &rasterizer;
-	pipelineInfo.pMultisampleState = &multisampling;
-	pipelineInfo.pDepthStencilState = &depthStencil;
-	pipelineInfo.pColorBlendState = &colorBlend;
-	pipelineInfo.layout = pipelineLayout;
-	pipelineInfo.renderPass = renderPass;
-	pipelineInfo.subpass = 0;
-	pipelineInfo.basePipelineHandle = VK_NULL_HANDLE;
-
-	if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create graphics pipeline!");
-	}
-}
-
-
-
-

@@ -50,35 +50,16 @@ struct HDRi {
 namespace engine {
 	class Shader;
 
-	//struct TextureSet {
-		//int textureID = -1;
-		//VkDescriptorSet descriptorSet = VK_NULL_HANDLE;
-		//TextureSet() {}
-		//TextureSet(int textureID, VkDescriptorSet descriptorSet = VK_NULL_HANDLE):textureID(textureID), descriptorSet(descriptorSet){}
-		//TextureSet(const TextureSet& textureSet) : textureID(textureSet.textureID), descriptorSet(textureSet.descriptorSet) {}
-		//TextureSet(TextureSet&& textureSet): textureID(textureSet.textureID), descriptorSet(textureSet.descriptorSet){}
-		//TextureSet(std::string&& textureName, VkDescriptorSet&& descriptorSet) :textureName(textureName), descriptorSet(descriptorSet) {}
-	//};
-
 	using ShaderPtr = std::shared_ptr<Shader>;
-
-	
 
 	template <typename ParaT>
 	class Material {
 	public:
 		ShaderPtr pShaders;
 		ParaT paras;
-		//ShaderFlagBits shaderFlagBits = PBR;
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
 		std::unordered_map<std::string, int> textureArrayIndex;
-		//VkDescriptorSet textureSet = VK_NULL_HANDLE;
-
-
-		//inline Material() {}
-		//inline Material(VkPipeline pipeline, VkPipelineLayout pipelineLayout) :pipeline(pipeline), pipelineLayout(pipelineLayout) {
-		//}
 	};
 
 	

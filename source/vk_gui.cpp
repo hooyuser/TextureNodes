@@ -143,7 +143,6 @@ namespace engine {
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
 		//ImGui::StyleColorsDark();
-		//this initializes imgui for SDL
 		ImGui_ImplGlfw_InitForVulkan(engine->window, true);
 
 		//this initializes imgui for Vulkan
