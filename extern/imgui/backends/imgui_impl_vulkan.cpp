@@ -24,7 +24,7 @@
 
 // CHANGELOG
 // (minor and older changes stripped away, please see git history for details)
-//  2021-XX-XX: Platform: Added support for multiple windows via the ImGuiPlatformIO interface.
+//  2022-XX-XX: Platform: Added support for multiple windows via the ImGuiPlatformIO interface.
 //  2021-10-15: Vulkan: Call vkCmdSetScissor() at the end of render a full-viewport to reduce likehood of issues with people using VK_DYNAMIC_STATE_SCISSOR in their app without calling vkCmdSetScissor() explicitly every frame.
 //  2021-06-29: Reorganized backend to pull data from a single structure to facilitate usage with multiple-contexts (all g_XXXX access changed to bd->XXXX).
 //  2021-03-22: Vulkan: Fix mapped memory validation error when buffer sizes are not multiple of VkPhysicalDeviceLimits::nonCoherentAtomSize.
@@ -101,7 +101,7 @@ struct ImGui_ImplVulkan_Data
     VkPipelineCreateFlags       PipelineCreateFlags;
     VkDescriptorSetLayout       DescriptorSetLayout;
     VkPipelineLayout            PipelineLayout;
-    VkDescriptorSet             DescriptorSet;
+    //VkDescriptorSet             DescriptorSet;
     VkPipeline                  Pipeline;
     uint32_t                    Subpass;
     VkShaderModule              ShaderModuleVert;
@@ -409,8 +409,8 @@ static void ImGui_ImplVulkan_SetupRenderState(ImDrawData* draw_data, VkPipeline 
     // Bind pipeline and descriptor sets:
     {
         vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, pipeline);
-        VkDescriptorSet desc_set[1] = { bd->DescriptorSet };
-        vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, bd->PipelineLayout, 0, 1, desc_set, 0, NULL);
+        //VkDescriptorSet desc_set[1] = { bd->DescriptorSet };
+        //vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, bd->PipelineLayout, 0, 1, desc_set, 0, NULL);
     }
 
     // Bind Vertex And Index Buffer:
@@ -552,7 +552,7 @@ void ImGui_ImplVulkan_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer comm
                 if (clip_min.y < 0.0f) { clip_min.y = 0.0f; }
                 if (clip_max.x > fb_width) { clip_max.x = (float)fb_width; }
                 if (clip_max.y > fb_height) { clip_max.y = (float)fb_height; }
-                if (clip_max.x < clip_min.x || clip_max.y < clip_min.y)
+                if (clip_max.x <= clip_min.x || clip_max.y <= clip_min.y)
                     continue;
 
                 // Apply scissor/clipping rectangle
@@ -562,6 +562,10 @@ void ImGui_ImplVulkan_RenderDrawData(ImDrawData* draw_data, VkCommandBuffer comm
                 scissor.extent.width = (uint32_t)(clip_max.x - clip_min.x);
                 scissor.extent.height = (uint32_t)(clip_max.y - clip_min.y);
                 vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+
+                // Bind descriptorset with font or user texture
+                VkDescriptorSet desc_set[1] = { (VkDescriptorSet)pcmd->TextureId };
+                vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, g_PipelineLayout, 0, 1, desc_set, 0, NULL);
 
                 // Draw
                 vkCmdDrawIndexed(command_buffer, pcmd->ElemCount, 1, pcmd->IdxOffset + global_idx_offset, pcmd->VtxOffset + global_vtx_offset, 0);
@@ -639,20 +643,22 @@ bool ImGui_ImplVulkan_CreateFontsTexture(VkCommandBuffer command_buffer)
         check_vk_result(err);
     }
 
+    VkDescriptorSet font_descriptor_set = (VkDescriptorSet)ImGui_ImplVulkan_AddTexture(g_FontSampler, g_FontView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+    
     // Update the Descriptor Set:
-    {
-        VkDescriptorImageInfo desc_image[1] = {};
-        desc_image[0].sampler = bd->FontSampler;
-        desc_image[0].imageView = bd->FontView;
-        desc_image[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-        VkWriteDescriptorSet write_desc[1] = {};
-        write_desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
-        write_desc[0].dstSet = bd->DescriptorSet;
-        write_desc[0].descriptorCount = 1;
-        write_desc[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
-        write_desc[0].pImageInfo = desc_image;
-        vkUpdateDescriptorSets(v->Device, 1, write_desc, 0, NULL);
-    }
+    // {
+    //     VkDescriptorImageInfo desc_image[1] = {};
+    //     desc_image[0].sampler = bd->FontSampler;
+    //     desc_image[0].imageView = bd->FontView;
+    //     desc_image[0].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+    //     VkWriteDescriptorSet write_desc[1] = {};
+    //     write_desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+    //     write_desc[0].dstSet = bd->DescriptorSet;
+    //     write_desc[0].descriptorCount = 1;
+    //     write_desc[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+    //     write_desc[0].pImageInfo = desc_image;
+    //     vkUpdateDescriptorSets(v->Device, 1, write_desc, 0, NULL);
+    // }
 
     // Create the Upload Buffer:
     {
@@ -730,7 +736,7 @@ bool ImGui_ImplVulkan_CreateFontsTexture(VkCommandBuffer command_buffer)
     }
 
     // Store our identifier
-    io.Fonts->SetTexID((ImTextureID)(intptr_t)bd->FontImage);
+    io.Fonts->TexID = (ImTextureID)font_descriptor_set;
 
     return true;
 }
@@ -960,7 +966,7 @@ bool ImGui_ImplVulkan_CreateDeviceObjects()
         binding[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
         binding[0].descriptorCount = 1;
         binding[0].stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT;
-        binding[0].pImmutableSamplers = sampler;
+        //binding[0].pImmutableSamplers = sampler;
         VkDescriptorSetLayoutCreateInfo info = {};
         info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
         info.bindingCount = 1;
@@ -970,15 +976,15 @@ bool ImGui_ImplVulkan_CreateDeviceObjects()
     }
 
     // Create Descriptor Set:
-    {
-        VkDescriptorSetAllocateInfo alloc_info = {};
-        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-        alloc_info.descriptorPool = v->DescriptorPool;
-        alloc_info.descriptorSetCount = 1;
-        alloc_info.pSetLayouts = &bd->DescriptorSetLayout;
-        err = vkAllocateDescriptorSets(v->Device, &alloc_info, &bd->DescriptorSet);
-        check_vk_result(err);
-    }
+    // {
+    //     VkDescriptorSetAllocateInfo alloc_info = {};
+    //     alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+    //     alloc_info.descriptorPool = v->DescriptorPool;
+    //     alloc_info.descriptorSetCount = 1;
+    //     alloc_info.pSetLayouts = &bd->DescriptorSetLayout;
+    //     err = vkAllocateDescriptorSets(v->Device, &alloc_info, &bd->DescriptorSet);
+    //     check_vk_result(err);
+    // }
 
     if (!bd->PipelineLayout)
     {
@@ -1723,4 +1729,38 @@ void ImGui_ImplVulkan_InitPlatformInterface()
 void ImGui_ImplVulkan_ShutdownPlatformInterface()
 {
     ImGui::DestroyPlatformWindows();
+}
+
+ImTextureID ImGui_ImplVulkan_AddTexture(VkSampler sampler, VkImageView image_view, VkImageLayout image_layout){
+    VkResult err;
+
+    ImGui_ImplVulkan_InitInfo* v = &g_VulkanInitInfo;
+    VkDescriptorSet descriptor_set;
+    // Create Descriptor Set:
+    {
+        VkDescriptorSetAllocateInfo alloc_info = {};
+        alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+        alloc_info.descriptorPool = v->DescriptorPool;
+        alloc_info.descriptorSetCount = 1;
+        alloc_info.pSetLayouts = &g_DescriptorSetLayout;
+        err = vkAllocateDescriptorSets(v->Device, &alloc_info, &descriptor_set);
+        check_vk_result(err);
+    }
+
+    // Update the Descriptor Set:
+    {
+        VkDescriptorImageInfo desc_image[1] = {};
+        desc_image[0].sampler = sampler;
+        desc_image[0].imageView = image_view;
+        desc_image[0].imageLayout = image_layout;
+        VkWriteDescriptorSet write_desc[1] = {};
+        write_desc[0].sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
+        write_desc[0].dstSet = descriptor_set;
+        write_desc[0].descriptorCount = 1;
+        write_desc[0].descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER;
+        write_desc[0].pImageInfo = desc_image;
+        vkUpdateDescriptorSets(v->Device, 1, write_desc, 0, NULL);
+    }
+
+    return (ImTextureID)descriptor_set;
 }
