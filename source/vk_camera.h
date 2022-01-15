@@ -3,35 +3,51 @@
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_transform.hpp>
 
-struct SphericalCoord
-{
-	float m_theta;
-	float m_phi;
-	float m_radius;
-	glm::vec3 m_target;
+struct SphericalCoord {
+	float theta;
+	float phi;
+	float radius;
+	glm::vec3 target;
 };
 
 class Camera {
-public:
-	SphericalCoord sphericalCoord;
+private:
+	SphericalCoord spherical_coord;
 	glm::vec3 position;
 	glm::vec3 up;
 	float fov;
-	float aspectRatio;
-	float nearClip;
-	float farClip;
+	float aspect_ratio;
+	float near_clip;
+	float far_clip;
 
-	Camera();
+public:
+	Camera() :
+		spherical_coord(SphericalCoord{}), fov(0.0f), aspect_ratio(1.0f), near_clip(0.1f), far_clip(10.0f), up(glm::vec3(0.0f, 1.0f, 0.0f)) {}
 
-	Camera(SphericalCoord sphericalCoord, float fov, float aspectRatio, float nearClip, float farClip, glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f));
+	Camera(SphericalCoord spherical_coord, float fov, float aspect_ratio, float near_clip, float far_clip, glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f)) :
+		spherical_coord(spherical_coord), fov(fov), aspect_ratio(aspect_ratio), near_clip(near_clip), far_clip(far_clip), up(up) {
+		position = to_cartesian();
+	}
 
-	void rotate(float dTheta, float dPhi, float rotFactor = 1.0f);
+	void set_aspect_ratio(float aspect_ratio) {
+		this->aspect_ratio = aspect_ratio;
+	};
 
-	void zoom(float distance, float zoomFactor = 1.0f);
+	glm::vec3 get_position() const {
+		return position;
+	}
 
-	glm::vec3 toCartesian();
+	void rotate(float d_theta, float d_phi, float rot_factor = 1.0f);
 
-	glm::mat4 viewMatrix();
+	void zoom(float distance, float zoom_factor = 1.0f);
 
-	glm::mat4 projMatrix();
+	glm::vec3 to_cartesian() const;
+
+	glm::mat4 view_matrix() const {
+		return glm::lookAt(position, spherical_coord.target, up);
+	};
+
+	glm::mat4 proj_matrix() const {
+		return glm::perspective(fov, aspect_ratio, near_clip, far_clip);
+	};
 };

@@ -61,7 +61,20 @@ namespace engine {
 using MeshPtr = std::shared_ptr<engine::Mesh>;
 
 
-
+struct ViewportUI {
+	bool changed = false;
+	int toBeChangedNum;
+	float x = 0.0;
+	float y = 0.0;
+	float width = 0.0;
+	float height = 0.0;
+	VkSampleCountFlagBits msaa_count = VK_SAMPLE_COUNT_1_BIT;
+	VkRenderPass render_pass;
+	std::vector<VkFramebuffer> framebuffers;
+	std::vector<TexturePtr> color_textures;
+	std::vector<TexturePtr> depth_textures;
+	std::vector<VkCommandBuffer> cmd_buffers;
+};
 
 struct RenderObject {
 	MeshPtr mesh;
@@ -79,7 +92,11 @@ public:
 		cleanup();
 	}
 
+	uint32_t screen_width, screen_height;
+
 	struct GLFWwindow* window{ nullptr };
+
+	int windowWidth, windowHeight;
 
 	VkInstance instance;
 	VkDebugUtilsMessengerEXT debugMessenger;
@@ -98,7 +115,7 @@ public:
 	VkFormat swapChainImageFormat;
 	VkExtent2D swapChainExtent;
 	std::vector<VkImageView> swapChainImageViews;
-	std::vector<VkFramebuffer> swapChainFramebuffers;
+	//std::vector<VkFramebuffer> swapChainFramebuffers;
 
 	VkRenderPass renderPass;
 	VkDescriptorSetLayout sceneSetLayout;
@@ -123,21 +140,25 @@ public:
 	std::vector<VkDescriptorSet> sceneDescriptorSets;
 
 	VkCommandPool commandPool;
-	std::vector<VkCommandBuffer> commandBuffers;
+	
 
 	std::vector<VkFence> imagesInFlight;
 	std::vector<FrameData> frameData;
 	size_t currentFrame = 0;
 	bool framebufferResized = false;
 
-	DeletionQueue mainDeletionQueue;
+	DeletionQueue main_deletion_queue;
 	DeletionQueue swapChainDeletionQueue;
 
 	static Camera camera;
-	static glm::vec2 mousePreviousPos;
-	static glm::vec2 mouseDeltaPos;
+	static glm::vec2 mouse_previous_pos;
+	static glm::vec2 mouse_delta_pos;
 
 	std::unique_ptr<engine::GUI> gui;
+
+	ViewportUI viewport3D;
+
+	uint32_t swapchain_image_count;
 
 	void initWindow();
 
@@ -163,9 +184,17 @@ public:
 
 	void createLogicalDevice();
 
-	void createSwapChain();
+	void create_viewport_attachments();
 
-	void createImageViews();
+	void create_viewport_render_pass();
+
+	void create_viewport_framebuffers();
+
+	void create_viewport_cmd_buffers();
+
+	void create_swap_chain();
+
+	void create_swap_chain_image_views();
 
 	void parseMaterialInfo();
 
@@ -183,7 +212,9 @@ public:
 
 	void createCommandPool();
 
-	void createAttachments();
+	void record_viewport_cmd_buffer(const int commandBufferIndex);
+
+	void create_window_attachments();
 
 	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 

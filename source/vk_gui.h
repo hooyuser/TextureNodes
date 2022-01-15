@@ -16,14 +16,13 @@ namespace engine {
 		std::vector<VkFramebuffer> framebuffers;
 
 		void init(VulkanEngine* engine);
-		void createSwapchainResources();
+		void create_framebuffers();
 		void beginRender();
 		void endRender(VulkanEngine* engine, const uint32_t imageIndex);
 
 	protected:
 		void initCommandPool();
 		void initRenderPass();
-		void initFramebuffers();
 		void initCommandBuffers();
 	};
 }

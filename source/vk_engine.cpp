@@ -28,17 +28,24 @@ using json = nlohmann::json;
 
 using namespace engine;
 
-const uint32_t WIDTH = 1200;
-const uint32_t HEIGHT = 900;
+constexpr uint32_t WIDTH = 1200;
+constexpr uint32_t HEIGHT = 900;
+constexpr auto SCALE_X = 0.5;
+constexpr auto SCALE_Y = 0.5;
 
-const int MAX_FRAMES_IN_FLIGHT = 2;
-
+constexpr int MAX_FRAMES_IN_FLIGHT = 2;
+constexpr double maxFPS = 300.0;
+constexpr double maxPeriod = 1.0 / maxFPS;
 
 const std::vector<const char*> validationLayers = {
 	"VK_LAYER_KHRONOS_validation"
 };
 
-const std::vector<const char*> deviceExtensions = {
+constexpr std::array<const char*, 0> instance_extensions = {
+
+};
+
+constexpr std::array deviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME
 };
 
@@ -81,8 +88,8 @@ SphericalCoord camSphericalCoord{ glm::radians(0.0f) ,glm::radians(90.0f), 5.46f
 
 
 Camera VulkanEngine::camera = Camera(camSphericalCoord, glm::radians(45.0f), 1.0f, 0.01f, 1000.0f);
-glm::vec2 VulkanEngine::mousePreviousPos = glm::vec2(0.0);
-glm::vec2 VulkanEngine::mouseDeltaPos = glm::vec2(0.0);
+glm::vec2 VulkanEngine::mouse_previous_pos = glm::vec2(0.0);
+glm::vec2 VulkanEngine::mouse_delta_pos = glm::vec2(0.0);
 
 
 void VulkanEngine::initWindow() {
@@ -96,8 +103,8 @@ void VulkanEngine::initWindow() {
 
 	double xpos, ypos;
 	glfwGetCursorPos(window, &xpos, &ypos);
-	mousePreviousPos.x = xpos;
-	mousePreviousPos.y = ypos;
+	mouse_previous_pos.x = xpos;
+	mouse_previous_pos.y = ypos;
 	glfwSetCursorPosCallback(window, mouseCursorCallback);
 	glfwSetMouseButtonCallback(window, mouseButtonCallback);
 	glfwSetScrollCallback(window, mouseScrollCallback);
@@ -109,29 +116,31 @@ void VulkanEngine::framebufferResizeCallback(GLFWwindow* window, int width, int 
 }
 
 
-
 void VulkanEngine::initVulkan() {
 	createInstance();
 	setupDebugMessenger();
 	createSurface();
 	pickPhysicalDevice();
 	createLogicalDevice();
-	createSwapChain();//recreateSwapChain
-	createImageViews();//recreateSwapChain
-	createRenderPass();//recreateSwapChain
+
+	create_swap_chain();//recreateSwapChain
+	create_swap_chain_image_views();//recreateSwapChain
+
 	createCommandPool();
 	parseMaterialInfo();
 	createDescriptorSetLayouts();
-	createAttachments();//recreateSwapChain
-	createFramebuffers();//recreateSwapChain
-	//createTextureImage();
-	//loadModel();
-	createUniformBuffers();//recreateSwapChain
-	createDescriptorPool();//recreateSwapChain
-	createDescriptorSets();//recreateSwapChain
-	createGraphicsPipeline();//recreateSwapChain
-	//initScene();
-	createCommandBuffers();//recreateSwapChain
+
+
+	create_viewport_attachments();
+	create_viewport_render_pass();
+	create_viewport_framebuffers();
+	create_viewport_cmd_buffers();
+
+	createUniformBuffers();
+	createDescriptorPool();
+	createDescriptorSets();
+	createGraphicsPipeline();
+
 	createSyncObjects();
 
 	setCamera();
@@ -144,9 +153,18 @@ void VulkanEngine::initVulkan() {
 
 
 void VulkanEngine::mainLoop() {
+	bool running = true;
+	double lastTime = 0.0;
+
 	while (!glfwWindowShouldClose(window)) {
-		glfwPollEvents();
-		drawFrame();
+		double time = glfwGetTime();
+		double deltaTime = time - lastTime;
+		if (deltaTime >= maxPeriod) {
+			lastTime = time;
+			glfwPollEvents();
+			drawFrame();
+		}
+
 	}
 
 	vkDeviceWaitIdle(device);
@@ -158,7 +176,7 @@ void VulkanEngine::cleanup() {
 		vkDeviceWaitIdle(device);
 
 		swapChainDeletionQueue.flush();
-		mainDeletionQueue.flush();
+		main_deletion_queue.flush();
 
 		vkDestroyDevice(device, nullptr);
 
@@ -172,10 +190,10 @@ void VulkanEngine::cleanup() {
 }
 
 void VulkanEngine::recreateSwapChain() {
-	int width = 0, height = 0;
-	glfwGetFramebufferSize(window, &width, &height);
-	while (width == 0 || height == 0) {
-		glfwGetFramebufferSize(window, &width, &height);
+
+	glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
+	while (windowWidth == 0 || windowHeight == 0) {
+		glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 		glfwWaitEvents();
 	}
 
@@ -183,23 +201,23 @@ void VulkanEngine::recreateSwapChain() {
 
 	swapChainDeletionQueue.flush();
 
-	createSwapChain();
-	createImageViews();
-	createRenderPass();
-	createAttachments();
-	createFramebuffers();
-	createUniformBuffers();
-	createDescriptorPool();
-	createDescriptorSets();
-	createGraphicsPipeline();
-	//initScene();
-	createCommandBuffers();
+	create_swap_chain();
+	create_swap_chain_image_views();
+
+	//createRenderPass();
+	//create_window_attachments();
+	//createFramebuffers();
+	//createUniformBuffers();
+	//createDescriptorPool();
+	//createDescriptorSets();
+	//createGraphicsPipeline();
+	//createCommandBuffers();
 	setCamera();
 
-	imagesInFlight.resize(swapChainImages.size(), VK_NULL_HANDLE);
+	imagesInFlight.resize(swapchain_image_count, VK_NULL_HANDLE);
 
-	gui->createSwapchainResources();
-	ImGui_ImplVulkan_SetMinImageCount(swapChainImages.size());
+	gui->create_framebuffers();
+	ImGui_ImplVulkan_SetMinImageCount(swapchain_image_count);
 }
 
 void VulkanEngine::createInstance() {
@@ -260,7 +278,7 @@ void VulkanEngine::setupDebugMessenger() {
 		throw std::runtime_error("failed to set up debug messenger!");
 	}
 
-	mainDeletionQueue.push_function([=]() {
+	main_deletion_queue.push_function([=]() {
 		DestroyDebugUtilsMessengerEXT(instance, debugMessenger, nullptr);
 		});
 }
@@ -286,7 +304,9 @@ void VulkanEngine::pickPhysicalDevice() {
 		queueFamilyIndices = findQueueFamilies(device);
 		if (isDeviceSuitable(device)) {
 			physicalDevice = device;
-			msaaSamples = getMaxUsableSampleCount();
+			if (msaaSamples != VK_SAMPLE_COUNT_1_BIT) {
+				msaaSamples = getMaxUsableSampleCount();
+			}
 			break;
 		}
 	}
@@ -351,22 +371,22 @@ void VulkanEngine::createLogicalDevice() {
 	vkGetDeviceQueue(device, queueFamilyIndices.presentFamily.value(), 0, &presentQueue);
 }
 
-void VulkanEngine::createSwapChain() {
+void VulkanEngine::create_swap_chain() {
 	SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
 	VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
 	VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
 	VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
 
-	uint32_t imageCount = swapChainSupport.capabilities.minImageCount + 1;
-	if (swapChainSupport.capabilities.maxImageCount > 0 && imageCount > swapChainSupport.capabilities.maxImageCount) {
-		imageCount = swapChainSupport.capabilities.maxImageCount;
+	swapchain_image_count = swapChainSupport.capabilities.minImageCount + 1;
+	if (swapChainSupport.capabilities.maxImageCount > 0 && swapchain_image_count > swapChainSupport.capabilities.maxImageCount) {
+		swapchain_image_count = swapChainSupport.capabilities.maxImageCount;
 	}
 
 	VkSwapchainCreateInfoKHR createInfo{};
 	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
 	createInfo.surface = surface;
 
-	createInfo.minImageCount = imageCount;
+	createInfo.minImageCount = swapchain_image_count;
 	createInfo.imageFormat = surfaceFormat.format;
 	createInfo.imageColorSpace = surfaceFormat.colorSpace;
 	createInfo.imageExtent = extent;
@@ -394,9 +414,9 @@ void VulkanEngine::createSwapChain() {
 		throw std::runtime_error("failed to create swap chain!");
 	}
 
-	vkGetSwapchainImagesKHR(device, swapChain, &imageCount, nullptr);
-	swapChainImages.resize(imageCount);
-	vkGetSwapchainImagesKHR(device, swapChain, &imageCount, swapChainImages.data());
+	vkGetSwapchainImagesKHR(device, swapChain, &swapchain_image_count, nullptr);
+	swapChainImages.resize(swapchain_image_count);
+	vkGetSwapchainImagesKHR(device, swapChain, &swapchain_image_count, swapChainImages.data());
 
 	swapChainImageFormat = surfaceFormat.format;
 	swapChainExtent = extent;
@@ -406,7 +426,7 @@ void VulkanEngine::createSwapChain() {
 		});
 }
 
-void VulkanEngine::createImageViews() {
+void VulkanEngine::create_swap_chain_image_views() {
 	swapChainImageViews.resize(swapChainImages.size());
 
 	for (uint32_t i = 0; i < swapChainImages.size(); i++) {
@@ -694,7 +714,7 @@ void VulkanEngine::createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBind
 		throw std::runtime_error("failed to create descriptor set layout!");
 	}
 
-	mainDeletionQueue.push_function([=]() {
+	main_deletion_queue.push_function([=]() {
 		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 		});
 }
@@ -721,9 +741,9 @@ void VulkanEngine::createMeshPipeline() {
 		pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
 
-		pipelineBuilder.buildPipeline(device, renderPass, meshPipelineLayout, material->pipeline);
+		pipelineBuilder.buildPipeline(device, viewport3D.render_pass, meshPipelineLayout, material->pipeline);
 
-		swapChainDeletionQueue.push_function([=]() {
+		main_deletion_queue.push_function([=]() {
 			vkDestroyPipeline(device, material->pipeline, nullptr);
 			});
 
@@ -746,12 +766,12 @@ void VulkanEngine::createEnvLightPipeline() {
 
 	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS_OR_EQUAL);
 
-	pipelineBuilder.buildPipeline(device, renderPass, envPipelineLayout, envPipeline);
+	pipelineBuilder.buildPipeline(device, viewport3D.render_pass, envPipelineLayout, envPipeline);
 
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipelineLayout = envPipelineLayout;
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipeline = envPipeline;
 
-	swapChainDeletionQueue.push_function([=]() {
+	main_deletion_queue.push_function([=]() {
 		vkDestroyPipeline(device, envPipeline, nullptr);
 		vkDestroyPipelineLayout(device, envPipelineLayout, nullptr);
 		});
@@ -762,27 +782,27 @@ void VulkanEngine::createGraphicsPipeline() {
 	createEnvLightPipeline();
 }
 
-void VulkanEngine::createFramebuffers() {
-	swapChainFramebuffers.resize(swapChainImageViews.size());
-
-	for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-		std::array<VkImageView, 3> attachments = {
-			pColorImage->imageView,
-			pDepthImage->imageView,
-			swapChainImageViews[i]
-		};
-
-		VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(renderPass, swapChainExtent, attachments);
-
-		if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create framebuffer!");
-		}
-
-		swapChainDeletionQueue.push_function([=]() {
-			vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
-			});
-	}
-}
+//void VulkanEngine::createFramebuffers() {
+//	swapChainFramebuffers.resize(swapChainImageViews.size());
+//
+//	for (size_t i = 0; i < swapChainImageViews.size(); i++) {
+//		std::array<VkImageView, 3> attachments = {
+//			pColorImage->imageView,
+//			pDepthImage->imageView,
+//			swapChainImageViews[i]
+//		};
+//
+//		VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(renderPass, swapChainExtent, attachments);
+//
+//		if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
+//			throw std::runtime_error("failed to create framebuffer!");
+//		}
+//
+//		swapChainDeletionQueue.push_function([=]() {
+//			vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
+//			});
+//	}
+//}
 
 void VulkanEngine::createCommandPool() {
 
@@ -793,12 +813,12 @@ void VulkanEngine::createCommandPool() {
 		throw std::runtime_error("failed to create graphics command pool!");
 	}
 
-	mainDeletionQueue.push_function([=]() {
+	main_deletion_queue.push_function([=]() {
 		vkDestroyCommandPool(device, commandPool, nullptr);
 		});
 }
 
-void VulkanEngine::createAttachments() {
+void VulkanEngine::create_window_attachments() {
 	VkFormat colorFormat = swapChainImageFormat;
 	VkFormat depthFormat = findDepthFormat();
 
@@ -827,6 +847,139 @@ void VulkanEngine::createAttachments() {
 		AFTER_SWAPCHAIN_BIT);
 }
 
+void VulkanEngine::create_viewport_attachments() {
+	VkFormat colorFormat = swapChainImageFormat;
+	VkFormat depthFormat = findDepthFormat();
+
+	auto mode = glfwGetVideoMode(glfwGetPrimaryMonitor()); //get monitor resolution
+	screen_width = mode->width;
+	screen_height = mode->height;
+
+	for (size_t i = 0; i < swapchain_image_count; i++) {
+		viewport3D.color_textures.emplace_back(engine::Texture::create_2D_render_target(this,
+			screen_width,
+			screen_height,
+			colorFormat,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			BEFORE_SWAPCHAIN_BIT));
+
+		viewport3D.depth_textures.emplace_back(engine::Texture::create_2D_render_target(this,
+			screen_width,
+			screen_height,
+			depthFormat,
+			VK_IMAGE_ASPECT_DEPTH_BIT,
+			BEFORE_SWAPCHAIN_BIT));
+	}
+}
+
+void VulkanEngine::create_viewport_render_pass() {
+	VkAttachmentDescription colorAttachment{};
+	colorAttachment.format = swapChainImageFormat;
+	colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+	colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+
+	VkAttachmentReference colorAttachmentRef{};
+	colorAttachmentRef.attachment = 0;
+	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentDescription depthAttachment{};
+	depthAttachment.format = findDepthFormat();
+	depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
+	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkAttachmentReference depthAttachmentRef{};
+	depthAttachmentRef.attachment = 1;
+	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+
+	VkSubpassDescription subpass{};
+	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+	subpass.colorAttachmentCount = 1;
+	subpass.pColorAttachments = &colorAttachmentRef;
+	subpass.pDepthStencilAttachment = &depthAttachmentRef;
+
+	std::array<VkSubpassDependency, 2> dependencies;
+
+	dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+	dependencies[0].dstSubpass = 0;
+	dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+	dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+	dependencies[0].srcAccessMask = 0;
+	dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+	dependencies[0].dependencyFlags = 0;
+
+	dependencies[1].srcSubpass = 0;
+	dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+	dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+	dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+	dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+	dependencies[1].dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+	dependencies[1].dependencyFlags = 0;
+
+	std::array attachments = { colorAttachment, depthAttachment };
+
+	VkRenderPassCreateInfo renderPassInfo{};
+	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+	renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());;
+	renderPassInfo.pAttachments = attachments.data();
+	renderPassInfo.subpassCount = 1;
+	renderPassInfo.pSubpasses = &subpass;
+	renderPassInfo.dependencyCount = static_cast<uint32_t>(dependencies.size());
+	renderPassInfo.pDependencies = dependencies.data();
+	renderPassInfo.pNext = nullptr;
+
+	if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &viewport3D.render_pass) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create render pass!");
+	}
+
+	main_deletion_queue.push_function([=]() {
+		vkDestroyRenderPass(device, viewport3D.render_pass, nullptr);
+		});
+}
+
+
+void VulkanEngine::create_viewport_framebuffers() {
+	viewport3D.framebuffers.resize(swapchain_image_count);
+
+	for (size_t i = 0; i < swapchain_image_count; i++) {
+		std::array attachments = {
+			viewport3D.color_textures[i]->imageView,
+			viewport3D.depth_textures[i]->imageView,
+		};
+
+		VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(viewport3D.render_pass, VkExtent2D{ screen_width , screen_height }, attachments);
+
+		if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &viewport3D.framebuffers[i]) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create framebuffer!");
+		}
+
+		main_deletion_queue.push_function([=]() {
+			vkDestroyFramebuffer(device, viewport3D.framebuffers[i], nullptr);
+			});
+	}
+}
+
+void VulkanEngine::create_viewport_cmd_buffers() {
+	viewport3D.cmd_buffers.resize(swapchain_image_count);
+	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)viewport3D.cmd_buffers.size());
+
+	if (vkAllocateCommandBuffers(device, &cmdAllocInfo, viewport3D.cmd_buffers.data()) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate command buffers!");
+	}
+
+	main_deletion_queue.push_function([=]() {
+		vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(viewport3D.cmd_buffers.size()), viewport3D.cmd_buffers.data());
+		});
+}
 
 VkFormat VulkanEngine::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
 	for (VkFormat format : candidates) {
@@ -896,7 +1049,7 @@ VkImageView VulkanEngine::createImageView(VkImage image, VkFormat format, VkImag
 			});
 	}
 	else if (imageViewDescription == BEFORE_SWAPCHAIN_BIT) {
-		mainDeletionQueue.push_function([=]() {
+		main_deletion_queue.push_function([=]() {
 			vkDestroyImageView(device, imageView, nullptr);
 			});
 	}
@@ -907,27 +1060,20 @@ VkImageView VulkanEngine::createImageView(VkImage image, VkFormat format, VkImag
 	return imageView;
 }
 
-void VulkanEngine::loadModel() {
-
-	//meshes.emplace("viking_room", Mesh::loadFromObj(this, "assets/models/viking_room.obj"));
-	//meshes.emplace("dragon", Mesh::loadFromObj(this, "assets/models/dragon.obj"));
-	//meshes.emplace("skybox", Mesh::loadFromObj(this, "assets/models/skybox.obj")); 
-}
-
 void VulkanEngine::createUniformBuffers() {
-	pUniformBuffers.resize(swapChainImages.size());
+	pUniformBuffers.resize(swapchain_image_count);
 
-	for (size_t i = 0; i < swapChainImages.size(); i++) {
+	for (size_t i = 0; i < swapchain_image_count; i++) {
 		pUniformBuffers[i] = engine::Buffer::createBuffer(this,
 			sizeof(UniformBufferObject),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			AFTER_SWAPCHAIN_BIT);
+			BEFORE_SWAPCHAIN_BIT);
 	}
 }
 
 void VulkanEngine::createDescriptorPool() {
-	const uint32_t descriptorSize = swapChainImages.size() * 100;
+	const uint32_t descriptorSize = swapchain_image_count * 100;
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorSize },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorSize }
@@ -944,7 +1090,7 @@ void VulkanEngine::createDescriptorPool() {
 		throw std::runtime_error("failed to create descriptor pool!");
 	}
 
-	swapChainDeletionQueue.push_function([=]() {
+	main_deletion_queue.push_function([=]() {
 		vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 		});
 }
@@ -955,9 +1101,9 @@ void VulkanEngine::createDescriptorSets() {
 	allocSceneInfo.descriptorPool = descriptorPool;
 	allocSceneInfo.descriptorSetCount = 1;
 	allocSceneInfo.pSetLayouts = &sceneSetLayout;
-	sceneDescriptorSets.resize(swapChainImages.size());
+	sceneDescriptorSets.resize(swapchain_image_count);
 
-	for (size_t i = 0; i < swapChainImages.size(); i++) {
+	for (size_t i = 0; i < swapchain_image_count; i++) {
 
 		if (vkAllocateDescriptorSets(device, &allocSceneInfo, &sceneDescriptorSets[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
@@ -1069,82 +1215,112 @@ uint32_t VulkanEngine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags
 }
 
 void VulkanEngine::createCommandBuffers() {
-	commandBuffers.resize(swapChainFramebuffers.size());
-	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)commandBuffers.size());
+	viewport3D.cmd_buffers.resize(swapchain_image_count);
+	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)viewport3D.cmd_buffers.size());
 
-	if (vkAllocateCommandBuffers(device, &cmdAllocInfo, commandBuffers.data()) != VK_SUCCESS) {
+	if (vkAllocateCommandBuffers(device, &cmdAllocInfo, viewport3D.cmd_buffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
-	for (size_t i = 0; i < commandBuffers.size(); i++) {
-		VkCommandBufferBeginInfo beginInfo{};
-		beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-		if (vkBeginCommandBuffer(commandBuffers[i], &beginInfo) != VK_SUCCESS) {
-			throw std::runtime_error("failed to begin recording command buffer!");
-		}
 
-		VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(renderPass, swapChainExtent, swapChainFramebuffers[i]);
-
-		vkCmdBeginRenderPass(commandBuffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-		MeshPtr lastMesh = nullptr;
-		MaterialPtrV lastMaterial;
-
-		auto cmd = commandBuffers[i];
-
-		for (int k = 0; k < renderables.size(); k++)
-		{
-			RenderObject& object = renderables[k];
-
-			vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, envPipelineLayout, 0, 1, &sceneDescriptorSets[i], 0, nullptr);
-
-			//only bind the pipeline if it doesnt match with the already bound one
-
-			//only bind the mesh if its a different one from last bind
-			if (object.mesh != lastMesh) {
-				if (object.mesh->pMaterial != lastMaterial) {
-					if (std::holds_alternative<PbrMaterialPtr>(object.mesh->pMaterial)) {
-						vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std::get<PbrMaterialPtr>(object.mesh->pMaterial)->pipeline);
-					}
-					else if (std::holds_alternative<HDRiMaterialPtr>(object.mesh->pMaterial)) {
-						vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std::get<HDRiMaterialPtr>(object.mesh->pMaterial)->pipeline);
-					}
-					//vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.mesh->pMaterial->pipeline);
-					lastMaterial = object.mesh->pMaterial;
-
-					//if (!(object.material->textureArrayIndex.empty())) {
-						//for (auto [name, index] : object.material->textureArrayIndex) {
-							//vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, object.material->pipelineLayout, 1, 1, &loadedTextures[index]->descriptorSet, 0, nullptr);
-						//}			
-					//}
-				}
-				//bind the mesh vertex buffer with offset 0
-				VkBuffer vertexBuffers[] = { object.mesh->pVertexBuffer->buffer };
-				VkDeviceSize offsets[] = { 0 };
-				vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
-
-				vkCmdBindIndexBuffer(cmd, object.mesh->pIndexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
-				lastMesh = object.mesh;
-			}
-			//we can now draw
-			vkCmdDrawIndexed(cmd, static_cast<uint32_t>(object.mesh->_indices.size()), 1, 0, 0, 0);
-		}
-
-		vkCmdEndRenderPass(commandBuffers[i]);
-
-		if (vkEndCommandBuffer(commandBuffers[i]) != VK_SUCCESS) {
-			throw std::runtime_error("failed to record command buffer!");
-		}
-	}
 	swapChainDeletionQueue.push_function([=]() {
-		vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
+		vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(viewport3D.cmd_buffers.size()), viewport3D.cmd_buffers.data());
 		});
+}
+
+void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
+	auto const i = commandBufferIndex;
+
+	VkCommandBufferBeginInfo beginInfo{};
+	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+
+	if (vkBeginCommandBuffer(viewport3D.cmd_buffers[i], &beginInfo) != VK_SUCCESS) {
+		throw std::runtime_error("failed to begin recording command buffer!");
+	}
+
+	VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(viewport3D.render_pass, swapChainExtent, viewport3D.framebuffers[i]);
+
+	vkCmdBeginRenderPass(viewport3D.cmd_buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+	VkViewport viewport = {};
+	//if (static_cast<float>(windowWidth) / windowHeight >= viewport3D.width / viewport3D.height) {
+	//	viewport.width = viewport3D.height * static_cast<float>(windowWidth) / windowHeight;
+	//	viewport.height = -viewport3D.height;
+	//	viewport.x = viewport3D.x - 0.5 * (viewport.width - viewport3D.width);
+	//	viewport.y = viewport3D.y + viewport3D.height;
+	//} 
+	//else {
+	//	viewport.width = viewport3D.width;
+	//	viewport.height = -viewport3D.width * static_cast<float>(windowHeight) / windowWidth ;
+	//	viewport.x = viewport3D.x - 0.5 * (viewport.width - viewport3D.width);
+	//	viewport.y = viewport3D.y - viewport.height;
+	//}
+	viewport.x = 0.0f;
+	viewport.y = viewport3D.height;
+	viewport.width = viewport3D.width;
+	viewport.height = -viewport3D.height;    // flip y axis
+	viewport.minDepth = 0.0f;
+	viewport.maxDepth = 1.0f;
+
+	VkRect2D scissor = {};
+	scissor.extent.width = viewport3D.width;
+	scissor.extent.height = viewport3D.height;
+	scissor.offset.x = 0;
+	scissor.offset.y = 0;
+
+	vkCmdSetViewport(viewport3D.cmd_buffers[i], 0, 1, &viewport);
+	vkCmdSetScissor(viewport3D.cmd_buffers[i], 0, 1, &scissor);
+
+	MeshPtr lastMesh = nullptr;
+	MaterialPtrV lastMaterial;
+
+	auto cmd = viewport3D.cmd_buffers[i];
+
+	for (int k = 0; k < renderables.size(); k++)
+	{
+		RenderObject& object = renderables[k];
+
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, envPipelineLayout, 0, 1, &sceneDescriptorSets[i], 0, nullptr);
+
+		//only bind the pipeline if it doesnt match with the already bound one
+
+		//only bind the mesh if its a different one from last bind
+		if (object.mesh != lastMesh) {
+			if (object.mesh->pMaterial != lastMaterial) {
+				if (std::holds_alternative<PbrMaterialPtr>(object.mesh->pMaterial)) {
+					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std::get<PbrMaterialPtr>(object.mesh->pMaterial)->pipeline);
+				}
+				else if (std::holds_alternative<HDRiMaterialPtr>(object.mesh->pMaterial)) {
+					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std::get<HDRiMaterialPtr>(object.mesh->pMaterial)->pipeline);
+				}
+				lastMaterial = object.mesh->pMaterial;
+
+			}
+			//bind the mesh vertex buffer with offset 0
+			VkBuffer vertexBuffers[] = { object.mesh->pVertexBuffer->buffer };
+			VkDeviceSize offsets[] = { 0 };
+			vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+
+			vkCmdBindIndexBuffer(cmd, object.mesh->pIndexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+			lastMesh = object.mesh;
+		}
+		//we can now draw
+		vkCmdDrawIndexed(cmd, static_cast<uint32_t>(object.mesh->_indices.size()), 1, 0, 0, 0);
+	}
+
+	vkCmdEndRenderPass(viewport3D.cmd_buffers[i]);
+
+
+
+	if (vkEndCommandBuffer(viewport3D.cmd_buffers[i]) != VK_SUCCESS) {
+		throw std::runtime_error("failed to record command buffer!");
+	}
 }
 
 void VulkanEngine::createSyncObjects() {
 	frameData.resize(MAX_FRAMES_IN_FLIGHT);
-	imagesInFlight.resize(swapChainImages.size(), VK_NULL_HANDLE);
+	imagesInFlight.resize(swapchain_image_count, VK_NULL_HANDLE);
 
 	VkSemaphoreCreateInfo semaphoreInfo = vkinit::semaphoreCreateInfo();
 	VkFenceCreateInfo fenceInfo = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
@@ -1156,30 +1332,12 @@ void VulkanEngine::createSyncObjects() {
 			throw std::runtime_error("failed to create synchronization objects for a frame!");
 		}
 
-		mainDeletionQueue.push_function([=]() {
+		main_deletion_queue.push_function([=]() {
 			vkDestroyFence(device, frameData[i].inFlightFence, nullptr);
 			vkDestroySemaphore(device, frameData[i].renderFinishedSemaphore, nullptr);
 			vkDestroySemaphore(device, frameData[i].imageAvailableSemaphore, nullptr);
 			});
 	}
-}
-
-void VulkanEngine::initScene() {
-	renderables.clear();
-
-	RenderObject viking;
-	//viking.mesh = meshes["dragon"];
-	//viking.material = materials["dragon"];
-	viking.transformMatrix = glm::mat4{ 1.0f };
-
-	renderables.emplace_back(viking);
-
-	RenderObject skybox;
-	//skybox.mesh = meshes["skybox"];
-	//skybox.material = materials["env_light"];
-	skybox.transformMatrix = glm::mat4{ 1.0f };
-
-	renderables.emplace_back(skybox);
 }
 
 void VulkanEngine::initImgui() {
@@ -1188,17 +1346,18 @@ void VulkanEngine::initImgui() {
 }
 
 void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
-	static auto startTime = std::chrono::high_resolution_clock::now();
+	static auto start_time = std::chrono::high_resolution_clock::now();
 
-	auto currentTime = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration<float, std::chrono::seconds::period>(currentTime - startTime).count();
+	auto current_time = std::chrono::high_resolution_clock::now();
+	float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
 
 	UniformBufferObject ubo{};
 	ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	ubo.view = camera.viewMatrix();
+	camera.set_aspect_ratio(viewport3D.width / viewport3D.height);
+	ubo.view = camera.view_matrix();
 	//ubo.view = glm::mat4(glm::mat3(camera.viewMatrix()));
-	ubo.proj = camera.projMatrix();
-	ubo.pos = camera.position;
+	ubo.proj = camera.proj_matrix();
+	ubo.pos = camera.get_position();
 	//ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
 	//ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
 	//ubo.proj[1][1] *= -1;
@@ -1222,25 +1381,14 @@ void VulkanEngine::drawFrame() {
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
-	ImGuiIO& io = ImGui::GetIO();
-
-	if (!io.WantCaptureMouse) {
-		updateUniformBuffer(imageIndex);
-	}
-
 
 
 	// IMGUI RENDERING
 	gui->beginRender();
 
-
-	//ImGui::ShowDemoWindow();
-
 	{
 		static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
 
-		// We are using the ImGuiWindowFlags_NoDocking flag to make the parent window not dockable into,
-		// because it would be confusing to have two docking targets within each others.
 		ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
 
 		ImGuiViewport* viewport = ImGui::GetMainViewport();
@@ -1269,49 +1417,145 @@ void VulkanEngine::drawFrame() {
 
 		// DockSpace
 		ImGuiIO& io = ImGui::GetIO();
-		if (io.ConfigFlags & ImGuiConfigFlags_DockingEnable)
+
+		ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
+		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+
+		static auto first_time = true;
+
+		static ImGuiID dock_id_right_p, dock_id_down, dock_id_left;
+		ImGuiID dock_id_right = ImGui::GetID("Right");;
+
+		if (first_time)
 		{
-			ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-			ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+			first_time = false;
 
-			static auto first_time = true;
-			if (first_time)
-			{
-				first_time = false;
+			ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
+			ImGui::DockBuilderAddNode(dockspace_id, dockspace_flags | ImGuiDockNodeFlags_DockSpace);
+			ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+			//auto dockspace_id_Node = ImGui::DockBuilderGetNode(dockspace_id);
 
-				ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
-				ImGui::DockBuilderAddNode(dockspace_id, dockspace_flags | ImGuiDockNodeFlags_DockSpace);
-				ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+			// split the dockspace into 2 nodes -- DockBuilderSplitNode takes in the following args in the following order
+			//   window ID to split, direction, fraction (between 0 and 1), the final two setting let's us choose which id we want (which ever one we DON'T set as NULL, will be returned by the function)
+			//                                                              out_id_at_dir is the id of the node in the direction we specified earlier, out_id_at_opposite_dir is in the opposite direction
 
-				// split the dockspace into 2 nodes -- DockBuilderSplitNode takes in the following args in the following order
-				//   window ID to split, direction, fraction (between 0 and 1), the final two setting let's us choose which id we want (which ever one we DON'T set as NULL, will be returned by the function)
-				//                                                              out_id_at_dir is the id of the node in the direction we specified earlier, out_id_at_opposite_dir is in the opposite direction
-				auto dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.2f, nullptr, &dockspace_id);
-				auto dock_id_down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.25f, nullptr, &dockspace_id);
+			dock_id_down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.5f, nullptr, &dockspace_id);
+			auto up_node = ImGui::DockBuilderGetNode(dockspace_id);
+			up_node->SetLocalFlags(up_node->LocalFlags | ImGuiDockNodeFlags_PassthruCentralNode);
+			//auto dock_id_down_Node = ImGui::DockBuilderGetNode(dock_id_down);
 
-				// we now dock our windows into the docking node we made above
-				ImGui::DockBuilderDockWindow("Down", dock_id_down);
-				ImGui::DockBuilderDockWindow("Left", dock_id_left);
-				ImGui::DockBuilderFinish(dockspace_id);
-			}
+			dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.5f, nullptr, &dock_id_right_p);
+			auto dock_id_right_p_Node = ImGui::DockBuilderGetNode(dock_id_right_p);
+
+			//dock_id_right_p_Node->SetLocalFlags(dock_id_right_Node->LocalFlags | ImGuiDockNodeFlags_PassthruCentralNode);
+			//dock_id_right_p_Node->UpdateMergedFlags();
+
+			auto size = dock_id_right_p_Node->Size;
+			auto pos = dock_id_right_p_Node->Pos;
+			ImGui::DockBuilderAddNode(dock_id_right, dockspace_flags);
+			ImGui::DockBuilderSetNodeSize(dock_id_right, size);
+			ImGui::DockBuilderSetNodePos(dock_id_right, pos);
+			auto right_node = ImGui::DockBuilderGetNode(dock_id_right);
+			up_node->ChildNodes[0] = ImGui::DockBuilderGetNode(dock_id_left);
+			up_node->ChildNodes[1] = right_node;
+			right_node->ParentNode = up_node;
+
+			//dock_id_right_Node->LocalFlags |= ImGuiDockNodeFlags_PassthruCentralNode;
+			//dock_id_right_Node->LocalFlagsInWindows |= ImGuiDockNodeFlags_PassthruCentralNode;
+			//dock_id_right_Node->UpdateMergedFlags();
+
+			// we now dock our windows into the docking node we made above
+			ImGui::DockBuilderDockWindow("Down", dock_id_down);
+			ImGui::DockBuilderDockWindow("Left", dock_id_left);
+			ImGui::DockBuilderDockWindow("Right", dock_id_right);
+			ImGui::DockBuilderFinish(dockspace_id);
+		}
+
+		//auto viewport3DNode = ImGui::DockBuilderGetNode(dock_id_right);
+		//if (viewport3D.width != viewport3DNode->Size.x) {
+		//	viewport3D.width = viewport3DNode->Size.x;
+		//	viewport3D.toBeChangedNum = commandBuffers.size();
+		//}
+		//if (viewport3D.height != viewport3DNode->Size.y) {
+		//	viewport3D.height = viewport3DNode->Size.y;
+		//	viewport3D.toBeChangedNum = commandBuffers.size();
+		//}
+		//if (viewport3D.x != viewport3DNode->Pos.x) {
+		//	viewport3D.x = viewport3DNode->Pos.x;
+		//	viewport3D.toBeChangedNum = commandBuffers.size();
+		//}
+		//if (viewport3D.y = viewport3DNode->Pos.y) {
+		//	viewport3D.y = viewport3DNode->Pos.y;
+		//	viewport3D.toBeChangedNum = commandBuffers.size();
+		//}
+		ImGui::End();
+
+		auto viewport_3D_window_flags = ImGuiWindowFlags_NoBackground;
+
+		ImGui::Begin("Left");
+
+		{
+			ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+			ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
+			ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
+			ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);
+		}
+		ImGui::End();
+
+		ImGui::Begin("Down");
+		{
+			ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+			ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
+			ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
+			ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);
+		}
+		//node = ImGui::DockBuilderGetNode(dock_id_down);
+		//ImGui::Text("Pos = (%f, %f)", node->Pos.x, node->Pos.y);
+		//ImGui::Text("Size = (%f, %f)", node->Size.x, node->Size.y);
+		ImGui::End();
+
+		ImGui::SetNextWindowBgAlpha(0.0f);
+		//ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Set window background to red
+		//ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Set window background to red
+		ImGui::Begin("Right", nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
+		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+		ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
+		viewport3D.width = viewportPanelSize.x;
+		viewport3D.height = viewportPanelSize.y;
+		viewport3D.x = viewportPanelPos.x;
+		viewport3D.y = viewportPanelPos.y;
+		//::PopStyleColor(2);
+		//node = ImGui::DockBuilderGetNode(dock_id_right);
+		//ImGui::Text("Pos = (%f, %f)", node->Pos.x, node->Pos.y);
+		//ImGui::Text("Size = (%f, %f)", node->Size.x, node->Size.y);
+		{
+			ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+			ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
+			ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
+			ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);
 		}
 
 		ImGui::End();
 
-		ImGui::Begin("Left");
-		ImGui::Text("Hello, left!");
-		ImGui::End();
-
-		ImGui::Begin("Down");
-		ImGui::Text("Hello, down!");
-		ImGui::End();
 	}
-
-
 
 	gui->endRender(this, imageIndex);
 
-	std::array<VkCommandBuffer, 2> submitCommandBuffers = { commandBuffers[imageIndex], gui->commandBuffers[imageIndex] };
+
+	//if (viewport3D.toBeChangedNum > 0) {
+	//	record_viewport_cmd_buffer(imageIndex);
+	//	--viewport3D.toBeChangedNum;
+	//}
+
+	ImGuiIO& io = ImGui::GetIO();
+
+	if (!io.WantCaptureMouse) {
+		updateUniformBuffer(imageIndex);
+	}
+	record_viewport_cmd_buffer(imageIndex);
+
+	std::array submitCommandBuffers = { viewport3D.cmd_buffers[imageIndex], gui->commandBuffers[imageIndex] };
+	//std::array submitCommandBuffers = { gui->commandBuffers[imageIndex] };
 
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1384,12 +1628,12 @@ VkExtent2D VulkanEngine::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabi
 		return capabilities.currentExtent;
 	}
 	else {
-		int width, height;
-		glfwGetFramebufferSize(window, &width, &height);
+
+		glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 
 		VkExtent2D actualExtent = {
-			static_cast<uint32_t>(width),
-			static_cast<uint32_t>(height)
+			static_cast<uint32_t>(windowWidth),
+			static_cast<uint32_t>(windowHeight)
 		};
 
 		actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
@@ -1499,6 +1743,8 @@ std::vector<const char*> VulkanEngine::getRequiredExtensions() {
 		extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 	}
 
+	extensions.insert(extensions.end(), instance_extensions.begin(), instance_extensions.end());
+
 	return extensions;
 }
 
@@ -1546,13 +1792,13 @@ void VulkanEngine::mouseCursorCallback(GLFWwindow* window, double xpos, double y
 		return;
 	}
 	auto mouseCurrentPos = glm::vec2(xpos, ypos);
-	mouseDeltaPos = mouseCurrentPos - mousePreviousPos;
+	mouse_delta_pos = mouseCurrentPos - mouse_previous_pos;
 
 	if (!ImGui::GetIO().WantCaptureMouse) {
-		camera.rotate(-mouseDeltaPos.x, -mouseDeltaPos.y, 0.005f);
+		camera.rotate(-mouse_delta_pos.x, -mouse_delta_pos.y, 0.005f);
 	}
 
-	mousePreviousPos = mouseCurrentPos;
+	mouse_previous_pos = mouseCurrentPos;
 }
 
 void VulkanEngine::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
@@ -1560,8 +1806,8 @@ void VulkanEngine::mouseButtonCallback(GLFWwindow* window, int button, int actio
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
-		mousePreviousPos.x = xpos;
-		mousePreviousPos.y = ypos;
+		mouse_previous_pos.x = xpos;
+		mouse_previous_pos.y = ypos;
 	}
 }
 
@@ -1572,5 +1818,5 @@ void VulkanEngine::mouseScrollCallback(GLFWwindow* window, double xoffset, doubl
 }
 
 void VulkanEngine::setCamera() {
-	camera.aspectRatio = swapChainExtent.width / (float)swapChainExtent.height;
+	camera.set_aspect_ratio(swapChainExtent.width / (float)swapChainExtent.height);
 }

@@ -82,13 +82,13 @@ VkPipelineInputAssemblyStateCreateInfo vkinit::inputAssemblyCreateInfo(VkPrimiti
 	return inputAssemblyInfo;
 }
 
-VkPipelineViewportStateCreateInfo vkinit::viewportStateCreateInfo(const VkViewport* viewport, const VkRect2D* scissor) {
+VkPipelineViewportStateCreateInfo vkinit::viewportStateCreateInfo(const VkViewport* pViewport, const VkRect2D* pScissor) {
 	VkPipelineViewportStateCreateInfo viewportState{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 
 	viewportState.viewportCount = 1;
-	viewportState.pViewports = viewport;
+	viewportState.pViewports = pViewport;
 	viewportState.scissorCount = 1;
-	viewportState.pScissors = scissor;
+	viewportState.pScissors = pScissor;
 	return viewportState;
 }
 

@@ -12,11 +12,11 @@ namespace engine {
 		VkAttachmentDescription colorAttachment{};
 		colorAttachment.format = engine->swapChainImageFormat;
 		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_LOAD;
+		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
 		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
 		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
 		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
 
 		VkAttachmentReference colorAttachmentRef{};
@@ -49,15 +49,15 @@ namespace engine {
 			throw std::runtime_error("failed to create render pass!");
 		}
 
-		engine->swapChainDeletionQueue.push_function([=]() {
+		engine->main_deletion_queue.push_function([=]() {
 			vkDestroyRenderPass(engine->device, renderPass, nullptr);
 			});
 	}
 
-	void GUI::initFramebuffers() {
-		framebuffers.resize(engine->swapChainImageViews.size());
+	void GUI::create_framebuffers() {
+		framebuffers.resize(engine->swapchain_image_count);
 
-		for (size_t i = 0; i < engine->swapChainImageViews.size(); i++) {
+		for (size_t i = 0; i < engine->swapchain_image_count; i++) {
 			std::array<VkImageView, 1> attachments = {
 				engine->swapChainImageViews[i]
 			};
@@ -82,20 +82,20 @@ namespace engine {
 			throw std::runtime_error("failed to create graphics command pool!");
 		}
 
-		engine->mainDeletionQueue.push_function([=]() {
+		engine->main_deletion_queue.push_function([=]() {
 			vkDestroyCommandPool(engine->device, commandPool, nullptr);
 			});
 	}
 
 	void GUI::initCommandBuffers() {
-		commandBuffers.resize(engine->swapChainFramebuffers.size());
+		commandBuffers.resize(engine->swapchain_image_count);
 		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)commandBuffers.size());
 
 		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, commandBuffers.data()) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
 
-		engine->mainDeletionQueue.push_function([=]() {
+		engine->main_deletion_queue.push_function([=]() {
 			vkFreeCommandBuffers(engine->device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
 			});
 	}
@@ -105,7 +105,7 @@ namespace engine {
 		engine = vulkanEngine;
 		initCommandPool();
 		initRenderPass();
-		initFramebuffers();
+		create_framebuffers();
 		initCommandBuffers();
 
 		VkDescriptorPoolSize pool_sizes[] =
@@ -171,7 +171,7 @@ namespace engine {
 		ImGui_ImplVulkan_DestroyFontUploadObjects();
 
 		//add the destroy the imgui created structures
-		engine->mainDeletionQueue.push_function([=]() {
+		engine->main_deletion_queue.push_function([=]() {
 			vkDestroyDescriptorPool(engine->device, imguiDescriptorPool, nullptr);
 			ImGui_ImplVulkan_Shutdown();
 			ImGui_ImplGlfw_Shutdown();
@@ -179,10 +179,10 @@ namespace engine {
 			});
 	}
 
-	void GUI::createSwapchainResources() {
-		initRenderPass();
-		initFramebuffers();
-	}
+	//void GUI::createSwapchainResources() {
+	//	initRenderPass();
+	//	create_framebuffers();
+	//}
 
 	void GUI::beginRender()
 	{
