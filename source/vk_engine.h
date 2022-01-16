@@ -64,8 +64,6 @@ using MeshPtr = std::shared_ptr<engine::Mesh>;
 struct ViewportUI {
 	bool changed = false;
 	int toBeChangedNum;
-	float x = 0.0;
-	float y = 0.0;
 	float width = 0.0;
 	float height = 0.0;
 	VkSampleCountFlagBits msaa_count = VK_SAMPLE_COUNT_1_BIT;
@@ -73,6 +71,7 @@ struct ViewportUI {
 	std::vector<VkFramebuffer> framebuffers;
 	std::vector<TexturePtr> color_textures;
 	std::vector<TexturePtr> depth_textures;
+	std::vector<void*> gui_textures;
 	std::vector<VkCommandBuffer> cmd_buffers;
 };
 

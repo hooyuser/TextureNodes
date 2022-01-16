@@ -1239,23 +1239,13 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
 
-	VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(viewport3D.render_pass, swapChainExtent, viewport3D.framebuffers[i]);
+	VkExtent2D viewport_extent{ static_cast<uint32_t>(viewport3D.width), static_cast<uint32_t>(viewport3D.height) };
+
+	VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(viewport3D.render_pass, viewport_extent, viewport3D.framebuffers[i]);
 
 	vkCmdBeginRenderPass(viewport3D.cmd_buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 	VkViewport viewport = {};
-	//if (static_cast<float>(windowWidth) / windowHeight >= viewport3D.width / viewport3D.height) {
-	//	viewport.width = viewport3D.height * static_cast<float>(windowWidth) / windowHeight;
-	//	viewport.height = -viewport3D.height;
-	//	viewport.x = viewport3D.x - 0.5 * (viewport.width - viewport3D.width);
-	//	viewport.y = viewport3D.y + viewport3D.height;
-	//} 
-	//else {
-	//	viewport.width = viewport3D.width;
-	//	viewport.height = -viewport3D.width * static_cast<float>(windowHeight) / windowWidth ;
-	//	viewport.x = viewport3D.x - 0.5 * (viewport.width - viewport3D.width);
-	//	viewport.y = viewport3D.y - viewport.height;
-	//}
 	viewport.x = 0.0f;
 	viewport.y = viewport3D.height;
 	viewport.width = viewport3D.width;
@@ -1263,11 +1253,9 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 	viewport.minDepth = 0.0f;
 	viewport.maxDepth = 1.0f;
 
-	VkRect2D scissor = {};
-	scissor.extent.width = viewport3D.width;
-	scissor.extent.height = viewport3D.height;
-	scissor.offset.x = 0;
-	scissor.offset.y = 0;
+	VkRect2D scissor{};
+	scissor.extent = viewport_extent;
+	scissor.offset = { 0, 0 };
 
 	vkCmdSetViewport(viewport3D.cmd_buffers[i], 0, 1, &viewport);
 	vkCmdSetScissor(viewport3D.cmd_buffers[i], 0, 1, &scissor);
@@ -1353,7 +1341,7 @@ void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
 
 	UniformBufferObject ubo{};
 	ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	camera.set_aspect_ratio(viewport3D.width / viewport3D.height);
+	setCamera();
 	ubo.view = camera.view_matrix();
 	//ubo.view = glm::mat4(glm::mat3(camera.viewMatrix()));
 	ubo.proj = camera.proj_matrix();
@@ -1381,7 +1369,7 @@ void VulkanEngine::drawFrame() {
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
-
+	ImGuiIO& io = ImGui::GetIO();
 
 	// IMGUI RENDERING
 	gui->beginRender();
@@ -1416,19 +1404,18 @@ void VulkanEngine::drawFrame() {
 		ImGui::PopStyleVar(2);
 
 		// DockSpace
-		ImGuiIO& io = ImGui::GetIO();
+		//ImGuiIO& io = ImGui::GetIO();
 
 		ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
 		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
 
 		static auto first_time = true;
 
-		static ImGuiID dock_id_right_p, dock_id_down, dock_id_left;
-		ImGuiID dock_id_right = ImGui::GetID("Right");;
-
 		if (first_time)
 		{
 			first_time = false;
+			ImGuiID dock_id_right_p, dock_id_down, dock_id_left;
+			ImGuiID dock_id_right = ImGui::GetID("Right");
 
 			ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
 			ImGui::DockBuilderAddNode(dockspace_id, dockspace_flags | ImGuiDockNodeFlags_DockSpace);
@@ -1441,14 +1428,10 @@ void VulkanEngine::drawFrame() {
 
 			dock_id_down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.5f, nullptr, &dockspace_id);
 			auto up_node = ImGui::DockBuilderGetNode(dockspace_id);
-			up_node->SetLocalFlags(up_node->LocalFlags | ImGuiDockNodeFlags_PassthruCentralNode);
-			//auto dock_id_down_Node = ImGui::DockBuilderGetNode(dock_id_down);
+
 
 			dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.5f, nullptr, &dock_id_right_p);
 			auto dock_id_right_p_Node = ImGui::DockBuilderGetNode(dock_id_right_p);
-
-			//dock_id_right_p_Node->SetLocalFlags(dock_id_right_Node->LocalFlags | ImGuiDockNodeFlags_PassthruCentralNode);
-			//dock_id_right_p_Node->UpdateMergedFlags();
 
 			auto size = dock_id_right_p_Node->Size;
 			auto pos = dock_id_right_p_Node->Pos;
@@ -1459,10 +1442,6 @@ void VulkanEngine::drawFrame() {
 			up_node->ChildNodes[0] = ImGui::DockBuilderGetNode(dock_id_left);
 			up_node->ChildNodes[1] = right_node;
 			right_node->ParentNode = up_node;
-
-			//dock_id_right_Node->LocalFlags |= ImGuiDockNodeFlags_PassthruCentralNode;
-			//dock_id_right_Node->LocalFlagsInWindows |= ImGuiDockNodeFlags_PassthruCentralNode;
-			//dock_id_right_Node->UpdateMergedFlags();
 
 			// we now dock our windows into the docking node we made above
 			ImGui::DockBuilderDockWindow("Down", dock_id_down);
@@ -1480,20 +1459,11 @@ void VulkanEngine::drawFrame() {
 		//	viewport3D.height = viewport3DNode->Size.y;
 		//	viewport3D.toBeChangedNum = commandBuffers.size();
 		//}
-		//if (viewport3D.x != viewport3DNode->Pos.x) {
-		//	viewport3D.x = viewport3DNode->Pos.x;
-		//	viewport3D.toBeChangedNum = commandBuffers.size();
-		//}
-		//if (viewport3D.y = viewport3DNode->Pos.y) {
-		//	viewport3D.y = viewport3DNode->Pos.y;
-		//	viewport3D.toBeChangedNum = commandBuffers.size();
-		//}
 		ImGui::End();
 
 		auto viewport_3D_window_flags = ImGuiWindowFlags_NoBackground;
 
 		ImGui::Begin("Left");
-
 		{
 			ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 			ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
@@ -1509,9 +1479,6 @@ void VulkanEngine::drawFrame() {
 			ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
 			ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);
 		}
-		//node = ImGui::DockBuilderGetNode(dock_id_down);
-		//ImGui::Text("Pos = (%f, %f)", node->Pos.x, node->Pos.y);
-		//ImGui::Text("Size = (%f, %f)", node->Size.x, node->Size.y);
 		ImGui::End();
 
 		ImGui::SetNextWindowBgAlpha(0.0f);
@@ -1519,24 +1486,20 @@ void VulkanEngine::drawFrame() {
 		//ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Set window background to red
 		ImGui::Begin("Right", nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-		ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
+		//::PopStyleColor(2);
+
+		//{
+		//	ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+		//	ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
+		//	ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
+		//	ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);
+		//}
 		viewport3D.width = viewportPanelSize.x;
 		viewport3D.height = viewportPanelSize.y;
-		viewport3D.x = viewportPanelPos.x;
-		viewport3D.y = viewportPanelPos.y;
-		//::PopStyleColor(2);
-		//node = ImGui::DockBuilderGetNode(dock_id_right);
-		//ImGui::Text("Pos = (%f, %f)", node->Pos.x, node->Pos.y);
-		//ImGui::Text("Size = (%f, %f)", node->Size.x, node->Size.y);
-		{
-			ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-			ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
-			ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
-			ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);
-		}
-
+		updateUniformBuffer(imageIndex);
+		ImVec2 uv{ viewportPanelSize.x / screen_width , viewportPanelSize.y / screen_width };
+		ImGui::Image(static_cast<ImTextureID>(viewport3D.gui_textures[imageIndex]), viewportPanelSize, ImVec2{ 0, 0 }, uv);
 		ImGui::End();
-
 	}
 
 	gui->endRender(this, imageIndex);
@@ -1547,11 +1510,10 @@ void VulkanEngine::drawFrame() {
 	//	--viewport3D.toBeChangedNum;
 	//}
 
-	ImGuiIO& io = ImGui::GetIO();
+	//if (!io.WantCaptureMouse) {
+		//updateUniformBuffer(imageIndex);
+	//}
 
-	if (!io.WantCaptureMouse) {
-		updateUniformBuffer(imageIndex);
-	}
 	record_viewport_cmd_buffer(imageIndex);
 
 	std::array submitCommandBuffers = { viewport3D.cmd_buffers[imageIndex], gui->commandBuffers[imageIndex] };
@@ -1818,5 +1780,5 @@ void VulkanEngine::mouseScrollCallback(GLFWwindow* window, double xoffset, doubl
 }
 
 void VulkanEngine::setCamera() {
-	camera.set_aspect_ratio(swapChainExtent.width / (float)swapChainExtent.height);
+	camera.set_aspect_ratio(viewport3D.width / viewport3D.height);
 }

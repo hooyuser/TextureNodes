@@ -15,14 +15,14 @@ namespace engine {
 		}
 		else if (dynamic_viewport == DISABLE_DYNAMIC_VIEWPORT) {
 			viewport.x = 0.0f;
-			viewport.y = (float)engine->swapChainExtent.height;
-			viewport.width = (float)engine->swapChainExtent.width;
-			viewport.height = -(float)engine->swapChainExtent.height;
+			viewport.y = engine->viewport3D.height;
+			viewport.width = engine->viewport3D.width;
+			viewport.height = -engine->viewport3D.height;
 			viewport.minDepth = 0.0f;
 			viewport.maxDepth = 1.0f;
 
 			scissor.offset = { 0, 0 };
-			scissor.extent = engine->swapChainExtent;
+			scissor.extent = { static_cast<uint32_t>(engine->viewport3D.width), static_cast<uint32_t>(engine->viewport3D.height) };
 
 			viewportState = vkinit::viewportStateCreateInfo(&viewport, &scissor);
 		}
@@ -38,7 +38,7 @@ namespace engine {
 
 		colorBlendAttachment = vkinit::colorBlendAttachmentState();
 
-		colorBlend = vkinit::colorBlendAttachmentCreateInfo(colorBlendAttachment);	
+		colorBlend = vkinit::colorBlendAttachmentCreateInfo(colorBlendAttachment);
 
 		dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 		dynamicState.dynamicStateCount = dynamicStateEnables.size();
