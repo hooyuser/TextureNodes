@@ -62,8 +62,6 @@ using MeshPtr = std::shared_ptr<engine::Mesh>;
 
 
 struct ViewportUI {
-	bool changed = false;
-	int toBeChangedNum;
 	float width = 0.0;
 	float height = 0.0;
 	VkSampleCountFlagBits msaa_count = VK_SAMPLE_COUNT_1_BIT;
@@ -74,6 +72,8 @@ struct ViewportUI {
 	std::vector<void*> gui_textures;
 	std::vector<VkCommandBuffer> cmd_buffers;
 };
+
+
 
 struct RenderObject {
 	MeshPtr mesh;
@@ -152,6 +152,7 @@ public:
 	static Camera camera;
 	static glm::vec2 mouse_previous_pos;
 	static glm::vec2 mouse_delta_pos;
+	static bool mouse_hover_viewport;
 
 	std::unique_ptr<engine::GUI> gui;
 

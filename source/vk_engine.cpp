@@ -90,6 +90,7 @@ SphericalCoord camSphericalCoord{ glm::radians(0.0f) ,glm::radians(90.0f), 5.46f
 Camera VulkanEngine::camera = Camera(camSphericalCoord, glm::radians(45.0f), 1.0f, 0.01f, 1000.0f);
 glm::vec2 VulkanEngine::mouse_previous_pos = glm::vec2(0.0);
 glm::vec2 VulkanEngine::mouse_delta_pos = glm::vec2(0.0);
+bool VulkanEngine::mouse_hover_viewport = false;
 
 
 void VulkanEngine::initWindow() {
@@ -1375,39 +1376,32 @@ void VulkanEngine::drawFrame() {
 	gui->beginRender();
 
 	{
-		static ImGuiDockNodeFlags dockspace_flags = ImGuiDockNodeFlags_PassthruCentralNode;
-
-		ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking;
+		ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking |
+			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
+			ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
+			ImGuiWindowFlags_NoBackground;
 
 		ImGuiViewport* viewport = ImGui::GetMainViewport();
 		ImGui::SetNextWindowPos(viewport->Pos);
 		ImGui::SetNextWindowSize(viewport->Size);
 		ImGui::SetNextWindowViewport(viewport->ID);
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
-		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
-		window_flags |= ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize | ImGuiWindowFlags_NoMove;
-		window_flags |= ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus;
-
-
-		// When using ImGuiDockNodeFlags_PassthruCentralNode, DockSpace() will render our background and handle the pass-thru hole, so we ask Begin() to not render a background.
-		if (dockspace_flags & ImGuiDockNodeFlags_PassthruCentralNode)
-			window_flags |= ImGuiWindowFlags_NoBackground;
 
 		// Important: note that we proceed even if Begin() returns false (aka window is collapsed).
 		// This is because we want to keep our DockSpace() active. If a DockSpace() is inactive, 
 		// all active windows docked into it will lose their parent and become undocked.
 		// We cannot preserve the docking relationship between an active window and an inactive docking, otherwise 
 		// any change of dockspace/settings would lead to windows being stuck in limbo and never being visible.
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 		ImGui::Begin("DockSpace", nullptr, window_flags);
-		ImGui::PopStyleVar();
-		ImGui::PopStyleVar(2);
+		ImGui::PopStyleVar(3);
 
 		// DockSpace
 		//ImGuiIO& io = ImGui::GetIO();
 
 		ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), dockspace_flags);
+		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
 		static auto first_time = true;
 
@@ -1418,7 +1412,7 @@ void VulkanEngine::drawFrame() {
 			ImGuiID dock_id_right = ImGui::GetID("Right");
 
 			ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
-			ImGui::DockBuilderAddNode(dockspace_id, dockspace_flags | ImGuiDockNodeFlags_DockSpace);
+			ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
 			ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
 			//auto dockspace_id_Node = ImGui::DockBuilderGetNode(dockspace_id);
 
@@ -1435,7 +1429,7 @@ void VulkanEngine::drawFrame() {
 
 			auto size = dock_id_right_p_Node->Size;
 			auto pos = dock_id_right_p_Node->Pos;
-			ImGui::DockBuilderAddNode(dock_id_right, dockspace_flags);
+			ImGui::DockBuilderAddNode(dock_id_right, ImGuiDockNodeFlags_PassthruCentralNode);
 			ImGui::DockBuilderSetNodeSize(dock_id_right, size);
 			ImGui::DockBuilderSetNodePos(dock_id_right, pos);
 			auto right_node = ImGui::DockBuilderGetNode(dock_id_right);
@@ -1449,6 +1443,7 @@ void VulkanEngine::drawFrame() {
 			ImGui::DockBuilderDockWindow("Right", dock_id_right);
 			ImGui::DockBuilderFinish(dockspace_id);
 		}
+		ImGui::End();
 
 		//auto viewport3DNode = ImGui::DockBuilderGetNode(dock_id_right);
 		//if (viewport3D.width != viewport3DNode->Size.x) {
@@ -1459,9 +1454,6 @@ void VulkanEngine::drawFrame() {
 		//	viewport3D.height = viewport3DNode->Size.y;
 		//	viewport3D.toBeChangedNum = commandBuffers.size();
 		//}
-		ImGui::End();
-
-		auto viewport_3D_window_flags = ImGuiWindowFlags_NoBackground;
 
 		ImGui::Begin("Left");
 		{
@@ -1484,10 +1476,12 @@ void VulkanEngine::drawFrame() {
 		ImGui::SetNextWindowBgAlpha(0.0f);
 		//ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Set window background to red
 		//ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Set window background to red
-		ImGui::Begin("Right", nullptr, ImGuiDockNodeFlags_PassthruCentralNode);
-		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-		//::PopStyleColor(2);
+		ImGui::Begin("Right", nullptr, ImGuiDockNodeFlags_PassthruCentralNode & ~ImGuiWindowFlags_NoInputs & ~ImGuiWindowFlags_NoBringToFrontOnFocus);
 
+		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+
+		//::PopStyleColor(2);
+		//ImGui::Text("io.WantCaptureMouse = %d", ImGui::IsItemHovered());
 		//{
 		//	ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 		//	ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
@@ -1498,7 +1492,9 @@ void VulkanEngine::drawFrame() {
 		viewport3D.height = viewportPanelSize.y;
 		updateUniformBuffer(imageIndex);
 		ImVec2 uv{ viewportPanelSize.x / screen_width , viewportPanelSize.y / screen_width };
+
 		ImGui::Image(static_cast<ImTextureID>(viewport3D.gui_textures[imageIndex]), viewportPanelSize, ImVec2{ 0, 0 }, uv);
+		mouse_hover_viewport = ImGui::IsItemHovered() ? true : false;
 		ImGui::End();
 	}
 
@@ -1756,15 +1752,14 @@ void VulkanEngine::mouseCursorCallback(GLFWwindow* window, double xpos, double y
 	auto mouseCurrentPos = glm::vec2(xpos, ypos);
 	mouse_delta_pos = mouseCurrentPos - mouse_previous_pos;
 
-	if (!ImGui::GetIO().WantCaptureMouse) {
+	if (mouse_hover_viewport) {
 		camera.rotate(-mouse_delta_pos.x, -mouse_delta_pos.y, 0.005f);
 	}
 
 	mouse_previous_pos = mouseCurrentPos;
 }
 
-void VulkanEngine::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods)
-{
+void VulkanEngine::mouseButtonCallback(GLFWwindow* window, int button, int action, int mods) {
 	if (button == GLFW_MOUSE_BUTTON_LEFT && action == GLFW_PRESS) {
 		double xpos, ypos;
 		glfwGetCursorPos(window, &xpos, &ypos);
@@ -1774,7 +1769,7 @@ void VulkanEngine::mouseButtonCallback(GLFWwindow* window, int button, int actio
 }
 
 void VulkanEngine::mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
-	if (!ImGui::GetIO().WantCaptureMouse) {
+	if (mouse_hover_viewport) {
 		camera.zoom((float)yoffset, 0.3f);
 	}
 }
