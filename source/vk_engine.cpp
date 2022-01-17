@@ -28,6 +28,8 @@ using json = nlohmann::json;
 
 using namespace engine;
 
+#include <imgui_node_editor.h>
+
 constexpr uint32_t WIDTH = 1200;
 constexpr uint32_t HEIGHT = 900;
 constexpr auto SCALE_X = 0.5;
@@ -36,6 +38,9 @@ constexpr auto SCALE_Y = 0.5;
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr double maxFPS = 300.0;
 constexpr double maxPeriod = 1.0 / maxFPS;
+
+namespace ed = ax::NodeEditor;
+static ed::EditorContext* g_Context = nullptr;
 
 const std::vector<const char*> validationLayers = {
 	"VK_LAYER_KHRONOS_validation"
@@ -1332,6 +1337,12 @@ void VulkanEngine::createSyncObjects() {
 void VulkanEngine::initImgui() {
 	gui = std::make_unique<engine::GUI>();
 	gui->init(this);
+	ed::Config config;
+	config.SettingsFile = "Simple.json";
+	g_Context = ed::CreateEditor(&config);
+	main_deletion_queue.push_function([=]() {
+		ed::DestroyEditor(g_Context);
+		});
 }
 
 void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
@@ -1395,7 +1406,7 @@ void VulkanEngine::drawFrame() {
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
 		ImGui::Begin("DockSpace", nullptr, window_flags);
-		ImGui::PopStyleVar(3);
+		
 
 		// DockSpace
 		//ImGuiIO& io = ImGui::GetIO();
@@ -1466,10 +1477,22 @@ void VulkanEngine::drawFrame() {
 
 		ImGui::Begin("Down");
 		{
-			ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-			ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
-			ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
-			ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);
+			ed::SetCurrentEditor(g_Context);
+			ed::Begin("My Editor", ImVec2(0.0, 0.0f));
+			int uniqueId = 1;
+			// Start drawing nodes.
+			ed::BeginNode(uniqueId++);
+			ImGui::Text("Node A");
+			ed::BeginPin(uniqueId++, ed::PinKind::Input);
+			ImGui::Text("-> In");
+			ed::EndPin();
+			ImGui::SameLine();
+			ed::BeginPin(uniqueId++, ed::PinKind::Output);
+			ImGui::Text("Out ->");
+			ed::EndPin();
+			ed::EndNode();
+			ed::End();
+			ed::SetCurrentEditor(nullptr);
 		}
 		ImGui::End();
 
@@ -1496,6 +1519,8 @@ void VulkanEngine::drawFrame() {
 		ImGui::Image(static_cast<ImTextureID>(viewport3D.gui_textures[imageIndex]), viewportPanelSize, ImVec2{ 0, 0 }, uv);
 		mouse_hover_viewport = ImGui::IsItemHovered() ? true : false;
 		ImGui::End();
+
+		ImGui::PopStyleVar(3);
 	}
 
 	gui->endRender(this, imageIndex);

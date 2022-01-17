@@ -11,6 +11,7 @@ build[0-9]*/*
 *.bin
 *.gltf
 *.ini
+*.json
 
 # User-specific files
 *.rsuser

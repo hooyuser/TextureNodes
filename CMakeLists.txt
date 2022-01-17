@@ -53,6 +53,7 @@ target_include_directories(${PROJECT_NAME}
         ${EXTERN_DIR}/RareCpp
         ${EXTERN_DIR}/imgui
         ${EXTERN_DIR}/imgui/backends
+        ${EXTERN_DIR}/imgui-node-editor
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -60,6 +61,7 @@ target_link_libraries(${PROJECT_NAME}
         ${EXTERN_DIR}/vulkan/Lib/vulkan-1.lib
         ${EXTERN_DIR}/glfw/lib-vc2019/glfw3.lib
         imgui
+        imgui-node-editor
 )
 
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
