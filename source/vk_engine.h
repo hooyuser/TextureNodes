@@ -208,8 +208,6 @@ public:
 
 	void createEnvLightPipeline();
 
-	void createFramebuffers();
-
 	void createCommandPool();
 
 	void record_viewport_cmd_buffer(const int commandBufferIndex);
@@ -224,35 +222,25 @@ public:
 
 	VkSampleCountFlagBits getMaxUsableSampleCount();
 
-	VkImageView createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription);
+	VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription);
 
-	void loadModel();
+	void create_uniform_buffers();
 
-	void createUniformBuffers();
+	void create_descriptor_pool();
 
-	void createDescriptorPool();
-
-	void createDescriptorSets();
-
-	VkCommandBuffer beginSingleTimeCommands();
-
-	void endSingleTimeCommands(VkCommandBuffer commandBuffer);
-
-	void copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size);
+	void create_descriptor_sets();
 
 	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-	void createCommandBuffers();
+	void create_command_buffers();
 
-	void createSyncObjects();
+	void create_sync_objects();
 
-	void initScene();
+	void init_imgui();
 
-	void initImgui();
+	void update_uniform_buffer(uint32_t currentImage);
 
-	void updateUniformBuffer(uint32_t currentImage);
-
-	void drawFrame();
+	void draw_frame();
 
 	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 
@@ -280,7 +268,7 @@ public:
 
 	static void mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset);
 
-	void setCamera();
+	void set_camera();
 
-	void createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBinding>&& descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout);
+	void create_descriptor_set_layout(std::span<VkDescriptorSetLayoutBinding>&& descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout);
 };

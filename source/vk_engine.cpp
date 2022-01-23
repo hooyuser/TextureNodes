@@ -142,16 +142,16 @@ void VulkanEngine::initVulkan() {
 	create_viewport_framebuffers();
 	create_viewport_cmd_buffers();
 
-	createUniformBuffers();
-	createDescriptorPool();
-	createDescriptorSets();
+	create_uniform_buffers();
+	create_descriptor_pool();
+	create_descriptor_sets();
 	createGraphicsPipeline();
 
-	createSyncObjects();
+	create_sync_objects();
 
-	setCamera();
+	set_camera();
 
-	initImgui();
+	init_imgui();
 
 	isInitialized = true;
 }
@@ -168,7 +168,7 @@ void VulkanEngine::mainLoop() {
 		if (deltaTime >= maxPeriod) {
 			lastTime = time;
 			glfwPollEvents();
-			drawFrame();
+			draw_frame();
 		}
 
 	}
@@ -210,15 +210,7 @@ void VulkanEngine::recreateSwapChain() {
 	create_swap_chain();
 	create_swap_chain_image_views();
 
-	//createRenderPass();
-	//create_window_attachments();
-	//createFramebuffers();
-	//createUniformBuffers();
-	//createDescriptorPool();
-	//createDescriptorSets();
-	//createGraphicsPipeline();
-	//createCommandBuffers();
-	setCamera();
+	set_camera();
 
 	imagesInFlight.resize(swapchain_image_count, VK_NULL_HANDLE);
 
@@ -436,7 +428,7 @@ void VulkanEngine::create_swap_chain_image_views() {
 	swapChainImageViews.resize(swapChainImages.size());
 
 	for (uint32_t i = 0; i < swapChainImages.size(); i++) {
-		swapChainImageViews[i] = createImageView(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1, AFTER_SWAPCHAIN_BIT);
+		swapChainImageViews[i] = create_image_view(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1, AFTER_SWAPCHAIN_BIT);
 	}
 }
 
@@ -707,10 +699,10 @@ void VulkanEngine::createDescriptorSetLayouts() {
 	auto cubemapArrayLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2, loadedTextureCubemaps.size());
 
 	std::array<VkDescriptorSetLayoutBinding, 3> scenebindings = { camUboLayoutBinding, texture2DArrayLayoutBinding, cubemapArrayLayoutBinding };
-	createDescriptorSetLayout(scenebindings, sceneSetLayout);
+	create_descriptor_set_layout(scenebindings, sceneSetLayout);
 }
 
-void VulkanEngine::createDescriptorSetLayout(std::span<VkDescriptorSetLayoutBinding>&& descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
+void VulkanEngine::create_descriptor_set_layout(std::span<VkDescriptorSetLayoutBinding>&& descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
 	VkDescriptorSetLayoutCreateInfo layoutInfo{};
 	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
 	layoutInfo.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size());
@@ -787,28 +779,6 @@ void VulkanEngine::createGraphicsPipeline() {
 	createMeshPipeline();
 	createEnvLightPipeline();
 }
-
-//void VulkanEngine::createFramebuffers() {
-//	swapChainFramebuffers.resize(swapChainImageViews.size());
-//
-//	for (size_t i = 0; i < swapChainImageViews.size(); i++) {
-//		std::array<VkImageView, 3> attachments = {
-//			pColorImage->imageView,
-//			pDepthImage->imageView,
-//			swapChainImageViews[i]
-//		};
-//
-//		VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(renderPass, swapChainExtent, attachments);
-//
-//		if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &swapChainFramebuffers[i]) != VK_SUCCESS) {
-//			throw std::runtime_error("failed to create framebuffer!");
-//		}
-//
-//		swapChainDeletionQueue.push_function([=]() {
-//			vkDestroyFramebuffer(device, swapChainFramebuffers[i], nullptr);
-//			});
-//	}
-//}
 
 void VulkanEngine::createCommandPool() {
 
@@ -1032,7 +1002,7 @@ VkSampleCountFlagBits VulkanEngine::getMaxUsableSampleCount() {
 	return VK_SAMPLE_COUNT_1_BIT;
 }
 
-VkImageView VulkanEngine::createImageView(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription) {
+VkImageView VulkanEngine::create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription) {
 	VkImageViewCreateInfo viewInfo{};
 	viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
 	viewInfo.image = image;
@@ -1066,7 +1036,7 @@ VkImageView VulkanEngine::createImageView(VkImage image, VkFormat format, VkImag
 	return imageView;
 }
 
-void VulkanEngine::createUniformBuffers() {
+void VulkanEngine::create_uniform_buffers() {
 	pUniformBuffers.resize(swapchain_image_count);
 
 	for (size_t i = 0; i < swapchain_image_count; i++) {
@@ -1078,7 +1048,7 @@ void VulkanEngine::createUniformBuffers() {
 	}
 }
 
-void VulkanEngine::createDescriptorPool() {
+void VulkanEngine::create_descriptor_pool() {
 	const uint32_t descriptorSize = swapchain_image_count * 100;
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorSize },
@@ -1101,7 +1071,7 @@ void VulkanEngine::createDescriptorPool() {
 		});
 }
 
-void VulkanEngine::createDescriptorSets() {
+void VulkanEngine::create_descriptor_sets() {
 	VkDescriptorSetAllocateInfo allocSceneInfo{};
 	allocSceneInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
 	allocSceneInfo.descriptorPool = descriptorPool;
@@ -1163,50 +1133,6 @@ void VulkanEngine::createDescriptorSets() {
 	}
 }
 
-VkCommandBuffer VulkanEngine::beginSingleTimeCommands() {
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = commandPool;
-	allocInfo.commandBufferCount = 1;
-
-	VkCommandBuffer commandBuffer;
-	vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
-
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
-
-	return commandBuffer;
-}
-
-void VulkanEngine::endSingleTimeCommands(VkCommandBuffer commandBuffer) {
-	vkEndCommandBuffer(commandBuffer);
-
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
-
-	vkQueueSubmit(graphicsQueue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(graphicsQueue);
-
-	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
-}
-
-
-void VulkanEngine::copyBuffer(VkBuffer srcBuffer, VkBuffer dstBuffer, VkDeviceSize size) {
-	VkCommandBuffer commandBuffer = beginSingleTimeCommands();
-
-	VkBufferCopy copyRegion{};
-	copyRegion.size = size;
-	vkCmdCopyBuffer(commandBuffer, srcBuffer, dstBuffer, 1, &copyRegion);
-
-	endSingleTimeCommands(commandBuffer);
-}
-
 uint32_t VulkanEngine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
 	VkPhysicalDeviceMemoryProperties memProperties;
 	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
@@ -1220,7 +1146,7 @@ uint32_t VulkanEngine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags
 	throw std::runtime_error("failed to find suitable memory type!");
 }
 
-void VulkanEngine::createCommandBuffers() {
+void VulkanEngine::create_command_buffers() {
 	viewport3D.cmd_buffers.resize(swapchain_image_count);
 	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)viewport3D.cmd_buffers.size());
 
@@ -1312,7 +1238,7 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 	}
 }
 
-void VulkanEngine::createSyncObjects() {
+void VulkanEngine::create_sync_objects() {
 	frameData.resize(MAX_FRAMES_IN_FLIGHT);
 	imagesInFlight.resize(swapchain_image_count, VK_NULL_HANDLE);
 
@@ -1334,7 +1260,7 @@ void VulkanEngine::createSyncObjects() {
 	}
 }
 
-void VulkanEngine::initImgui() {
+void VulkanEngine::init_imgui() {
 	gui = std::make_unique<engine::GUI>();
 	gui->init(this);
 	ed::Config config;
@@ -1345,7 +1271,7 @@ void VulkanEngine::initImgui() {
 		});
 }
 
-void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
+void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
 	static auto start_time = std::chrono::high_resolution_clock::now();
 
 	auto current_time = std::chrono::high_resolution_clock::now();
@@ -1353,19 +1279,16 @@ void VulkanEngine::updateUniformBuffer(uint32_t currentImage) {
 
 	UniformBufferObject ubo{};
 	ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
-	setCamera();
+	set_camera();
 	ubo.view = camera.view_matrix();
 	//ubo.view = glm::mat4(glm::mat3(camera.viewMatrix()));
 	ubo.proj = camera.proj_matrix();
 	ubo.pos = camera.get_position();
-	//ubo.view = glm::lookAt(glm::vec3(2.0f, 2.0f, 2.0f), glm::vec3(0.0f, 0.0f, 0.0f), glm::vec3(0.0f, 0.0f, 1.0f));
-	//ubo.proj = glm::perspective(glm::radians(45.0f), swapChainExtent.width / (float)swapChainExtent.height, 0.1f, 10.0f);
-	//ubo.proj[1][1] *= -1;
 
 	pUniformBuffers[currentImage]->copyFromHost(&ubo);
 }
 
-void VulkanEngine::drawFrame() {
+void VulkanEngine::draw_frame() {
 	//drawFrame will first acquire the index of the available swapchain image, then render into this image, and finally request to prensent this image
 
 	vkWaitForFences(device, 1, &frameData[currentFrame].inFlightFence, VK_TRUE, UINT64_MAX); // begin draw i+2 frame if we've complete rendering at frame i
@@ -1409,12 +1332,10 @@ void VulkanEngine::drawFrame() {
 		
 
 		// DockSpace
-		//ImGuiIO& io = ImGui::GetIO();
-
 		ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
 		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
-		static auto first_time = true;
+		static bool first_time = true;
 
 		if (first_time)
 		{
@@ -1455,16 +1376,6 @@ void VulkanEngine::drawFrame() {
 			ImGui::DockBuilderFinish(dockspace_id);
 		}
 		ImGui::End();
-
-		//auto viewport3DNode = ImGui::DockBuilderGetNode(dock_id_right);
-		//if (viewport3D.width != viewport3DNode->Size.x) {
-		//	viewport3D.width = viewport3DNode->Size.x;
-		//	viewport3D.toBeChangedNum = commandBuffers.size();
-		//}
-		//if (viewport3D.height != viewport3DNode->Size.y) {
-		//	viewport3D.height = viewport3DNode->Size.y;
-		//	viewport3D.toBeChangedNum = commandBuffers.size();
-		//}
 
 		ImGui::Begin("Left");
 		{
@@ -1513,7 +1424,7 @@ void VulkanEngine::drawFrame() {
 		//}
 		viewport3D.width = viewportPanelSize.x;
 		viewport3D.height = viewportPanelSize.y;
-		updateUniformBuffer(imageIndex);
+		update_uniform_buffer(imageIndex);
 		ImVec2 uv{ viewportPanelSize.x / screen_width , viewportPanelSize.y / screen_width };
 
 		ImGui::Image(static_cast<ImTextureID>(viewport3D.gui_textures[imageIndex]), viewportPanelSize, ImVec2{ 0, 0 }, uv);
@@ -1525,20 +1436,9 @@ void VulkanEngine::drawFrame() {
 
 	gui->endRender(this, imageIndex);
 
-
-	//if (viewport3D.toBeChangedNum > 0) {
-	//	record_viewport_cmd_buffer(imageIndex);
-	//	--viewport3D.toBeChangedNum;
-	//}
-
-	//if (!io.WantCaptureMouse) {
-		//updateUniformBuffer(imageIndex);
-	//}
-
 	record_viewport_cmd_buffer(imageIndex);
 
 	std::array submitCommandBuffers = { viewport3D.cmd_buffers[imageIndex], gui->commandBuffers[imageIndex] };
-	//std::array submitCommandBuffers = { gui->commandBuffers[imageIndex] };
 
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
@@ -1799,6 +1699,6 @@ void VulkanEngine::mouseScrollCallback(GLFWwindow* window, double xoffset, doubl
 	}
 }
 
-void VulkanEngine::setCamera() {
+void VulkanEngine::set_camera() {
 	camera.set_aspect_ratio(viewport3D.width / viewport3D.height);
 }
