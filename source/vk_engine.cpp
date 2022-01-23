@@ -373,7 +373,7 @@ void VulkanEngine::create_swap_chain() {
 	SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
 	VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
 	VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
-	VkExtent2D extent = chooseSwapExtent(swapChainSupport.capabilities);
+	swapChainExtent = chooseSwapExtent(swapChainSupport.capabilities);
 
 	swapchain_image_count = swapChainSupport.capabilities.minImageCount + 1;
 	if (swapChainSupport.capabilities.maxImageCount > 0 && swapchain_image_count > swapChainSupport.capabilities.maxImageCount) {
@@ -387,7 +387,7 @@ void VulkanEngine::create_swap_chain() {
 	createInfo.minImageCount = swapchain_image_count;
 	createInfo.imageFormat = surfaceFormat.format;
 	createInfo.imageColorSpace = surfaceFormat.colorSpace;
-	createInfo.imageExtent = extent;
+	createInfo.imageExtent = swapChainExtent;
 	createInfo.imageArrayLayers = 1;
 	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
 
@@ -417,7 +417,6 @@ void VulkanEngine::create_swap_chain() {
 	vkGetSwapchainImagesKHR(device, swapChain, &swapchain_image_count, swapChainImages.data());
 
 	swapChainImageFormat = surfaceFormat.format;
-	swapChainExtent = extent;
 
 	swapChainDeletionQueue.push_function([=]() {
 		vkDestroySwapchainKHR(device, swapChain, nullptr);

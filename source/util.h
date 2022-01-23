@@ -2,6 +2,8 @@
 
 #include <type_traits>
 
+#define FWD(...) ::std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
+
 #define MAKE_ENUM_FLAGS(TEnum)                                                      \
     inline TEnum operator~(TEnum a) {                                               \
         using TUnder = typename std::underlying_type_t<TEnum>;                      \
@@ -34,6 +36,7 @@
         a = static_cast<TEnum>(static_cast<TUnder>(a) ^ static_cast<TUnder>(b));    \
         return a;                                                                   \
     }
+
 
 template<class...>
 using void_t = void;
