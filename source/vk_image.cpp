@@ -78,7 +78,7 @@ namespace engine {
 		VkMemoryAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = findMemoryType(physicalDevice, memRequirements.memoryTypeBits, properties);
+		allocInfo.memoryTypeIndex = find_memory_type(physicalDevice, memRequirements.memoryTypeBits, properties);
 
 		if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate image memory!");
@@ -133,7 +133,7 @@ namespace engine {
 		VkMemoryAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = findMemoryType(physicalDevice, memRequirements.memoryTypeBits, properties);
+		allocInfo.memoryTypeIndex = find_memory_type(physicalDevice, memRequirements.memoryTypeBits, properties);
 
 		if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate image memory!");
@@ -188,7 +188,7 @@ namespace engine {
 	}
 
 	void Image::transitionImageLayout(VulkanEngine* engine, VkImageLayout oldLayout, VkImageLayout newLayout) {
-		immediateSubmit(engine, [=](VkCommandBuffer commandBuffer) {
+		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
 			VkImageMemoryBarrier barrier{};
 			barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
 			barrier.oldLayout = oldLayout;
@@ -235,7 +235,7 @@ namespace engine {
 	}
 
 	void Image::copyFromBuffer(VulkanEngine* engine, VkBuffer buffer, uint32_t mipLevel) {
-		immediateSubmit(engine, [=](VkCommandBuffer commandBuffer) {
+		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
 			VkBufferImageCopy region{};
 			region.bufferOffset = 0;
 			region.bufferRowLength = 0;
@@ -264,7 +264,7 @@ namespace engine {
 			throw std::runtime_error("texture image format does not support linear blitting!");
 		}
 
-		immediateSubmit(engine, [=](VkCommandBuffer commandBuffer) {
+		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
 
 			VkImageMemoryBarrier barrier{};
 			barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
@@ -701,7 +701,7 @@ namespace engine {
 			pTexture->copyFromBuffer(engine, pStagingBuffer->buffer, mipLevel);
 		}
 		
-		immediateSubmit(engine, [=](VkCommandBuffer commandBuffer) {
+		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
 			//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 			VkImageMemoryBarrier barrier{};
 			barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;

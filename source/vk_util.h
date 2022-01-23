@@ -6,9 +6,9 @@
 
 class VulkanEngine;
 
-uint32_t findMemoryType(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
+uint32_t find_memory_type(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-void immediateSubmit(VkDevice device, VkCommandPool commandPool, VkQueue queue, std::invocable<VkCommandBuffer> auto&& function) {
+void immediate_submit(VkDevice device, VkCommandPool commandPool, VkQueue queue, std::invocable<VkCommandBuffer> auto&& function) {
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -38,7 +38,7 @@ void immediateSubmit(VkDevice device, VkCommandPool commandPool, VkQueue queue, 
 }
 
 namespace engine {
-	void immediateSubmit(VulkanEngine* engine, std::invocable<VkCommandBuffer> auto&& function) {
-		::immediateSubmit(engine->device, engine->commandPool, engine->graphicsQueue, FWD(function));
+	void immediate_submit(VulkanEngine* engine, std::invocable<VkCommandBuffer> auto&& function) {
+		::immediate_submit(engine->device, engine->commandPool, engine->graphicsQueue, FWD(function));
 	}
 }

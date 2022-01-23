@@ -163,7 +163,7 @@ namespace engine {
 		ImFont* font = io.Fonts->AddFontFromFileTTF((std::filesystem::path(std::getenv("WINDIR")) / "Fonts" / "segoeui.ttf").string().c_str(), 22.0f);
 		assert(font != NULL);
 
-		immediateSubmit(engine, [&](VkCommandBuffer cmd) {
+		immediate_submit(engine, [&](VkCommandBuffer cmd) {
 			ImGui_ImplVulkan_CreateFontsTexture(cmd);
 			});
 

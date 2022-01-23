@@ -23,7 +23,7 @@ namespace vk_base {
 		VkMemoryAllocateInfo allocInfo{};
 		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
 		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = findMemoryType(physicalDevice, memRequirements.memoryTypeBits, memoryProperties);
+		allocInfo.memoryTypeIndex = find_memory_type(physicalDevice, memRequirements.memoryTypeBits, memoryProperties);
 
 		if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate buffer memory!");
@@ -69,7 +69,7 @@ namespace engine {
 	}
 
 	void Buffer::copyFromBuffer(VulkanEngine* engine, VkBuffer srcBuffer) {
-		immediateSubmit(engine, [=](VkCommandBuffer commandBuffer) {
+		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
 			VkBufferCopy copyRegion{};
 			copyRegion.size = size;
 			vkCmdCopyBuffer(commandBuffer, srcBuffer, buffer, 1, &copyRegion);
