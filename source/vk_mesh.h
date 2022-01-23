@@ -27,20 +27,6 @@ struct Vertex {
 };
 
 namespace engine {
-    //template <typename ParaT> class Material;
-    //struct Pbr;
-    //struct HDRi;
-    //using PbrMaterial = Material<Pbr>;
-    //using HDRiMaterial = Material<HDRi>;
-    //using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
-    //using HDRiMaterialPtr = std::shared_ptr<HDRiMaterial>;
-
-    //using MaterialV = std::variant<PbrMaterial, HDRiMaterial>;
-    //using MaterialPtrV = std::variant<PbrMaterialPtr, HDRiMaterialPtr>;
-
-
-    //class MaterialPtrV;
-
     class Mesh;
     using MeshPtr = std::shared_ptr<Mesh>;
     class Mesh {

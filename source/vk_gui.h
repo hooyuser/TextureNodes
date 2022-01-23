@@ -4,7 +4,6 @@
 
 class VulkanEngine;
 
-
 namespace engine {
 	class GUI {
 	public:
@@ -12,17 +11,17 @@ namespace engine {
 
 		VkRenderPass renderPass;
 		VkCommandPool commandPool;
-		std::vector<VkCommandBuffer> commandBuffers;
+		std::vector<VkCommandBuffer> command_buffers;
 		std::vector<VkFramebuffer> framebuffers;
 
 		void init(VulkanEngine* engine);
 		void create_framebuffers();
-		void beginRender();
-		void endRender(VulkanEngine* engine, const uint32_t imageIndex);
+		void begin_render();
+		void end_render(VulkanEngine* engine, const uint32_t imageIndex);
 
 	protected:
-		void initCommandPool();
-		void initRenderPass();
-		void initCommandBuffers();
+		void init_command_pool();
+		void init_render_pass();
+		void init_command_buffers();
 	};
 }

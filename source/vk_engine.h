@@ -230,8 +230,6 @@ public:
 
 	void create_descriptor_sets();
 
-	uint32_t findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties);
-
 	void create_command_buffers();
 
 	void create_sync_objects();

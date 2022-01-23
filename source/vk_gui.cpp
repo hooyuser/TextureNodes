@@ -8,7 +8,7 @@
 #include <filesystem>
 
 namespace engine {
-	void GUI::initRenderPass() {
+	void GUI::init_render_pass() {
 		VkAttachmentDescription colorAttachment{};
 		colorAttachment.format = engine->swapChainImageFormat;
 		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
@@ -74,7 +74,7 @@ namespace engine {
 		}
 	}
 
-	void GUI::initCommandPool() {
+	void GUI::init_command_pool() {
 		uint32_t queueFamilyIndex = engine->queueFamilyIndices.graphicsFamily.value();
 		VkCommandPoolCreateInfo commandPoolInfo = vkinit::commandPoolCreateInfo(queueFamilyIndex, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
@@ -87,26 +87,26 @@ namespace engine {
 			});
 	}
 
-	void GUI::initCommandBuffers() {
-		commandBuffers.resize(engine->swapchain_image_count);
-		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)commandBuffers.size());
+	void GUI::init_command_buffers() {
+		command_buffers.resize(engine->swapchain_image_count);
+		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)command_buffers.size());
 
-		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, commandBuffers.data()) != VK_SUCCESS) {
+		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, command_buffers.data()) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
 
 		engine->main_deletion_queue.push_function([=]() {
-			vkFreeCommandBuffers(engine->device, commandPool, static_cast<uint32_t>(commandBuffers.size()), commandBuffers.data());
+			vkFreeCommandBuffers(engine->device, commandPool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
 			});
 	}
 
 
 	void GUI::init(VulkanEngine* vulkanEngine) {
 		engine = vulkanEngine;
-		initCommandPool();
-		initRenderPass();
+		init_command_pool();
+		init_render_pass();
 		create_framebuffers();
-		initCommandBuffers();
+		init_command_buffers();
 
 		VkDescriptorPoolSize pool_sizes[] =
 		{
@@ -159,8 +159,17 @@ namespace engine {
 		ImGui_ImplVulkan_Init(&init_info, renderPass);
 
 		//execute a gpu command to upload imgui font textures
+		static const ImWchar ranges[] = {
+			0x0020, 0x00FF, // Basic Latin + Latin Supplement
+			0x0104, 0x017C, // Polish characters and more
+			0,
+		};
 
-		ImFont* font = io.Fonts->AddFontFromFileTTF((std::filesystem::path(std::getenv("WINDIR")) / "Fonts" / "segoeui.ttf").string().c_str(), 22.0f);
+		ImFontConfig config;
+		config.OversampleH = 7;
+		config.OversampleV = 4;
+		config.PixelSnapH = false;
+		ImFont* font = io.Fonts->AddFontFromFileTTF((std::filesystem::path(std::getenv("WINDIR")) / "Fonts" / "segoeui.ttf").string().c_str(), 22.0f, &config, ranges);
 		assert(font != NULL);
 
 		immediate_submit(engine, [&](VkCommandBuffer cmd) {
@@ -184,27 +193,21 @@ namespace engine {
 			});
 	}
 
-	//void GUI::createSwapchainResources() {
-	//	initRenderPass();
-	//	create_framebuffers();
-	//}
-
-	void GUI::beginRender()
-	{
+	void GUI::begin_render() {
 		ImGui_ImplVulkan_NewFrame();
 		ImGui_ImplGlfw_NewFrame();
 		ImGui::NewFrame();
 	}
 
 
-	void GUI::endRender(VulkanEngine* engine, const uint32_t imageIndex)
+	void GUI::end_render(VulkanEngine* engine, const uint32_t imageIndex)
 	{
 		ImGui::Render();
 
 		VkCommandBufferBeginInfo commandBufferBeginInfo = {};
 		commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 		commandBufferBeginInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
-		vkBeginCommandBuffer(commandBuffers[imageIndex], &commandBufferBeginInfo);
+		vkBeginCommandBuffer(command_buffers[imageIndex], &commandBufferBeginInfo);
 
 		VkRenderPassBeginInfo renderPassBeginInfo{};
 		renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
@@ -219,10 +222,10 @@ namespace engine {
 		renderPassBeginInfo.clearValueCount = 1;
 		renderPassBeginInfo.pClearValues = &clearValues;
 
-		vkCmdBeginRenderPass(commandBuffers[imageIndex], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), commandBuffers[imageIndex]);
-		vkCmdEndRenderPass(commandBuffers[imageIndex]);
-		vkEndCommandBuffer(commandBuffers[imageIndex]);
+		vkCmdBeginRenderPass(command_buffers[imageIndex], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffers[imageIndex]);
+		vkCmdEndRenderPass(command_buffers[imageIndex]);
+		vkEndCommandBuffer(command_buffers[imageIndex]);
 	}
 
 }

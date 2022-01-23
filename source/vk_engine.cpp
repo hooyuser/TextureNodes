@@ -1132,19 +1132,6 @@ void VulkanEngine::create_descriptor_sets() {
 	}
 }
 
-uint32_t VulkanEngine::findMemoryType(uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-	VkPhysicalDeviceMemoryProperties memProperties;
-	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
-
-	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-		if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
-			return i;
-		}
-	}
-
-	throw std::runtime_error("failed to find suitable memory type!");
-}
-
 void VulkanEngine::create_command_buffers() {
 	viewport3D.cmd_buffers.resize(swapchain_image_count);
 	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)viewport3D.cmd_buffers.size());
@@ -1152,8 +1139,6 @@ void VulkanEngine::create_command_buffers() {
 	if (vkAllocateCommandBuffers(device, &cmdAllocInfo, viewport3D.cmd_buffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
-
-
 
 	swapChainDeletionQueue.push_function([=]() {
 		vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(viewport3D.cmd_buffers.size()), viewport3D.cmd_buffers.data());
@@ -1214,7 +1199,6 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std::get<HDRiMaterialPtr>(object.mesh->pMaterial)->pipeline);
 				}
 				lastMaterial = object.mesh->pMaterial;
-
 			}
 			//bind the mesh vertex buffer with offset 0
 			VkBuffer vertexBuffers[] = { object.mesh->pVertexBuffer->buffer };
@@ -1306,7 +1290,7 @@ void VulkanEngine::draw_frame() {
 	ImGuiIO& io = ImGui::GetIO();
 
 	// IMGUI RENDERING
-	gui->beginRender();
+	gui->begin_render();
 
 	{
 		ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking |
@@ -1327,17 +1311,15 @@ void VulkanEngine::draw_frame() {
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 0.0f);
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowBorderSize, 0.0f);
 		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(0.0f, 0.0f));
-		ImGui::Begin("DockSpace", nullptr, window_flags);
-		
 
 		// DockSpace
+		ImGui::Begin("DockSpace", nullptr, window_flags);
 		ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
 		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
 		static bool first_time = true;
 
-		if (first_time)
-		{
+		if (first_time) {
 			first_time = false;
 			ImGuiID dock_id_right_p, dock_id_down, dock_id_left;
 			ImGuiID dock_id_right = ImGui::GetID("Right");
@@ -1392,7 +1374,7 @@ void VulkanEngine::draw_frame() {
 			int uniqueId = 1;
 			// Start drawing nodes.
 			ed::BeginNode(uniqueId++);
-			ImGui::Text("Node A");
+			ImGui::TextUnformatted("Node A");
 			ed::BeginPin(uniqueId++, ed::PinKind::Input);
 			ImGui::Text("-> In");
 			ed::EndPin();
@@ -1409,18 +1391,14 @@ void VulkanEngine::draw_frame() {
 		ImGui::SetNextWindowBgAlpha(0.0f);
 		//ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Set window background to red
 		//ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Set window background to red
+		
 		ImGui::Begin("Right", nullptr, ImGuiDockNodeFlags_PassthruCentralNode & ~ImGuiWindowFlags_NoInputs & ~ImGuiWindowFlags_NoBringToFrontOnFocus);
 
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 
 		//::PopStyleColor(2);
 		//ImGui::Text("io.WantCaptureMouse = %d", ImGui::IsItemHovered());
-		//{
-		//	ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-		//	ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
-		//	ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
-		//	ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);
-		//}
+
 		viewport3D.width = viewportPanelSize.x;
 		viewport3D.height = viewportPanelSize.y;
 		update_uniform_buffer(imageIndex);
@@ -1433,11 +1411,11 @@ void VulkanEngine::draw_frame() {
 		ImGui::PopStyleVar(3);
 	}
 
-	gui->endRender(this, imageIndex);
+	gui->end_render(this, imageIndex);
 
 	record_viewport_cmd_buffer(imageIndex);
 
-	std::array submitCommandBuffers = { viewport3D.cmd_buffers[imageIndex], gui->commandBuffers[imageIndex] };
+	std::array submitCommandBuffers = { viewport3D.cmd_buffers[imageIndex], gui->command_buffers[imageIndex] };
 
 	VkSubmitInfo submitInfo{};
 	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
