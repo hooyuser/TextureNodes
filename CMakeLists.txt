@@ -7,11 +7,11 @@ project(${PROJECT_NAME})
 
 add_subdirectory(extern)
 
-file(GLOB SRC
+file(GLOB_RECURSE  SRC
     "source/*.cpp"
 )
 
-file(GLOB HEADER
+file(GLOB_RECURSE HEADER
     "source/*.h"
 )
 

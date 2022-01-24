@@ -4,7 +4,7 @@
 #include "vk_mesh.h"
 #include "vk_util.h"
 #include "vk_pipeline.h"
-
+#include "gui/gui_node_editor.h"
 
 #include <span>
 #include <filesystem>
@@ -39,8 +39,7 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr double maxFPS = 300.0;
 constexpr double maxPeriod = 1.0 / maxFPS;
 
-namespace ed = ax::NodeEditor;
-static ed::EditorContext* g_Context = nullptr;
+
 
 const std::vector<const char*> validationLayers = {
 	"VK_LAYER_KHRONOS_validation"
@@ -1246,12 +1245,8 @@ void VulkanEngine::create_sync_objects() {
 void VulkanEngine::init_imgui() {
 	gui = std::make_unique<engine::GUI>();
 	gui->init(this);
-	ed::Config config;
-	config.SettingsFile = "Simple.json";
-	g_Context = ed::CreateEditor(&config);
-	main_deletion_queue.push_function([=]() {
-		ed::DestroyEditor(g_Context);
-		});
+	init_node_editor(this);
+	create_nodes();
 }
 
 void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
@@ -1369,22 +1364,7 @@ void VulkanEngine::draw_frame() {
 
 		ImGui::Begin("Down");
 		{
-			ed::SetCurrentEditor(g_Context);
-			ed::Begin("My Editor", ImVec2(0.0, 0.0f));
-			int uniqueId = 1;
-			// Start drawing nodes.
-			ed::BeginNode(uniqueId++);
-			ImGui::TextUnformatted("Node A");
-			ed::BeginPin(uniqueId++, ed::PinKind::Input);
-			ImGui::Text("-> In");
-			ed::EndPin();
-			ImGui::SameLine();
-			ed::BeginPin(uniqueId++, ed::PinKind::Output);
-			ImGui::Text("Out ->");
-			ed::EndPin();
-			ed::EndNode();
-			ed::End();
-			ed::SetCurrentEditor(nullptr);
+			draw_node_editer();
 		}
 		ImGui::End();
 
