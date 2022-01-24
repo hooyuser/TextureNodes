@@ -54,6 +54,7 @@ target_include_directories(${PROJECT_NAME}
         ${EXTERN_DIR}/imgui
         ${EXTERN_DIR}/imgui/backends
         ${EXTERN_DIR}/imgui-node-editor
+        ${EXTERN_DIR}/magic_enum/include
 )
 
 target_link_libraries(${PROJECT_NAME}

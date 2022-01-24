@@ -1,6 +1,7 @@
 #include "gui_node_editor.h"
 #include "../vk_engine.h"
 #include "imgui_internal.h"
+#include <magic_enum.hpp>
 
 namespace node_ed {
 	static ed::EditorContext* context = nullptr;
@@ -10,6 +11,22 @@ namespace node_ed {
 	static int nextId = 1;
 }
 
+Node::Node(int id, std::string name, NodeType type) : id(id), type(type), name(name) {
+	auto type_name_sv = magic_enum::enum_name(type);
+	type_name.reserve(type_name_sv.size());
+	type_name.push_back(type_name_sv[0]);
+	for (size_t i = 1; i < type_name_sv.size(); i++) {
+		if (type_name_sv[i] == '_') {
+			type_name.push_back(' ');
+		}
+		else if (type_name_sv[i - 1] != '_') {
+			type_name.push_back(std::tolower(type_name_sv[i]));
+		}
+		else {
+			type_name.push_back(type_name_sv[i]);
+		}
+	}
+}
 
 constexpr static int get_next_id() {
 	return node_ed::nextId++;
@@ -21,18 +38,19 @@ static ImRect imgui_get_item_rect() {
 
 
 void create_nodes() {
-	create_node_add();
+	//create_node_add("Add 2", ImVec2(500, 70));
+	//create_node_add("Add 2", ImVec2(50, 300));
 }
 
-static Node* create_node_add() {
-	node_ed::nodes.emplace_back(get_next_id(), "Add", NodeType::ADD);
+static Node* create_node_add(std::string name, ImVec2 pos) {
+	node_ed::nodes.emplace_back(get_next_id(), name, NodeType::ADD);
 	auto& node = node_ed::nodes.back();
 	node.inputs.emplace_back(get_next_id(), "Value", PinType::FLOAT);
 	node.inputs.emplace_back(get_next_id(), "Value", PinType::FLOAT);
 	node.outputs.emplace_back(get_next_id(), "Result", PinType::FLOAT);
 
 	build_node(&node);
-	//ed::SetNodePosition(node.id, ImVec2(500, 70));
+	//ed::SetNodePosition(node.id, pos);
 
 	return &node;
 }
@@ -50,13 +68,35 @@ static void build_node(Node* node) {
 }
 
 void draw_node_editer() {
-	ImGui::ShowDemoWindow();
+	//static bool add_node_add = false;
+
+	if (ImGui::BeginMenuBar()) {
+		if (ImGui::BeginMenu("Add"))
+		{
+			if (ImGui::MenuItem("Add")){
+				create_node_add("Add", ImVec2(0, 0));
+			}
+			ImGui::EndMenu();
+		}
+		ImGui::EndMenuBar();
+	}
+	
+	////ImGui::ShowDemoWindow();
 	ed::SetCurrentEditor(node_ed::context);
 	ed::Begin("My Editor", ImVec2(0.0f, 0.0f));
+
+	
+
 	// Start drawing nodes.
+
+	//if (add_node_add) {
+		//create_node_add("Add", ImVec2(0, 0));
+		//add_node_add = false;
+	//}
+
 	for (auto& node : node_ed::nodes) {
 		ed::BeginNode(node.id);
-		ImGui::TextUnformatted(node.name.c_str());
+		ImGui::Text(node.type_name.c_str());
 		ImGui::Dummy(ImVec2(140.0f, 3.0f));
 		auto node_rect = imgui_get_item_rect();
 		ImGui::GetWindowDrawList()->AddRectFilled(node_rect.GetTL(), node_rect.GetBR(), ImColor(68, 129, 196, 160));

@@ -41,13 +41,13 @@ struct Node {
 	std::vector<Pin> outputs;
 	//ImColor Color ;
 	NodeType type;
+	std::string type_name;
 	ImVec2 size = { 0, 0 };
 
 	std::string state;
 	std::string saved_state;
 
-	Node(int id, const char* name, NodeType type) :
-		id(id), name(name), type(type) {}
+	Node(int id, std::string name, NodeType type);
 };
 
 struct Link
@@ -73,4 +73,4 @@ void create_nodes();
 
 static void build_node(Node* node);
 
-static Node* create_node_add();
+static Node* create_node_add(std::string name, ImVec2 pos);

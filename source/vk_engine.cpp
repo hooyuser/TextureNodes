@@ -36,7 +36,7 @@ constexpr auto SCALE_X = 0.5;
 constexpr auto SCALE_Y = 0.5;
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-constexpr double maxFPS = 300.0;
+constexpr double maxFPS = 200.0;
 constexpr double maxPeriod = 1.0 / maxFPS;
 
 
@@ -1312,6 +1312,11 @@ void VulkanEngine::draw_frame() {
 		ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
 		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
+		if (ImGui::BeginMenuBar()) {
+			ImGui::Text("FPS: %.2f (%.2gms)", io.Framerate, io.Framerate ? 1000.0f / io.Framerate : 0.0f);
+			ImGui::EndMenuBar();
+		}
+
 		static bool first_time = true;
 
 		if (first_time) {
@@ -1362,7 +1367,9 @@ void VulkanEngine::draw_frame() {
 		}
 		ImGui::End();
 
-		ImGui::Begin("Down");
+		
+		ImGui::Begin("Down", nullptr, ImGuiWindowFlags_MenuBar);
+		//ImGui::Begin("Down");
 		{
 			draw_node_editer();
 		}
