@@ -1322,7 +1322,7 @@ void VulkanEngine::draw_frame() {
 		if (first_time) {
 			first_time = false;
 			ImGuiID dock_id_right_p, dock_id_down, dock_id_left;
-			ImGuiID dock_id_right = ImGui::GetID("Right");
+			ImGuiID dock_id_right = ImGui::GetID("3D Viewport");
 
 			ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
 			ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
@@ -1351,9 +1351,9 @@ void VulkanEngine::draw_frame() {
 			right_node->ParentNode = up_node;
 
 			// we now dock our windows into the docking node we made above
-			ImGui::DockBuilderDockWindow("Down", dock_id_down);
+			ImGui::DockBuilderDockWindow("Node Editor", dock_id_down);
 			ImGui::DockBuilderDockWindow("Left", dock_id_left);
-			ImGui::DockBuilderDockWindow("Right", dock_id_right);
+			ImGui::DockBuilderDockWindow("3D Viewport", dock_id_right);
 			ImGui::DockBuilderFinish(dockspace_id);
 		}
 		ImGui::End();
@@ -1368,8 +1368,8 @@ void VulkanEngine::draw_frame() {
 		ImGui::End();
 
 		
-		ImGui::Begin("Down", nullptr, ImGuiWindowFlags_MenuBar);
-		//ImGui::Begin("Down");
+		ImGui::Begin("Node Editor", nullptr, ImGuiWindowFlags_MenuBar);
+		//ImGui::Begin("Node Editor");
 		{
 			draw_node_editer();
 		}
@@ -1379,7 +1379,7 @@ void VulkanEngine::draw_frame() {
 		//ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Set window background to red
 		//ImGui::PushStyleColor(ImGuiCol_WindowBg, ImVec4(0.0f, 0.0f, 0.0f, 0.0f)); // Set window background to red
 		
-		ImGui::Begin("Right", nullptr, ImGuiDockNodeFlags_PassthruCentralNode & ~ImGuiWindowFlags_NoInputs & ~ImGuiWindowFlags_NoBringToFrontOnFocus);
+		ImGui::Begin("3D Viewport", nullptr, ImGuiDockNodeFlags_PassthruCentralNode & ~ImGuiWindowFlags_NoInputs & ~ImGuiWindowFlags_NoBringToFrontOnFocus);
 
 		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
 

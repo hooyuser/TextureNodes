@@ -71,21 +71,20 @@ void draw_node_editer() {
 	//static bool add_node_add = false;
 
 	if (ImGui::BeginMenuBar()) {
-		if (ImGui::BeginMenu("Add"))
-		{
-			if (ImGui::MenuItem("Add")){
+		if (ImGui::BeginMenu("Add")) {
+			if (ImGui::MenuItem("Add")) {
 				create_node_add("Add", ImVec2(0, 0));
 			}
 			ImGui::EndMenu();
 		}
 		ImGui::EndMenuBar();
 	}
-	
+
 	////ImGui::ShowDemoWindow();
 	ed::SetCurrentEditor(node_ed::context);
 	ed::Begin("My Editor", ImVec2(0.0f, 0.0f));
 
-	
+
 
 	// Start drawing nodes.
 
@@ -102,50 +101,113 @@ void draw_node_editer() {
 		ImGui::GetWindowDrawList()->AddRectFilled(node_rect.GetTL(), node_rect.GetBR(), ImColor(68, 129, 196, 160));
 		//ImGui::BeginVertical("delegates", ImVec2(0, 28));
 
-		if (ImGui::BeginTable("table1", 1)) {
-			for (auto& pin : node.outputs) {
-				ImGui::TableNextColumn();
-				ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
-				ed::BeginPin(get_next_id(), ed::PinKind::Output);
-				auto rect = imgui_get_item_rect();
-				ed::PinPivotRect(rect.GetCenter(), rect.GetCenter());
-				ed::PinRect(rect.GetTL(), rect.GetBR());
+		//if (ImGui::BeginTable("table1", 1)) {
+		const float radius = 5.8f;
+		for (auto& pin : node.outputs) {
+			//ImGui::TableNextColumn();
+			//ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
+			ed::BeginPin(pin.id, ed::PinKind::Output);
+			//auto rect = imgui_get_item_rect();
 
-				auto str = pin.name.c_str();
-				ImGui::SetCursorPosX(node_rect.Max.x - ImGui::CalcTextSize(str).x);
+			auto str = pin.name.c_str();
+			ImGui::SetCursorPosX(node_rect.Max.x - ImGui::CalcTextSize(str).x);
+			ImGui::Text(str);
 
-				ImGui::Text(str);
-				rect = imgui_get_item_rect();
+			auto rect = imgui_get_item_rect();
+			auto draw_list = ImGui::GetWindowDrawList();
+			ImVec2 pin_center = ImVec2(node_rect.Max.x + 8.0f, rect.GetCenter().y);
 
-				auto drawList = ImGui::GetWindowDrawList();
-				drawList->AddCircleFilled(ImVec2(node_rect.Max.x + 8.0f, rect.GetCenter().y), 5.8f, ImColor(68, 129, 196, 160), 24);
-				drawList->AddCircle(ImVec2(node_rect.Max.x + 8.0f, rect.GetCenter().y), 5.8f, ImColor(68, 129, 196, 255), 24, 1.8);
-				ed::EndPin();
-				ed::PopStyleVar(1);
-			}
+			draw_list->AddCircleFilled(pin_center, radius, ImColor(68, 129, 196, 160), 24);
+			draw_list->AddCircle(ImVec2(node_rect.Max.x + 8.0f, rect.GetCenter().y), radius, ImColor(68, 129, 196, 255), 24, 1.8);
 
-			for (auto& pin : node.inputs) {
-				ImGui::TableNextColumn();
-				ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
-				ed::BeginPin(get_next_id(), ed::PinKind::Input);
-				auto rect = imgui_get_item_rect();
-				ed::PinPivotRect(rect.GetCenter(), rect.GetCenter());
-				ed::PinRect(rect.GetTL(), rect.GetBR());
-				ImGui::Text(pin.name.c_str());
-				rect = imgui_get_item_rect();
+			ed::PinPivotRect(pin_center, pin_center);
+			ed::PinRect(ImVec2(pin_center.x - radius, pin_center.y - radius), ImVec2(pin_center.x + radius, pin_center.y + radius));
 
-				auto drawList = ImGui::GetWindowDrawList();
-				drawList->AddCircleFilled(ImVec2(rect.Min.x - 8.0f, rect.GetCenter().y), 5.8f, ImColor(68, 129, 196, 160), 24);
-				drawList->AddCircle(ImVec2(rect.Min.x - 8.0f, rect.GetCenter().y), 5.8f, ImColor(68, 129, 196, 255), 24, 1.8);
-				ed::EndPin();
-				ed::PopStyleVar(1);
-			}
-			ImGui::EndTable();
+			ed::EndPin();
+			//ed::PopStyleVar(1);
 		}
-		
-		//ImGui::SameLine();
+
+		for (auto& pin : node.inputs) {
+			//ImGui::TableNextColumn();
+			ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
+			ed::BeginPin(pin.id, ed::PinKind::Input);
+			//ed::PinPivotRect(rect.GetCenter(), rect.GetCenter());
+			//ed::PinRect(rect.GetTL(), rect.GetBR());
+
+			ImGui::Text(pin.name.c_str());
+			auto rect = imgui_get_item_rect();
+
+			auto drawList = ImGui::GetWindowDrawList();
+			ImVec2 pin_center = ImVec2(rect.Min.x - 8.0f, rect.GetCenter().y);
+			drawList->AddCircleFilled(pin_center, radius, ImColor(68, 129, 196, 160), 24);
+			drawList->AddCircle(pin_center, radius, ImColor(68, 129, 196, 255), 24, 1.8);
+
+			ed::PinPivotRect(pin_center, pin_center);
+			ed::PinRect(ImVec2(pin_center.x - radius, pin_center.y - radius), ImVec2(pin_center.x + radius, pin_center.y + radius));
+
+			ed::EndPin();
+			ed::PopStyleVar(1);
+		}
+		//ImGui::EndTable();
+	//}
+	//ImGui::SameLine();
 		ed::EndNode();
-		
+
+		for (auto& link : node_ed::links) {
+			ed::Link(link.id, link.start_pin_id, link.end_pin_id, ImColor(123, 174, 111, 245), 2.5f);
+		}
+
+		if (ed::BeginCreate()) {
+			ed::PinId inputPinId, outputPinId;
+			if (ed::QueryNewLink(&inputPinId, &outputPinId)) {
+				if (inputPinId && outputPinId) {
+					// ed::AcceptNewItem() return true when user release mouse button.
+					if (ed::AcceptNewItem()) {
+						// Since we accepted new link, lets add one to our list of links.
+						node_ed::links.emplace_back(ed::LinkId(get_next_id()), inputPinId, outputPinId);
+					}
+				}
+			}
+			
+		}
+		ed::EndCreate(); // Wraps up object creation action handling.
+
+		if (ed::BeginDelete())
+		{
+			// There may be many links marked for deletion, let's loop over them.
+			ed::LinkId deleted_link_id;
+			while (ed::QueryDeletedLink(&deleted_link_id))
+			{
+				// If you agree that link can be deleted, accept deletion.
+				if (ed::AcceptDeletedItem())
+				{
+					// Then remove link from your data.
+					auto deleted_link = std::find_if(node_ed::links.begin(), node_ed::links.end(), [=](auto& link) {
+						return link.id == deleted_link_id;
+						});
+					if (deleted_link != node_ed::links.end()) {
+						node_ed::links.erase(deleted_link);
+					}
+				}
+			}
+
+			ed::NodeId deleted_node_id;
+			while (ed::QueryDeletedNode(&deleted_node_id))
+			{
+				// If you agree that link can be deleted, accept deletion.
+				if (ed::AcceptDeletedItem())
+				{
+					// Then remove link from your data.
+					auto deleted_node = std::find_if(node_ed::nodes.begin(), node_ed::nodes.end(), [=](auto& node) {
+						return node.id == deleted_node_id;
+						});
+					if (deleted_node != node_ed::nodes.end()) {
+						node_ed::nodes.erase(deleted_node);
+					}
+				}
+			}
+		}
+		ed::EndDelete(); // Wrap up deletion action
 	}
 
 	ed::End();
