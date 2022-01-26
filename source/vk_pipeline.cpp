@@ -41,7 +41,7 @@ namespace engine {
 		colorBlend = vkinit::colorBlendAttachmentCreateInfo(colorBlendAttachment);
 
 		dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
-		dynamicState.dynamicStateCount = dynamicStateEnables.size();
+		dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
 		dynamicState.pDynamicStates = dynamicStateEnables.data();
 		dynamicState.flags = 0;
 		dynamicState.pNext = nullptr;

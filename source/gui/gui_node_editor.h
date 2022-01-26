@@ -1,11 +1,16 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <variant>
 #include <imgui_node_editor.h>
+#include "../vk_image.h"
 
 class VulkanEngine;
 
+
 namespace ed = ax::NodeEditor;
+
+
 
 enum class PinType {
 	IMAGE,
@@ -19,7 +24,8 @@ enum class PinInOut {
 
 enum class NodeType {
 	OUTPUT,
-	ADD
+	ADD,
+	UNIFORM_COLOR
 };
 
 struct Node;
@@ -34,6 +40,8 @@ struct Pin {
 		id(id), name(name), type(type) {}
 };
 
+
+
 struct Node {
 	ed::NodeId id;
 	std::string name;
@@ -43,11 +51,12 @@ struct Node {
 	NodeType type;
 	std::string type_name;
 	ImVec2 size = { 0, 0 };
+	std::variant<TexturePtr, float> result;
 
-	std::string state;
-	std::string saved_state;
+	//std::string state;
+	//std::string saved_state;
 
-	Node(int id, std::string name, NodeType type);
+	Node(int id, std::string name, NodeType type, VulkanEngine* engine);
 };
 
 struct Link
@@ -63,14 +72,25 @@ struct Link
 		id(id), start_pin_id(startPinId), end_pin_id(endPinId) {}
 };
 
+namespace engine {
+	class NodeEditor {
+	private:
+		VulkanEngine* engine;
+		ed::EditorContext* context = nullptr;
+		std::vector<Node> nodes;
+		std::vector<Link> links;
+		int next_id = 1;
+		
+		constexpr int get_next_id();
 
+		void build_node(Node* node);
 
-void draw_node_editer();
+		Node* create_node_add(std::string name, ImVec2 pos);
 
-void init_node_editor(VulkanEngine* engine);
+	public:
+		NodeEditor(VulkanEngine* engine);
 
-void create_nodes();
+		void draw();
+	};
+};
 
-static void build_node(Node* node);
-
-static Node* create_node_add(std::string name, ImVec2 pos);

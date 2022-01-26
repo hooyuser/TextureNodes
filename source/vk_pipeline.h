@@ -51,10 +51,10 @@ namespace engine {
 				constexpr auto paraNum = ParaT::Class::TotalFields;
 				specializationMapEntries.resize(paraNum);
 
-				for (auto i = 0u; i < paraNum; i++) {
+				for (uint32_t i = 0; i < paraNum; i++) {
 					ParaT::Class::FieldAt(pMaterial->paras, i, [&](auto& field, auto& value) {
 						specializationMapEntries[i].constantID = i;
-						specializationMapEntries[i].offset = field.getOffset();
+						specializationMapEntries[i].offset = static_cast<uint32_t>(field.getOffset());
 						specializationMapEntries[i].size = sizeof(value);
 						});
 				}

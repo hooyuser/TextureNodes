@@ -1245,8 +1245,7 @@ void VulkanEngine::create_sync_objects() {
 void VulkanEngine::init_imgui() {
 	gui = std::make_unique<engine::GUI>();
 	gui->init(this);
-	init_node_editor(this);
-	create_nodes();
+	node_editor = std::make_unique<engine::NodeEditor>(this);
 }
 
 void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
@@ -1371,7 +1370,7 @@ void VulkanEngine::draw_frame() {
 		ImGui::Begin("Node Editor", nullptr, ImGuiWindowFlags_MenuBar);
 		//ImGui::Begin("Node Editor");
 		{
-			draw_node_editer();
+			node_editor->draw();
 		}
 		ImGui::End();
 
@@ -1415,7 +1414,7 @@ void VulkanEngine::draw_frame() {
 	submitInfo.signalSemaphoreCount = 1;
 	submitInfo.pSignalSemaphores = &frameData[currentFrame].renderFinishedSemaphore;
 
-	submitInfo.commandBufferCount = submitCommandBuffers.size();
+	submitInfo.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size());
 	submitInfo.pCommandBuffers = submitCommandBuffers.data();
 
 	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {

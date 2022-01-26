@@ -3,9 +3,9 @@
 #include "vk_types.h"
 #include "vk_camera.h"
 #include "vk_buffer.h"
-#include "vk_image.h"
 #include "vk_material.h"
 #include "vk_gui.h"
+#include "gui/gui_node_editor.h"
 
 
 // #define GLFW_INCLUDE_VULKAN
@@ -29,7 +29,7 @@
 
 struct QueueFamilyIndices;
 struct SwapChainSupportDetails;
-class GUI;
+
 
 struct FrameData {
 	VkFence inFlightFence;
@@ -58,6 +58,7 @@ struct DeletionQueue
 namespace engine {
 	class Mesh;
 }
+
 using MeshPtr = std::shared_ptr<engine::Mesh>;
 
 
@@ -155,6 +156,8 @@ public:
 	static bool mouse_hover_viewport;
 
 	std::unique_ptr<engine::GUI> gui;
+
+	std::unique_ptr<engine::NodeEditor> node_editor;
 
 	ViewportUI viewport3D;
 
