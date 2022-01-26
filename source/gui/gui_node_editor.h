@@ -7,10 +7,7 @@
 
 class VulkanEngine;
 
-
 namespace ed = ax::NodeEditor;
-
-
 
 enum class PinType {
 	IMAGE,
@@ -52,9 +49,6 @@ struct Node {
 	std::string type_name;
 	ImVec2 size = { 0, 0 };
 	std::variant<TexturePtr, float> result;
-
-	//std::string state;
-	//std::string saved_state;
 
 	Node(int id, std::string name, NodeType type, VulkanEngine* engine);
 };

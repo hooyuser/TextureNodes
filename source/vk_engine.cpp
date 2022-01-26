@@ -426,7 +426,7 @@ void VulkanEngine::create_swap_chain_image_views() {
 	swapChainImageViews.resize(swapChainImages.size());
 
 	for (uint32_t i = 0; i < swapChainImages.size(); i++) {
-		swapChainImageViews[i] = create_image_view(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1, AFTER_SWAPCHAIN_BIT);
+		swapChainImageViews[i] = create_image_view(swapChainImages[i], swapChainImageFormat, VK_IMAGE_ASPECT_COLOR_BIT, 1, SWAPCHAIN_DEPENDENT_BIT);
 	}
 }
 
@@ -806,7 +806,7 @@ void VulkanEngine::create_window_attachments() {
 		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VK_IMAGE_ASPECT_COLOR_BIT,
-		AFTER_SWAPCHAIN_BIT);
+		SWAPCHAIN_DEPENDENT_BIT);
 
 	pDepthImage = engine::Image::createImage(this,
 		swapChainExtent.width,
@@ -818,7 +818,7 @@ void VulkanEngine::create_window_attachments() {
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 		VK_IMAGE_ASPECT_DEPTH_BIT,
-		AFTER_SWAPCHAIN_BIT);
+		SWAPCHAIN_DEPENDENT_BIT);
 }
 
 void VulkanEngine::create_viewport_attachments() {
@@ -835,14 +835,14 @@ void VulkanEngine::create_viewport_attachments() {
 			screen_height,
 			colorFormat,
 			VK_IMAGE_ASPECT_COLOR_BIT,
-			BEFORE_SWAPCHAIN_BIT));
+			SWAPCHAIN_INDEPENDENT_BIT));
 
 		viewport3D.depth_textures.emplace_back(engine::Texture::create_2D_render_target(this,
 			screen_width,
 			screen_height,
 			depthFormat,
 			VK_IMAGE_ASPECT_DEPTH_BIT,
-			BEFORE_SWAPCHAIN_BIT));
+			SWAPCHAIN_INDEPENDENT_BIT));
 	}
 }
 
@@ -1017,12 +1017,12 @@ VkImageView VulkanEngine::create_image_view(VkImage image, VkFormat format, VkIm
 		throw std::runtime_error("failed to create texture image view!");
 	}
 
-	if (imageViewDescription == AFTER_SWAPCHAIN_BIT) {
+	if (imageViewDescription == SWAPCHAIN_DEPENDENT_BIT) {
 		swapChainDeletionQueue.push_function([=]() {
 			vkDestroyImageView(device, imageView, nullptr);
 			});
 	}
-	else if (imageViewDescription == BEFORE_SWAPCHAIN_BIT) {
+	else if (imageViewDescription == SWAPCHAIN_INDEPENDENT_BIT) {
 		main_deletion_queue.push_function([=]() {
 			vkDestroyImageView(device, imageView, nullptr);
 			});
@@ -1042,7 +1042,7 @@ void VulkanEngine::create_uniform_buffers() {
 			sizeof(UniformBufferObject),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			BEFORE_SWAPCHAIN_BIT);
+			SWAPCHAIN_INDEPENDENT_BIT);
 	}
 }
 

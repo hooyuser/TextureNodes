@@ -231,7 +231,7 @@ namespace engine {
 			vertexbufferSize,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			BEFORE_SWAPCHAIN_BIT);
+			SWAPCHAIN_INDEPENDENT_BIT);
 
 		pVertexBuffer->copyFromBuffer(engine, pStagingVertexBuffer->buffer);
 
@@ -249,7 +249,7 @@ namespace engine {
 			indexBufferSize,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			BEFORE_SWAPCHAIN_BIT);
+			SWAPCHAIN_INDEPENDENT_BIT);
 
 		pIndexBuffer->copyFromBuffer(engine, pStagingIndexBuffer->buffer);
 	}

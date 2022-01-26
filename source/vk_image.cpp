@@ -175,7 +175,7 @@ namespace engine {
 	ImagePtr Image::createImage(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, CreateResourceFlagBits imageDescription) {
 		auto pImage = std::make_shared<Image>(engine->device, engine->physicalDevice, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroyImageView(engine->device, pImage->imageView, nullptr);
 				vkDestroyImage(engine->device, pImage->image, nullptr);
 				vkFreeMemory(engine->device, pImage->memory, nullptr);
@@ -375,7 +375,7 @@ namespace engine {
 	TexturePtr Texture::createTexture(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkFilter filters, CreateResourceFlagBits imageDescription) {
 		auto pTexture = std::make_shared<Texture>(engine->device, engine->physicalDevice, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags, filters);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -404,7 +404,7 @@ namespace engine {
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_FILTER_LINEAR);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -432,7 +432,7 @@ namespace engine {
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_FILTER_LINEAR);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -462,7 +462,7 @@ namespace engine {
 			aspectFlags,
 			VK_FILTER_LINEAR);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -493,7 +493,7 @@ namespace engine {
 			VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
 			6);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -523,7 +523,7 @@ namespace engine {
 			VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
 			6);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == AFTER_SWAPCHAIN_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -551,10 +551,10 @@ namespace engine {
 		engine::TexturePtr pTexture;
 
 		if (enableMipmap) {
-			pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, format, BEFORE_SWAPCHAIN_BIT);
+			pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, format, SWAPCHAIN_INDEPENDENT_BIT);
 		}
 		else {
-			pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, format, BEFORE_SWAPCHAIN_BIT, 1);
+			pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, format, SWAPCHAIN_INDEPENDENT_BIT, 1);
 		}
 
 		pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -629,7 +629,7 @@ namespace engine {
 		}
 		vkUnmapMemory(engine->device, pStagingBuffer->memory);
 
-		auto pTexture = engine::Texture::createCubemapTexture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, BEFORE_SWAPCHAIN_BIT);
+		auto pTexture = engine::Texture::createCubemapTexture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT);
 
 		pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -693,7 +693,7 @@ namespace engine {
 			vkUnmapMemory(engine->device, pStagingBuffer->memory);
 
 			if (mipLevel == 0) {
-				pTexture = engine::Texture::createCubemapTexture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, BEFORE_SWAPCHAIN_BIT, filePathLayers.size());
+				pTexture = engine::Texture::createCubemapTexture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT, filePathLayers.size());
 			}
 
 			pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);

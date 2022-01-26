@@ -21,8 +21,8 @@ std::convertible_to<
 
 typedef enum CreateResourceFlagBits {
     TEMP_BIT = 0x00000000,
-    BEFORE_SWAPCHAIN_BIT = 0x00000001,
-    AFTER_SWAPCHAIN_BIT = 0x00000003,  //resource should be recreated if the swapchain is recreated
+    SWAPCHAIN_INDEPENDENT_BIT = 0x00000001,
+    SWAPCHAIN_DEPENDENT_BIT = 0x00000003,  //resource should be recreated if the swapchain is recreated
 } CreateResourceFlagBits;
 
 typedef enum TextureSetFlagBits {  //deprecated

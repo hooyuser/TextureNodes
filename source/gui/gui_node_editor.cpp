@@ -2,7 +2,7 @@
 #include "../vk_engine.h"
 
 
-#include "imgui_internal.h"
+#include <imgui_internal.h>
 #include <magic_enum.hpp>
 
 
@@ -27,7 +27,7 @@ Node::Node(int id, std::string name, NodeType type, VulkanEngine* engine) : id(i
 			1024,
 			VK_FORMAT_R8G8B8A8_SRGB,
 			VK_IMAGE_ASPECT_COLOR_BIT,
-			BEFORE_SWAPCHAIN_BIT);
+			SWAPCHAIN_INDEPENDENT_BIT);
 	}
 }
 
