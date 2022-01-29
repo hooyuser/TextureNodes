@@ -66,7 +66,7 @@ namespace engine {
 		nodes.emplace_back(get_next_id(), name, NodeUniformColor{}, engine);
 		auto& node = nodes.back();
 		node.inputs.emplace_back(get_next_id(), "Color", PinColor{});
-		node.outputs.emplace_back(get_next_id(), "Result", PinFloat{});
+		node.outputs.emplace_back(get_next_id(), "Result", PinImage{});
 
 		build_node(&node);
 
@@ -167,7 +167,7 @@ namespace engine {
 							ImGui::PopItemWidth();
 						}
 					}
-					else if constexpr (std::is_same_v<T, Float3Data>) {
+					else if constexpr (std::is_same_v<T, Float4Data>) {
 
 						ImGui::Text(pin->name.c_str());
 						rect = imgui_get_item_rect();
@@ -204,7 +204,7 @@ namespace engine {
 				ed::Suspend();
 				if (ImGui::BeginPopup(("ColorPopup##" + std::to_string(color_pin->id.Get())).c_str()))
 				{
-					ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin->id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Float3Data>(&(color_pin->default_value))), ImGuiColorEditFlags_None, NULL);
+					ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin->id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Float4Data>(&(color_pin->default_value))), ImGuiColorEditFlags_None, NULL);
 					ImGui::EndPopup();
 				}
 				ed::Resume();
