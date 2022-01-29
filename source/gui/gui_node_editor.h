@@ -3,11 +3,31 @@
 #include <string>
 #include <variant>
 #include <imgui_node_editor.h>
+
 #include "../vk_image.h"
+#include "../vk_buffer.h"
 
 class VulkanEngine;
 
 namespace ed = ax::NodeEditor;
+
+struct NodeResult {};
+
+struct ImageData : public NodeResult {
+	TexturePtr texture;
+	BufferPtr uniform_buffer;
+	inline static VkDescriptorSetLayout descriptor_set_layout = nullptr;
+	VkDescriptorSet descriptor_set;
+
+	ImageData(VulkanEngine* engine);
+};
+
+using ImageDataPtr = std::shared_ptr<ImageData>;
+
+struct FloatData : public NodeResult {
+	float value;
+	FloatData(VulkanEngine* engine) {};
+};
 
 enum class PinType {
 	IMAGE,
@@ -19,25 +39,34 @@ enum class PinInOut {
 	OUTPUT
 };
 
-enum class NodeType {
-	OUTPUT,
-	ADD,
-	UNIFORM_COLOR
+struct NodeBase {};
+
+struct NodeUniformColor: NodeBase {
+	using result_type = ImageData;
+	constexpr auto static name() { return "Uniform Color"; }
 };
+
+struct NodeAdd: NodeBase {
+	using result_type = FloatData;
+	constexpr auto static name() { return "Add"; }
+};
+
 
 struct Node;
 struct Pin {
 	ed::PinId id;
 	::Node* node = nullptr;
+	std::vector<Node*> connect_nodes;
 	std::string name;
 	PinType type;
 	PinInOut flow_direction = PinInOut::INPUT;
+	std::variant<float> default_value;
 
 	Pin(ed::PinId id, std::string name, PinType type) :
 		id(id), name(name), type(type) {}
+
+	void display();
 };
-
-
 
 struct Node {
 	ed::NodeId id;
@@ -45,12 +74,16 @@ struct Node {
 	std::vector<Pin> inputs;
 	std::vector<Pin> outputs;
 	//ImColor Color ;
-	NodeType type;
 	std::string type_name;
 	ImVec2 size = { 0, 0 };
-	std::variant<TexturePtr, float> result;
+	std::shared_ptr<NodeResult> result;
 
-	Node(int id, std::string name, NodeType type, VulkanEngine* engine);
+	template<typename T>
+	Node(int id, std::string name, const T&, VulkanEngine* engine) : id(id), name(name) {
+		type_name = T::name();
+		auto result_data = std::make_shared<T::result_type>(engine);
+		result = std::static_pointer_cast<NodeResult>(result_data);
+	}
 };
 
 struct Link
@@ -74,7 +107,7 @@ namespace engine {
 		std::vector<Node> nodes;
 		std::vector<Link> links;
 		int next_id = 1;
-		
+
 		constexpr int get_next_id();
 
 		void build_node(Node* node);

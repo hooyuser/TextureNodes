@@ -202,7 +202,7 @@ public:
 
 	void createRenderPass();
 
-	void createDescriptorSetLayouts();
+	void create_descriptor_set_layouts();
 
 	void createGraphicsPipeline();
 

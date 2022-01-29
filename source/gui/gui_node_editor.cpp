@@ -1,40 +1,52 @@
 #include "gui_node_editor.h"
 #include "../vk_engine.h"
-
-
+#include "../vk_initializers.h"
 #include <imgui_internal.h>
-#include <magic_enum.hpp>
-
-
-Node::Node(int id, std::string name, NodeType type, VulkanEngine* engine) : id(id), type(type), name(name) {
-	auto type_name_sv = magic_enum::enum_name(type);
-	type_name.reserve(type_name_sv.size());
-	type_name.push_back(type_name_sv[0]);
-	for (size_t i = 1; i < type_name_sv.size(); i++) {
-		if (type_name_sv[i] == '_') {
-			type_name.push_back(' ');
-		}
-		else if (type_name_sv[i - 1] != '_') {
-			type_name.push_back(std::tolower(type_name_sv[i]));
-		}
-		else {
-			type_name.push_back(type_name_sv[i]);
-		}
-	}
-	if (type == NodeType::UNIFORM_COLOR) {
-		result = engine::Texture::create_2D_render_target(engine,
-			1024,
-			1024,
-			VK_FORMAT_R8G8B8A8_SRGB,
-			VK_IMAGE_ASPECT_COLOR_BIT,
-			SWAPCHAIN_INDEPENDENT_BIT);
-	}
-}
-
 
 
 static ImRect imgui_get_item_rect() {
 	return ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+}
+
+ImageData::ImageData(VulkanEngine* engine) {
+	texture = engine::Texture::create_2D_render_target(engine,
+		1024,
+		1024,
+		VK_FORMAT_R8G8B8A8_SRGB,
+		VK_IMAGE_ASPECT_COLOR_BIT);
+
+	uniform_buffer = engine::Buffer::createBuffer(engine,
+		sizeof(UniformBufferObject),
+		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		SWAPCHAIN_INDEPENDENT_BIT);
+
+	if (descriptor_set_layout == nullptr) {
+		auto UboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+		std::array scenebindings = { UboLayoutBinding };
+		engine->create_descriptor_set_layout(scenebindings, descriptor_set_layout);
+	}
+
+	VkDescriptorSetAllocateInfo descriptor_alloc_info{};
+	descriptor_alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
+	descriptor_alloc_info.descriptorPool = engine->descriptorPool;
+	descriptor_alloc_info.descriptorSetCount = 1;
+	descriptor_alloc_info.pSetLayouts = &descriptor_set_layout;
+	if (vkAllocateDescriptorSets(engine->device, &descriptor_alloc_info, &descriptor_set) != VK_SUCCESS) {
+		throw std::runtime_error("failed to allocate descriptor sets!");
+	}
+
+	VkDescriptorBufferInfo uniformBufferInfo{};
+	uniformBufferInfo.buffer = uniform_buffer->buffer;
+	uniformBufferInfo.offset = 0;
+	uniformBufferInfo.range = sizeof(UniformBufferObject);
+
+}
+
+void Pin::display() {
+	if (default_value.index() == 0) {
+
+	}
 }
 
 namespace engine {
@@ -43,7 +55,7 @@ namespace engine {
 	}
 
 	Node* NodeEditor::create_node_add(std::string name, ImVec2 pos) {
-		nodes.emplace_back(get_next_id(), name, NodeType::ADD, engine);
+		nodes.emplace_back(get_next_id(), name, NodeAdd(), engine);
 		auto& node = nodes.back();
 		node.inputs.emplace_back(get_next_id(), "Value", PinType::FLOAT);
 		node.inputs.emplace_back(get_next_id(), "Value", PinType::FLOAT);
@@ -81,11 +93,9 @@ namespace engine {
 			ImGui::EndMenuBar();
 		}
 
-		////ImGui::ShowDemoWindow();
+		ImGui::ShowDemoWindow();
 		ed::SetCurrentEditor(context);
 		ed::Begin("My Editor", ImVec2(0.0f, 0.0f));
-
-
 
 		// Start drawing nodes.
 
@@ -97,7 +107,7 @@ namespace engine {
 		for (auto& node : nodes) {
 			ed::BeginNode(node.id);
 			ImGui::Text(node.type_name.c_str());
-			ImGui::Dummy(ImVec2(140.0f, 3.0f));
+			ImGui::Dummy(ImVec2(160.0f, 3.0f));
 			auto node_rect = imgui_get_item_rect();
 			ImGui::GetWindowDrawList()->AddRectFilled(node_rect.GetTL(), node_rect.GetBR(), ImColor(68, 129, 196, 160));
 			//ImGui::BeginVertical("delegates", ImVec2(0, 28));
@@ -128,15 +138,23 @@ namespace engine {
 				//ed::PopStyleVar(1);
 			}
 
-			for (auto& pin : node.inputs) {
+			
+			for (std::size_t i = 0; i < node.inputs.size(); ++i) {
 				//ImGui::TableNextColumn();
+				auto& pin = node.inputs[i];
 				ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
 				ed::BeginPin(pin.id, ed::PinKind::Input);
 				//ed::PinPivotRect(rect.GetCenter(), rect.GetCenter());
 				//ed::PinRect(rect.GetTL(), rect.GetBR());
-
+				
 				ImGui::Text(pin.name.c_str());
 				auto rect = imgui_get_item_rect();
+				
+				if (pin.connect_nodes.empty()) {
+					ImGui::PushItemWidth(100.f);
+					ImGui::SameLine();
+					ImGui::DragFloat(("##" + std::to_string(pin.id.Get())).c_str(), std::get_if<float>(&pin.default_value), 0.005f);
+				}
 
 				auto drawList = ImGui::GetWindowDrawList();
 				ImVec2 pin_center = ImVec2(rect.Min.x - 8.0f, rect.GetCenter().y);
@@ -166,6 +184,28 @@ namespace engine {
 						if (ed::AcceptNewItem()) {
 							// Since we accepted new link, lets add one to our list of links.
 							links.emplace_back(ed::LinkId(get_next_id()), inputPinId, outputPinId);
+							Node* input_node;
+							bool found_input = false;
+							Pin* output_pin;
+							bool found_output = false;
+							for (auto& node : nodes) {
+								for (auto& pin : node.outputs) {
+									if (pin.id == inputPinId) {
+										input_node = &node;
+										found_output = true;
+									}
+								}
+								for (auto& pin : node.inputs) {
+									if (pin.id == outputPinId) {
+										output_pin = &pin;
+										found_input = true;
+									}
+								}
+								if (found_input && found_output) {
+									break;
+								}
+							}
+							output_pin->connect_nodes.emplace_back(input_node);
 						}
 					}
 				}

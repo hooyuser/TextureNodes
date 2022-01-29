@@ -133,7 +133,7 @@ void VulkanEngine::initVulkan() {
 
 	createCommandPool();
 	parseMaterialInfo();
-	createDescriptorSetLayouts();
+	create_descriptor_set_layouts();
 
 
 	create_viewport_attachments();
@@ -690,7 +690,7 @@ void VulkanEngine::parseMaterialInfo() {
 	renderables.emplace_back(std::move(skyBoxObject));
 }
 
-void VulkanEngine::createDescriptorSetLayouts() {
+void VulkanEngine::create_descriptor_set_layouts() {
 
 	auto camUboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
 	auto texture2DArrayLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, loadedTexture2Ds.size());
@@ -1047,7 +1047,7 @@ void VulkanEngine::create_uniform_buffers() {
 }
 
 void VulkanEngine::create_descriptor_pool() {
-	const uint32_t descriptorSize = swapchain_image_count * 100;
+	const uint32_t descriptorSize = swapchain_image_count * 200;
 	std::vector<VkDescriptorPoolSize> poolSizes = {
 		{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptorSize },
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorSize }
