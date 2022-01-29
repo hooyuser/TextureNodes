@@ -160,7 +160,7 @@ namespace engine {
 					if constexpr (std::is_same_v<T, float>) {
 						ImGui::Text(pin->name.c_str());
 						rect = imgui_get_item_rect();
-						if (pin->connect_nodes.empty()) {
+						if (pin->connected_pins.empty()) {
 							ImGui::PushItemWidth(100.f);
 							ImGui::SameLine();
 							ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(), std::get_if<float>(&(pin->default_value)), 0.005f);
@@ -171,7 +171,7 @@ namespace engine {
 
 						ImGui::Text(pin->name.c_str());
 						rect = imgui_get_item_rect();
-						if (pin->connect_nodes.empty()) {
+						if (pin->connected_pins.empty()) {
 							ImGui::PushItemWidth(100.f);
 							ImGui::SameLine();
 							auto color = ImVec4{ arg.value[0], arg.value[1], arg.value[2], arg.value[3] };
@@ -215,35 +215,41 @@ namespace engine {
 			}
 
 			if (ed::BeginCreate()) {
-				ed::PinId inputPinId, outputPinId;
-				if (ed::QueryNewLink(&inputPinId, &outputPinId)) {
-					if (inputPinId && outputPinId) {
+				ed::PinId start_pin_id, end_pin_id;
+				if (ed::QueryNewLink(&start_pin_id, &end_pin_id)) {
+					if (start_pin_id && end_pin_id) {
 						// ed::AcceptNewItem() return true when user release mouse button.
 						if (ed::AcceptNewItem()) {
 							// Since we accepted new link, lets add one to our list of links.
-							links.emplace_back(ed::LinkId(get_next_id()), inputPinId, outputPinId);
-							Node* input_node;
-							bool found_input = false;
-							Pin* output_pin;
-							bool found_output = false;
+							links.emplace_back(ed::LinkId(get_next_id()), start_pin_id, end_pin_id);
+
+							Pin* start_pin;
+							bool found_start = false;
+							Pin* end_pin;
+							bool found_end = false;
 							for (auto& node : nodes) {
-								for (auto& pin : node.outputs) {
-									if (pin.id == inputPinId) {
-										input_node = &node;
-										found_output = true;
+								if (!found_start) {
+									for (auto& pin : node.outputs) {
+										if (pin.id == start_pin_id) {
+											start_pin = &pin;
+											found_start = true;
+										}
 									}
 								}
-								for (auto& pin : node.inputs) {
-									if (pin.id == outputPinId) {
-										output_pin = &pin;
-										found_input = true;
+								if (!found_end) {
+									for (auto& pin : node.inputs) {
+										if (pin.id == end_pin_id) {
+											end_pin = &pin;
+											found_end = true;
+										}
 									}
 								}
-								if (found_input && found_output) {
+								if (found_start && found_end) {
 									break;
 								}
 							}
-							output_pin->connect_nodes.emplace_back(input_node);
+							start_pin->connected_pins.emplace(end_pin);
+							end_pin->connected_pins.emplace(start_pin);
 						}
 					}
 				}
@@ -264,7 +270,27 @@ namespace engine {
 						auto deleted_link = std::find_if(links.begin(), links.end(), [=](auto& link) {
 							return link.id == deleted_link_id;
 							});
+
+						auto x = deleted_link != links.end();
+						//connect_nodes
 						if (deleted_link != links.end()) {
+							auto start_pin_id = deleted_link->start_pin_id;
+							auto end_pin_id = deleted_link->end_pin_id;
+							std::invoke([&] {
+								for (auto& node : nodes) {
+									for (auto& pin : node.outputs) {
+										if (pin.id == start_pin_id) {
+											for (auto connected_pin : pin.connected_pins) {
+												if (connected_pin->id == end_pin_id) {
+													pin.connected_pins.erase(connected_pin);
+													connected_pin->connected_pins.erase(&pin);
+													return;
+												}	
+											}
+										}
+									}
+								}
+								});
 							links.erase(deleted_link);
 						}
 					}

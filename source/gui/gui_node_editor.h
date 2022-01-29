@@ -1,6 +1,7 @@
 #pragma once
 #include <vector>
 #include <string>
+#include <unordered_set>
 #include <variant>
 #include <imgui_node_editor.h>
 #include <imgui_internal.h>
@@ -66,7 +67,7 @@ struct Node;
 struct Pin {
 	ed::PinId id;
 	::Node* node = nullptr;
-	std::vector<Node*> connect_nodes;
+	std::unordered_set<Pin*> connected_pins;
 	std::string name;
 	PinInOut flow_direction = PinInOut::INPUT;
 	std::variant<float, Float3Data> default_value;
