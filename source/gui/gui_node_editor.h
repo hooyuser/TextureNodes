@@ -3,6 +3,8 @@
 #include <string>
 #include <unordered_set>
 #include <variant>
+#define IMGUI_DEFINE_MATH_OPERATORS
+
 #include <imgui_node_editor.h>
 #include <imgui_internal.h>
 

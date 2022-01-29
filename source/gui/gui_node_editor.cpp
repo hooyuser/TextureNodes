@@ -219,27 +219,59 @@ namespace engine {
 				if (ed::QueryNewLink(&start_pin_id, &end_pin_id)) {
 					if (start_pin_id && end_pin_id) {
 						// ed::AcceptNewItem() return true when user release mouse button.
-						if (ed::AcceptNewItem()) {
+						Pin* pins[2];
+						char i = 0;
+						while (i < 2) {
+							for (auto& node : nodes) {
+								for (auto& pin : node.outputs) {
+									if (pin.id == start_pin_id || pin.id == end_pin_id) {
+										pins[i++] = &pin;
+
+									}
+								}
+								for (auto& pin : node.inputs) {
+									if (pin.id == start_pin_id || pin.id == end_pin_id) {
+										pins[i++] = &pin;
+									}
+								}
+							}
+						}
+						assert(i == 2);
+						auto showLabel = [](const char* label, ImColor color)
+						{
+							ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetTextLineHeight());
+							auto size = ImGui::CalcTextSize(label);
+
+							auto padding = ImGui::GetStyle().FramePadding;
+							auto spacing = ImGui::GetStyle().ItemSpacing;
+
+							ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(spacing.x, -spacing.y));
+
+							auto rectMin = ImGui::GetCursorScreenPos() - padding;
+							auto rectMax = ImGui::GetCursorScreenPos() + size + padding;
+
+							auto drawList = ImGui::GetWindowDrawList();
+							drawList->AddRectFilled(rectMin, rectMax, color, size.y * 0.15f);
+							ImGui::TextUnformatted(label);
+						};
+						if (pins[0] == pins[1]) {
+							ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
+						}
+						else if (pins[0]->flow_direction == pins[1]->flow_direction) {
+							auto hint = (pins[0]->flow_direction == PinInOut::INPUT) ?
+								"Input Can Only Be Connected To Output" : "Output Can Only Be Connected To Input";
+							showLabel(hint, ImColor(45, 32, 32, 180));
+							ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
+						}
+						else if (pins[0]->default_value.index() != pins[1]->default_value.index()) {
+							showLabel("Incompatible Pin Type", ImColor(45, 32, 32, 180));
+							ed::RejectNewItem(ImColor(255, 128, 128), 1.0f);
+						}
+						else if (ed::AcceptNewItem()) {
 							// Since we accepted new link, lets add one to our list of links.
 							links.emplace(ed::LinkId(get_next_id()), start_pin_id, end_pin_id);
 
-							Pin* pins[2];
-							for (char i = 0; i < 2;) {
-								for (auto& node : nodes) {
-									for (auto& pin : node.outputs) {
-										if (pin.id == start_pin_id|| pin.id == end_pin_id) {
-											pins[i++] = &pin;
-
-										}
-									}
-									for (auto& pin : node.inputs) {
-										if (pin.id == start_pin_id || pin.id == end_pin_id) {
-											pins[i++] = &pin;
-										}
-									}
-								}
-								break;
-							}
+							
 							pins[0]->connected_pins.emplace(pins[1]);
 							pins[1]->connected_pins.emplace(pins[0]);
 						}
@@ -249,15 +281,12 @@ namespace engine {
 			}
 			ed::EndCreate(); // Wraps up object creation action handling.
 
-			if (ed::BeginDelete())
-			{
+			if (ed::BeginDelete()) {
 				// There may be many links marked for deletion, let's loop over them.
 				ed::LinkId deleted_link_id;
-				while (ed::QueryDeletedLink(&deleted_link_id))
-				{
+				while (ed::QueryDeletedLink(&deleted_link_id)) {
 					// If you agree that link can be deleted, accept deletion.
-					if (ed::AcceptDeletedItem())
-					{
+					if (ed::AcceptDeletedItem()) {
 						// Then remove link from your data.
 						auto deleted_link = std::find_if(links.begin(), links.end(), [=](auto& link) {
 							return link.id == deleted_link_id;
