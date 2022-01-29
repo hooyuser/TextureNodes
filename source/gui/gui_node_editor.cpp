@@ -1,7 +1,7 @@
 #include "gui_node_editor.h"
 #include "../vk_engine.h"
 #include "../vk_initializers.h"
-#include <imgui_internal.h>
+
 
 
 static ImRect imgui_get_item_rect() {
@@ -43,27 +43,32 @@ ImageData::ImageData(VulkanEngine* engine) {
 
 }
 
-void Pin::display() {
-	if (default_value.index() == 0) {
-
-	}
-}
-
 namespace engine {
 	constexpr int NodeEditor::get_next_id() {
 		return next_id++;
 	}
 
-	Node* NodeEditor::create_node_add(std::string name, ImVec2 pos) {
-		nodes.emplace_back(get_next_id(), name, NodeAdd(), engine);
+	Node* NodeEditor::create_node_add(std::string name) {
+		nodes.emplace_back(get_next_id(), name, NodeAdd{}, engine);
 		auto& node = nodes.back();
-		node.inputs.emplace_back(get_next_id(), "Value", PinType::FLOAT);
-		node.inputs.emplace_back(get_next_id(), "Value", PinType::FLOAT);
-		node.outputs.emplace_back(get_next_id(), "Result", PinType::FLOAT);
+		node.inputs.emplace_back(get_next_id(), "Value", PinFloat{});
+		node.inputs.emplace_back(get_next_id(), "Value", PinFloat{});
+		node.outputs.emplace_back(get_next_id(), "Result", PinFloat{});
 
 		build_node(&node);
 
 		//ed::SetNodePosition(node.id, pos);
+
+		return &node;
+	}
+
+	Node* NodeEditor::create_node_uniform_color(std::string name) {
+		nodes.emplace_back(get_next_id(), name, NodeUniformColor{}, engine);
+		auto& node = nodes.back();
+		node.inputs.emplace_back(get_next_id(), "Color", PinColor{});
+		node.outputs.emplace_back(get_next_id(), "Result", PinFloat{});
+
+		build_node(&node);
 
 		return &node;
 	}
@@ -86,7 +91,10 @@ namespace engine {
 		if (ImGui::BeginMenuBar()) {
 			if (ImGui::BeginMenu("Add")) {
 				if (ImGui::MenuItem("Add")) {
-					create_node_add("Add", ImVec2(0, 0));
+					create_node_add("Add");
+				}
+				if (ImGui::MenuItem("Uniform Color")) {
+					create_node_uniform_color("Uniform Color");
 				}
 				ImGui::EndMenu();
 			}
@@ -112,10 +120,8 @@ namespace engine {
 			ImGui::GetWindowDrawList()->AddRectFilled(node_rect.GetTL(), node_rect.GetBR(), ImColor(68, 129, 196, 160));
 			//ImGui::BeginVertical("delegates", ImVec2(0, 28));
 
-			//if (ImGui::BeginTable("table1", 1)) {
 			const float radius = 5.8f;
 			for (auto& pin : node.outputs) {
-				//ImGui::TableNextColumn();
 				//ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
 				ed::BeginPin(pin.id, ed::PinKind::Output);
 				//auto rect = imgui_get_item_rect();
@@ -138,23 +144,48 @@ namespace engine {
 				//ed::PopStyleVar(1);
 			}
 
-			
+			Pin* color_pin;
+
+			bool handle_color_pin = false;
 			for (std::size_t i = 0; i < node.inputs.size(); ++i) {
-				//ImGui::TableNextColumn();
-				auto& pin = node.inputs[i];
+				auto pin = &node.inputs[i];
 				ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
-				ed::BeginPin(pin.id, ed::PinKind::Input);
+				ed::BeginPin(pin->id, ed::PinKind::Input);
 				//ed::PinPivotRect(rect.GetCenter(), rect.GetCenter());
 				//ed::PinRect(rect.GetTL(), rect.GetBR());
-				
-				ImGui::Text(pin.name.c_str());
-				auto rect = imgui_get_item_rect();
-				
-				if (pin.connect_nodes.empty()) {
-					ImGui::PushItemWidth(100.f);
-					ImGui::SameLine();
-					ImGui::DragFloat(("##" + std::to_string(pin.id.Get())).c_str(), std::get_if<float>(&pin.default_value), 0.005f);
-				}
+
+				ImRect rect;
+				std::visit([&](auto&& arg) {
+					using T = std::decay_t<decltype(arg)>;
+					if constexpr (std::is_same_v<T, float>) {
+						ImGui::Text(pin->name.c_str());
+						rect = imgui_get_item_rect();
+						if (pin->connect_nodes.empty()) {
+							ImGui::PushItemWidth(100.f);
+							ImGui::SameLine();
+							ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(), std::get_if<float>(&(pin->default_value)), 0.005f);
+							ImGui::PopItemWidth();
+						}
+					}
+					else if constexpr (std::is_same_v<T, Float3Data>) {
+
+						ImGui::Text(pin->name.c_str());
+						rect = imgui_get_item_rect();
+						if (pin->connect_nodes.empty()) {
+							ImGui::PushItemWidth(100.f);
+							ImGui::SameLine();
+							auto color = ImVec4{ arg.value[0], arg.value[1], arg.value[2], arg.value[3] };
+							ImGui::PopItemWidth();
+							if (ImGui::ColorButton(("ColorButton##" + std::to_string(pin->id.Get())).c_str(), color, ImGuiColorEditFlags_NoTooltip, ImVec2{ 40, 20 })) {
+								ed::Suspend();
+								ImGui::OpenPopup(("ColorPopup##" + std::to_string(pin->id.Get())).c_str());
+								ed::Resume();
+							}
+							handle_color_pin = true;
+							color_pin = pin;
+						}
+					}
+					}, pin->default_value);
 
 				auto drawList = ImGui::GetWindowDrawList();
 				ImVec2 pin_center = ImVec2(rect.Min.x - 8.0f, rect.GetCenter().y);
@@ -167,10 +198,17 @@ namespace engine {
 				ed::EndPin();
 				ed::PopStyleVar(1);
 			}
-			//ImGui::EndTable();
-		//}
-		//ImGui::SameLine();
 			ed::EndNode();
+
+			if (handle_color_pin) {
+				ed::Suspend();
+				if (ImGui::BeginPopup(("ColorPopup##" + std::to_string(color_pin->id.Get())).c_str()))
+				{
+					ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin->id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Float3Data>(&(color_pin->default_value))), ImGuiColorEditFlags_None, NULL);
+					ImGui::EndPopup();
+				}
+				ed::Resume();
+			}
 
 			for (auto& link : links) {
 				ed::Link(link.id, link.start_pin_id, link.end_pin_id, ImColor(123, 174, 111, 245), 2.5f);
@@ -235,10 +273,8 @@ namespace engine {
 				ed::NodeId deleted_node_id;
 				while (ed::QueryDeletedNode(&deleted_node_id))
 				{
-					// If you agree that link can be deleted, accept deletion.
 					if (ed::AcceptDeletedItem())
 					{
-						// Then remove link from your data.
 						auto deleted_node = std::find_if(nodes.begin(), nodes.end(), [=](auto& node) {
 							return node.id == deleted_node_id;
 							});

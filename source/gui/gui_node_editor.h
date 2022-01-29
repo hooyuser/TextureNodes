@@ -3,6 +3,7 @@
 #include <string>
 #include <variant>
 #include <imgui_node_editor.h>
+#include <imgui_internal.h>
 
 #include "../vk_image.h"
 #include "../vk_buffer.h"
@@ -25,18 +26,28 @@ struct ImageData : public NodeResult {
 using ImageDataPtr = std::shared_ptr<ImageData>;
 
 struct FloatData : public NodeResult {
-	float value;
+	float value = 0.0f;
 	FloatData(VulkanEngine* engine) {};
 };
 
-enum class PinType {
-	IMAGE,
-	FLOAT
+struct Float3Data : public NodeResult {
+	float value[4] = { 0.0f };
+	Float3Data(VulkanEngine* engine = nullptr) {};
 };
 
 enum class PinInOut {
 	INPUT,
 	OUTPUT
+};
+
+struct PinBase {};
+
+struct PinColor : PinBase {
+	using data_type = Float3Data;
+};
+
+struct PinFloat : PinBase {
+	using data_type = float;
 };
 
 struct NodeBase {};
@@ -51,21 +62,22 @@ struct NodeAdd: NodeBase {
 	constexpr auto static name() { return "Add"; }
 };
 
-
 struct Node;
 struct Pin {
 	ed::PinId id;
 	::Node* node = nullptr;
 	std::vector<Node*> connect_nodes;
 	std::string name;
-	PinType type;
 	PinInOut flow_direction = PinInOut::INPUT;
-	std::variant<float> default_value;
+	std::variant<float, Float3Data> default_value;
 
-	Pin(ed::PinId id, std::string name, PinType type) :
-		id(id), name(name), type(type) {}
+	template<typename T>
+	Pin(ed::PinId id, std::string name, const T&) :id(id), name(name) {
+		using pin_data_t = T::data_type;
+		default_value = pin_data_t{};
+	}
 
-	void display();
+	ImRect display();
 };
 
 struct Node {
@@ -112,7 +124,9 @@ namespace engine {
 
 		void build_node(Node* node);
 
-		Node* create_node_add(std::string name, ImVec2 pos);
+		Node* create_node_add(std::string name);
+
+		Node* create_node_uniform_color(std::string name);
 
 	public:
 		NodeEditor(VulkanEngine* engine);
