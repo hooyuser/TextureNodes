@@ -99,8 +99,7 @@ struct Node {
 	}
 };
 
-struct Link
-{
+struct Link {
 	ed::LinkId id;
 
 	ed::PinId start_pin_id;
@@ -110,7 +109,21 @@ struct Link
 
 	Link(ed::LinkId id, ed::PinId startPinId, ed::PinId endPinId) :
 		id(id), start_pin_id(startPinId), end_pin_id(endPinId) {}
+
+	bool operator==(const Link& link) const
+	{
+		return (this->id == link.id);
+	}
 };
+
+namespace std {
+	template <> struct hash<Link> {
+		size_t operator()(const Link& link) const
+		{
+			return reinterpret_cast<size_t>(link.id.AsPointer());
+		}
+	};
+}
 
 namespace engine {
 	class NodeEditor {
@@ -118,7 +131,7 @@ namespace engine {
 		VulkanEngine* engine;
 		ed::EditorContext* context = nullptr;
 		std::vector<Node> nodes;
-		std::vector<Link> links;
+		std::unordered_set<Link> links;
 		int next_id = 1;
 
 		constexpr int get_next_id();

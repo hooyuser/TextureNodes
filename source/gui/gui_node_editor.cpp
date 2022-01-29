@@ -221,35 +221,27 @@ namespace engine {
 						// ed::AcceptNewItem() return true when user release mouse button.
 						if (ed::AcceptNewItem()) {
 							// Since we accepted new link, lets add one to our list of links.
-							links.emplace_back(ed::LinkId(get_next_id()), start_pin_id, end_pin_id);
+							links.emplace(ed::LinkId(get_next_id()), start_pin_id, end_pin_id);
 
-							Pin* start_pin;
-							bool found_start = false;
-							Pin* end_pin;
-							bool found_end = false;
-							for (auto& node : nodes) {
-								if (!found_start) {
+							Pin* pins[2];
+							for (char i = 0; i < 2;) {
+								for (auto& node : nodes) {
 									for (auto& pin : node.outputs) {
-										if (pin.id == start_pin_id) {
-											start_pin = &pin;
-											found_start = true;
+										if (pin.id == start_pin_id|| pin.id == end_pin_id) {
+											pins[i++] = &pin;
+
 										}
 									}
-								}
-								if (!found_end) {
 									for (auto& pin : node.inputs) {
-										if (pin.id == end_pin_id) {
-											end_pin = &pin;
-											found_end = true;
+										if (pin.id == start_pin_id || pin.id == end_pin_id) {
+											pins[i++] = &pin;
 										}
 									}
 								}
-								if (found_start && found_end) {
-									break;
-								}
+								break;
 							}
-							start_pin->connected_pins.emplace(end_pin);
-							end_pin->connected_pins.emplace(start_pin);
+							pins[0]->connected_pins.emplace(pins[1]);
+							pins[1]->connected_pins.emplace(pins[0]);
 						}
 					}
 				}
@@ -285,7 +277,7 @@ namespace engine {
 													pin.connected_pins.erase(connected_pin);
 													connected_pin->connected_pins.erase(&pin);
 													return;
-												}	
+												}
 											}
 										}
 									}
@@ -304,6 +296,16 @@ namespace engine {
 						auto deleted_node = std::find_if(nodes.begin(), nodes.end(), [=](auto& node) {
 							return node.id == deleted_node_id;
 							});
+						//for (auto& pin : node.outputs) {
+						//	for (auto connected_pin : pin.connected_pins) {
+						//		connected_pin->connected_pins.erase(&pin);
+						//	}
+						//}
+						//for (auto& pin : node.inputs) {
+						//	for (auto connected_pin : pin.connected_pins) {
+						//		connected_pin->connected_pins.erase(&pin);
+						//	}
+						//}
 						if (deleted_node != nodes.end()) {
 							nodes.erase(deleted_node);
 						}
