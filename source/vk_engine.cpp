@@ -1,13 +1,22 @@
+#include "gui/gui_node_editor.h"
 #include "vk_engine.h"
 #include "vk_initializers.h"
 #include "vk_shader.h"
 #include "vk_mesh.h"
 #include "vk_util.h"
 #include "vk_pipeline.h"
-#include "gui/gui_node_editor.h"
+#include "vk_image.h"
+#include "vk_buffer.h"
+#include "vk_camera.h"
+#include "vk_material.h"
+#include "vk_gui.h"
 
-#include <span>
+#include <cstring>
+#include <array>
+#include <set>
 #include <filesystem>
+#include <chrono>
+#include <algorithm>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -32,13 +41,10 @@ using namespace engine;
 
 constexpr uint32_t WIDTH = 1200;
 constexpr uint32_t HEIGHT = 900;
-constexpr auto SCALE_X = 0.5;
-constexpr auto SCALE_Y = 0.5;
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr double maxFPS = 200.0;
 constexpr double maxPeriod = 1.0 / maxFPS;
-
 
 
 const std::vector<const char*> validationLayers = {
@@ -58,8 +64,6 @@ const bool enableValidationLayers = false;
 #else
 const bool enableValidationLayers = true;
 #endif
-
-
 
 
 VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMessengerCreateInfoEXT* pCreateInfo, const VkAllocationCallbacks* pAllocator, VkDebugUtilsMessengerEXT* pDebugMessenger) {
@@ -1243,9 +1247,9 @@ void VulkanEngine::create_sync_objects() {
 }
 
 void VulkanEngine::init_imgui() {
-	gui = std::make_unique<engine::GUI>();
+	gui = std::make_shared<engine::GUI>();
 	gui->init(this);
-	node_editor = std::make_unique<engine::NodeEditor>(this);
+	node_editor = std::make_shared<engine::NodeEditor>(this);
 }
 
 void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
@@ -1665,3 +1669,5 @@ void VulkanEngine::mouseScrollCallback(GLFWwindow* window, double xoffset, doubl
 void VulkanEngine::set_camera() {
 	camera.set_aspect_ratio(viewport3D.width / viewport3D.height);
 }
+
+VulkanEngine::~VulkanEngine(){}

@@ -45,8 +45,6 @@ struct HDRi {
 		baseColorTextureID)
 };
 
-
-
 namespace engine {
 	class Shader;
 
@@ -62,7 +60,6 @@ namespace engine {
 		std::unordered_map<std::string, int> textureArrayIndex;
 	};
 
-	
 	using PbrMaterial = Material<Pbr>;
 	using HDRiMaterial = Material<HDRi>;
 	using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;

@@ -4,8 +4,10 @@
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
 #include "vk_util.h"
+#include "vk_image.h"
 
 #include <filesystem>
+#include <array>
 
 namespace engine {
 	void GUI::init_render_pass() {

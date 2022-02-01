@@ -1,35 +1,18 @@
 #pragma once
 
 #include "vk_types.h"
-#include "vk_camera.h"
-#include "vk_buffer.h"
-#include "vk_material.h"
-#include "vk_gui.h"
-#include "gui/gui_node_editor.h"
-
 
 // #define GLFW_INCLUDE_VULKAN
 
 #include <iostream>
-#include <fstream>
 #include <stdexcept>
-#include <algorithm>
-#include <chrono>
 #include <vector>
-#include <cstring>
 #include <cstdlib>
 #include <cstdint>
-#include <array>
 #include <deque>
-
-#include <set>
+#include <variant>
 #include <span>
 #include <unordered_map>
-
-
-struct QueueFamilyIndices;
-struct SwapChainSupportDetails;
-
 
 struct FrameData {
 	VkFence inFlightFence;
@@ -55,12 +38,32 @@ struct DeletionQueue
 	}
 };
 
+//Forward Declaration
+struct SwapChainSupportDetails;
+class Camera;
+class Pbr;
+class HDRi;
+
 namespace engine {
 	class Mesh;
+	class Buffer;
+	class Image;
+	class Texture;
+	class GUI;
+	class NodeEditor;
+	template <typename ParaT> class Material;
+	
+	using PbrMaterial = Material<Pbr>;
+	using HDRiMaterial = Material<HDRi>;
+	using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
+	using HDRiMaterialPtr = std::shared_ptr<HDRiMaterial>;
+	using MaterialPtrV = std::variant<PbrMaterialPtr, HDRiMaterialPtr>;
 }
 
 using MeshPtr = std::shared_ptr<engine::Mesh>;
-
+using BufferPtr = std::shared_ptr<engine::Buffer>;
+using ImagePtr = std::shared_ptr<engine::Image>;
+using TexturePtr = std::shared_ptr<engine::Texture>;
 
 struct ViewportUI {
 	float width = 0.0;
@@ -73,7 +76,7 @@ struct ViewportUI {
 	std::vector<void*> gui_textures;
 	std::vector<VkCommandBuffer> cmd_buffers;
 };
-
+//End Forward Declaration
 
 
 struct RenderObject {
@@ -83,6 +86,8 @@ struct RenderObject {
 
 class VulkanEngine {
 public:
+	~VulkanEngine();
+
 	bool isInitialized{ false };
 
 	void run() {
@@ -140,7 +145,6 @@ public:
 
 	VkCommandPool commandPool;
 	
-
 	std::vector<VkFence> imagesInFlight;
 	std::vector<FrameData> frameData;
 	size_t currentFrame = 0;
@@ -154,13 +158,14 @@ public:
 	static glm::vec2 mouse_delta_pos;
 	static bool mouse_hover_viewport;
 
-	std::unique_ptr<engine::GUI> gui;
-
-	std::unique_ptr<engine::NodeEditor> node_editor;
+	std::shared_ptr<engine::GUI> gui;
+	std::shared_ptr<engine::NodeEditor> node_editor;
 
 	ViewportUI viewport3D;
 
 	uint32_t swapchain_image_count;
+
+	
 
 	void initWindow();
 

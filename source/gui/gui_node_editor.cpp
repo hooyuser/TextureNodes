@@ -1,46 +1,10 @@
 #include "gui_node_editor.h"
 #include "../vk_engine.h"
 #include "../vk_initializers.h"
-
-
+#include "../vk_shader.h"
 
 static ImRect imgui_get_item_rect() {
 	return ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
-}
-
-ImageData::ImageData(VulkanEngine* engine) {
-	texture = engine::Texture::create_2D_render_target(engine,
-		1024,
-		1024,
-		VK_FORMAT_R8G8B8A8_SRGB,
-		VK_IMAGE_ASPECT_COLOR_BIT);
-
-	uniform_buffer = engine::Buffer::createBuffer(engine,
-		sizeof(UniformBufferObject),
-		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		SWAPCHAIN_INDEPENDENT_BIT);
-
-	if (descriptor_set_layout == nullptr) {
-		auto UboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
-		std::array scenebindings = { UboLayoutBinding };
-		engine->create_descriptor_set_layout(scenebindings, descriptor_set_layout);
-	}
-
-	VkDescriptorSetAllocateInfo descriptor_alloc_info{};
-	descriptor_alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	descriptor_alloc_info.descriptorPool = engine->descriptorPool;
-	descriptor_alloc_info.descriptorSetCount = 1;
-	descriptor_alloc_info.pSetLayouts = &descriptor_set_layout;
-	if (vkAllocateDescriptorSets(engine->device, &descriptor_alloc_info, &descriptor_set) != VK_SUCCESS) {
-		throw std::runtime_error("failed to allocate descriptor sets!");
-	}
-
-	VkDescriptorBufferInfo uniformBufferInfo{};
-	uniformBufferInfo.buffer = uniform_buffer->buffer;
-	uniformBufferInfo.offset = 0;
-	uniformBufferInfo.range = sizeof(UniformBufferObject);
-
 }
 
 namespace engine {
