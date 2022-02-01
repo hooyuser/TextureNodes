@@ -91,9 +91,9 @@ public:
 	bool isInitialized{ false };
 
 	void run() {
-		initWindow();
-		initVulkan();
-		mainLoop();
+		init_window();
+		init_vulkan();
+		main_loop();
 		cleanup();
 	}
 
@@ -167,29 +167,29 @@ public:
 
 	
 
-	void initWindow();
+	void init_window();
 
 	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
 
-	void initVulkan();
+	void init_vulkan();
 
-	void mainLoop();
+	void main_loop();
 
 	void cleanup();
 
-	void recreateSwapChain();
+	void recreate_swap_chain();
 
-	void createInstance();
+	void create_instance();
 
 	void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT& createInfo);
 
-	void setupDebugMessenger();
+	void setup_debug_messenger();
 
-	void createSurface();
+	void create_surface();
 
-	void pickPhysicalDevice();
+	void pick_physical_device();
 
-	void createLogicalDevice();
+	void create_logical_device();
 
 	void create_viewport_attachments();
 
@@ -203,7 +203,7 @@ public:
 
 	void create_swap_chain_image_views();
 
-	void parseMaterialInfo();
+	void parse_material_info();
 
 	void createRenderPass();
 
@@ -215,15 +215,15 @@ public:
 
 	void createEnvLightPipeline();
 
-	void createCommandPool();
+	void create_command_pool();
 
 	void record_viewport_cmd_buffer(const int commandBufferIndex);
 
 	void create_window_attachments();
 
-	VkFormat findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+	VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
-	VkFormat findDepthFormat();
+	VkFormat find_depth_format();
 
 	bool hasStencilComponent(VkFormat format);
 

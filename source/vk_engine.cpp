@@ -101,7 +101,7 @@ glm::vec2 VulkanEngine::mouse_delta_pos = glm::vec2(0.0);
 bool VulkanEngine::mouse_hover_viewport = false;
 
 
-void VulkanEngine::initWindow() {
+void VulkanEngine::init_window() {
 	glfwInit();
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
@@ -125,18 +125,18 @@ void VulkanEngine::framebufferResizeCallback(GLFWwindow* window, int width, int 
 }
 
 
-void VulkanEngine::initVulkan() {
-	createInstance();
-	setupDebugMessenger();
-	createSurface();
-	pickPhysicalDevice();
-	createLogicalDevice();
+void VulkanEngine::init_vulkan() {
+	create_instance();
+	setup_debug_messenger();
+	create_surface();
+	pick_physical_device();
+	create_logical_device();
 
 	create_swap_chain();//recreateSwapChain
 	create_swap_chain_image_views();//recreateSwapChain
 
-	createCommandPool();
-	parseMaterialInfo();
+	create_command_pool();
+	parse_material_info();
 	create_descriptor_set_layouts();
 
 
@@ -161,7 +161,7 @@ void VulkanEngine::initVulkan() {
 
 
 
-void VulkanEngine::mainLoop() {
+void VulkanEngine::main_loop() {
 	bool running = true;
 	double lastTime = 0.0;
 
@@ -198,7 +198,7 @@ void VulkanEngine::cleanup() {
 	}
 }
 
-void VulkanEngine::recreateSwapChain() {
+void VulkanEngine::recreate_swap_chain() {
 
 	glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 	while (windowWidth == 0 || windowHeight == 0) {
@@ -221,7 +221,7 @@ void VulkanEngine::recreateSwapChain() {
 	ImGui_ImplVulkan_SetMinImageCount(swapchain_image_count);
 }
 
-void VulkanEngine::createInstance() {
+void VulkanEngine::create_instance() {
 	if (enableValidationLayers && !checkValidationLayerSupport()) {
 		throw std::runtime_error("validation layers requested, but not available!");
 	}
@@ -269,7 +269,7 @@ void VulkanEngine::populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateI
 	createInfo.pfnUserCallback = debugCallback;
 }
 
-void VulkanEngine::setupDebugMessenger() {
+void VulkanEngine::setup_debug_messenger() {
 	if (!enableValidationLayers) return;
 
 	VkDebugUtilsMessengerCreateInfoEXT createInfo;
@@ -284,13 +284,13 @@ void VulkanEngine::setupDebugMessenger() {
 		});
 }
 
-void VulkanEngine::createSurface() {
+void VulkanEngine::create_surface() {
 	if (glfwCreateWindowSurface(instance, window, nullptr, &surface) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create window surface!");
 	}
 }
 
-void VulkanEngine::pickPhysicalDevice() {
+void VulkanEngine::pick_physical_device() {
 	uint32_t deviceCount = 0;
 	vkEnumeratePhysicalDevices(instance, &deviceCount, nullptr);
 
@@ -317,7 +317,7 @@ void VulkanEngine::pickPhysicalDevice() {
 	}
 }
 
-void VulkanEngine::createLogicalDevice() {
+void VulkanEngine::create_logical_device() {
 	// queueFamilyIndices = findQueueFamilies(physicalDevice);
 
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
@@ -446,7 +446,7 @@ void VulkanEngine::createRenderPass() {
 	colorAttachment.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentDescription depthAttachment{};
-	depthAttachment.format = findDepthFormat();
+	depthAttachment.format = find_depth_format();
 	depthAttachment.samples = msaaSamples;
 	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -512,7 +512,7 @@ void VulkanEngine::createRenderPass() {
 }
 
 
-void VulkanEngine::parseMaterialInfo() {
+void VulkanEngine::parse_material_info() {
 	const std::string filename = "assets/gltf_models/dragon.gltf";
 	tinygltf::Model glTFModel;
 	tinygltf::TinyGLTF gltfContext;
@@ -782,7 +782,7 @@ void VulkanEngine::createGraphicsPipeline() {
 	createEnvLightPipeline();
 }
 
-void VulkanEngine::createCommandPool() {
+void VulkanEngine::create_command_pool() {
 
 	uint32_t queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
 	VkCommandPoolCreateInfo commandPoolInfo = vkinit::commandPoolCreateInfo(queueFamilyIndex, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
@@ -798,7 +798,7 @@ void VulkanEngine::createCommandPool() {
 
 void VulkanEngine::create_window_attachments() {
 	VkFormat colorFormat = swapChainImageFormat;
-	VkFormat depthFormat = findDepthFormat();
+	VkFormat depthFormat = find_depth_format();
 
 	pColorImage = engine::Image::createImage(this,
 		swapChainExtent.width,
@@ -827,7 +827,7 @@ void VulkanEngine::create_window_attachments() {
 
 void VulkanEngine::create_viewport_attachments() {
 	VkFormat colorFormat = swapChainImageFormat;
-	VkFormat depthFormat = findDepthFormat();
+	VkFormat depthFormat = find_depth_format();
 
 	auto mode = glfwGetVideoMode(glfwGetPrimaryMonitor()); //get monitor resolution
 	screen_width = mode->width;
@@ -866,7 +866,7 @@ void VulkanEngine::create_viewport_render_pass() {
 	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
 
 	VkAttachmentDescription depthAttachment{};
-	depthAttachment.format = findDepthFormat();
+	depthAttachment.format = find_depth_format();
 	depthAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
 	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
 	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
@@ -959,7 +959,7 @@ void VulkanEngine::create_viewport_cmd_buffers() {
 		});
 }
 
-VkFormat VulkanEngine::findSupportedFormat(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
+VkFormat VulkanEngine::find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
 	for (VkFormat format : candidates) {
 		VkFormatProperties props;
 		vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
@@ -975,8 +975,8 @@ VkFormat VulkanEngine::findSupportedFormat(const std::vector<VkFormat>& candidat
 	throw std::runtime_error("failed to find supported format!");
 }
 
-VkFormat VulkanEngine::findDepthFormat() {
-	return findSupportedFormat(
+VkFormat VulkanEngine::find_depth_format() {
+	return find_supported_format(
 		{ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_FORMAT_FEATURE_DEPTH_STENCIL_ATTACHMENT_BIT
@@ -1278,7 +1278,7 @@ void VulkanEngine::draw_frame() {
 	VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frameData[currentFrame].imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
-		recreateSwapChain();
+		recreate_swap_chain();
 		return;
 	}
 	else if (result != VK_SUCCESS && result != VK_SUBOPTIMAL_KHR) {
@@ -1444,7 +1444,7 @@ void VulkanEngine::draw_frame() {
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 		framebufferResized = false;
-		recreateSwapChain();
+		recreate_swap_chain();
 	}
 	else if (result != VK_SUCCESS) {
 		throw std::runtime_error("failed to present swap chain image!");
