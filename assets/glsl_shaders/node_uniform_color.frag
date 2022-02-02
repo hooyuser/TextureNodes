@@ -1,11 +1,12 @@
-#version 450
+#version 460
 
-layout(location = 0) in vec3 fragPos;
+layout(set = 0, binding = 0) uniform UniformBufferObject {
+    vec4 color;
+} ubo;
 
 layout(location = 0) out vec4 outColor;
 
-layout(set = 0, binding = 0) uniform sampler2D image;
 
 void main() {
-	outColor = texture(image, fragPos.xy);
+	outColor = ubo.color;
 }

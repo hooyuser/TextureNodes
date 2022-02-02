@@ -56,7 +56,8 @@ constexpr std::array<const char*, 0> instance_extensions = {
 };
 
 constexpr std::array deviceExtensions = {
-	VK_KHR_SWAPCHAIN_EXTENSION_NAME
+	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
+	VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
 };
 
 #ifdef NDEBUG

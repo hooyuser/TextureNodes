@@ -92,7 +92,7 @@ VkPipelineViewportStateCreateInfo vkinit::viewportStateCreateInfo(const VkViewpo
 	return viewportState;
 }
 
-VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPolygonMode polygonMode)
+VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPolygonMode polygonMode, VkCullModeFlagBits cullMode)
 {
 	VkPipelineRasterizationStateCreateInfo rasterizerInfo = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 
@@ -103,7 +103,7 @@ VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPo
 
 	rasterizerInfo.polygonMode = polygonMode;
 	rasterizerInfo.lineWidth = 1.0f;
-	rasterizerInfo.cullMode = VK_CULL_MODE_NONE;
+	rasterizerInfo.cullMode = cullMode;
 	rasterizerInfo.frontFace = VK_FRONT_FACE_COUNTER_CLOCKWISE;
 	//no depth bias
 	rasterizerInfo.depthBiasEnable = VK_FALSE;

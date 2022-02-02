@@ -109,8 +109,7 @@ struct Link {
 
 namespace std {
 	template <> struct hash<Link> {
-		size_t operator()(const Link& link) const
-		{
+		size_t operator()(const Link& link) const {
 			return reinterpret_cast<size_t>(link.id.AsPointer());
 		}
 	};

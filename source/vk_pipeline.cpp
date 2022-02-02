@@ -4,10 +4,16 @@
 #include "vk_engine.h"
 
 namespace engine {
-	PipelineBuilder::PipelineBuilder(VulkanEngine* engine, DynamicViewportFlagBits dynamic_viewport) {
-		bindingDescriptions = Vertex::getBindingDescriptions();
-		attributeDescriptions = Vertex::getAttributeDescriptions();
-		vertexInput = vkinit::vertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
+	PipelineBuilder::PipelineBuilder(VulkanEngine* engine, DynamicViewportFlagBits dynamic_viewport, VertexInputFlagBits enable_vertex_input) {
+		if (enable_vertex_input == ENABLE_VERTEX_INPUT) {
+			bindingDescriptions = Vertex::getBindingDescriptions();
+			attributeDescriptions = Vertex::getAttributeDescriptions();
+			vertexInput = vkinit::vertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
+		}
+		else if (enable_vertex_input == DISABLE_VERTEX_INPUT) {
+			VkPipelineVertexInputStateCreateInfo vertexInputInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+			vertexInput = vertexInputInfo;
+		}
 		inputAssembly = vkinit::inputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
 		if (dynamic_viewport == ENABLE_DYNAMIC_VIEWPORT) {
@@ -30,7 +36,12 @@ namespace engine {
 			throw std::runtime_error("failed to set a valid enum value for the parameter dynamic_viewport!");
 		}
 
-		rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+		if (enable_vertex_input == ENABLE_VERTEX_INPUT) {
+			rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+		}
+		else {
+			rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT);
+		}
 
 		multisampling = vkinit::multisamplingStateCreateInfo(engine->msaaSamples);
 

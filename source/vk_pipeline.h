@@ -11,6 +11,11 @@ namespace engine {
 		DISABLE_DYNAMIC_VIEWPORT = 0x00000002,
 	};
 
+	enum VertexInputFlagBits {
+		ENABLE_VERTEX_INPUT = 0x00000001,
+		DISABLE_VERTEX_INPUT = 0x00000002,
+	};
+
 	class PipelineBuilder {
 	public:
 		std::vector<VkVertexInputBindingDescription> bindingDescriptions;
@@ -35,7 +40,7 @@ namespace engine {
 			VK_DYNAMIC_STATE_SCISSOR
 		};
 
-		PipelineBuilder(VulkanEngine* engine, DynamicViewportFlagBits dynamic_viewport = ENABLE_DYNAMIC_VIEWPORT);
+		PipelineBuilder(VulkanEngine* engine, DynamicViewportFlagBits dynamic_viewport = ENABLE_DYNAMIC_VIEWPORT, VertexInputFlagBits enable_vertex_input = ENABLE_VERTEX_INPUT);
 
 		template<typename ParaT>
 		void setShaderStages(std::shared_ptr<Material<ParaT>> pMaterial);

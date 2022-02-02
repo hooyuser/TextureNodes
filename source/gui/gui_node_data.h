@@ -29,7 +29,7 @@ struct StringLiteral {
 
 struct NodeData {};
 
-template<typename T, StringLiteral ...Shaders>
+template<typename UboType, StringLiteral ...Shaders>
 struct ImageData : public NodeData {
 	TexturePtr texture;
 	BufferPtr uniform_buffer;
@@ -37,7 +37,7 @@ struct ImageData : public NodeData {
 	inline static VkPipelineLayout image_pocessing_pipeline_layout = nullptr;
 	inline static VkPipeline image_pocessing_pipeline = nullptr;
 	VkDescriptorSet descriptor_set;
-	T ubo;
+	UboType ubo;
 	//ImageData(const ImageData& data) {
 	//	texture = data.texture;
 	//	uniform_buffer = data.uniform_buffer;
@@ -58,7 +58,7 @@ struct ImageData : public NodeData {
 			VK_IMAGE_ASPECT_COLOR_BIT);
 
 		uniform_buffer = engine::Buffer::createBuffer(engine,
-			sizeof(T),
+			sizeof(UboType),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT);
@@ -81,7 +81,7 @@ struct ImageData : public NodeData {
 		VkDescriptorBufferInfo uniformBufferInfo{};
 		uniformBufferInfo.buffer = uniform_buffer->buffer;
 		uniformBufferInfo.offset = 0;
-		uniformBufferInfo.range = sizeof(T);
+		uniformBufferInfo.range = sizeof(UboType);
 
 		engine::PipelineBuilder pipeline_builder(engine);
 
@@ -116,8 +116,8 @@ struct ImageData : public NodeData {
 	}
 };
 
-template<typename T>
-using ImageDataPtr = std::shared_ptr<ImageData<T>>;
+template<typename UboType, StringLiteral ...Shaders>
+using ImageDataPtr = std::shared_ptr<ImageData<UboType, Shaders...>>;
 
 struct FloatData : public NodeData {
 	float value = 0.0f;

@@ -21,7 +21,7 @@ namespace vkinit {
 
 	VkPipelineViewportStateCreateInfo viewportStateCreateInfo(const VkViewport* pViewport, const VkRect2D* pScissor);
 
-	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo(VkPolygonMode polygonMode);
+	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo(VkPolygonMode polygonMode, VkCullModeFlagBits cullMode = VK_CULL_MODE_NONE);
 
 	VkPipelineMultisampleStateCreateInfo multisamplingStateCreateInfo(VkSampleCountFlagBits msaaSamples);
 
