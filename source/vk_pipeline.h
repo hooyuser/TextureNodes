@@ -42,6 +42,8 @@ namespace engine {
 
 		PipelineBuilder(VulkanEngine* engine, DynamicViewportFlagBits dynamic_viewport = ENABLE_DYNAMIC_VIEWPORT, VertexInputFlagBits enable_vertex_input = ENABLE_VERTEX_INPUT);
 
+		void set_viewport(float width, float height);
+
 		template<typename ParaT>
 		void setShaderStages(std::shared_ptr<Material<ParaT>> pMaterial);
 

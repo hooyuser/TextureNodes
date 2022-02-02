@@ -4,8 +4,7 @@
 #include <array>
 
 
-VkCommandPoolCreateInfo vkinit::commandPoolCreateInfo(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags /*= 0*/)
-{
+VkCommandPoolCreateInfo vkinit::commandPoolCreateInfo(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags /*= 0*/) {
 	VkCommandPoolCreateInfo commandPoolInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
 
 	commandPoolInfo.pNext = nullptr;
@@ -32,8 +31,7 @@ VkRenderPassBeginInfo vkinit::renderPassBeginInfo(VkRenderPass renderPass, VkExt
 	return renderPassInfo;
 }
 
-VkCommandBufferAllocateInfo vkinit::commandBufferAllocateInfo(VkCommandPool pool, uint32_t count /*= 1*/, VkCommandBufferLevel level /*= VK_COMMAND_BUFFER_LEVEL_PRIMARY*/)
-{
+VkCommandBufferAllocateInfo vkinit::commandBufferAllocateInfo(VkCommandPool pool, uint32_t count /*= 1*/, VkCommandBufferLevel level /*= VK_COMMAND_BUFFER_LEVEL_PRIMARY*/) {
 	VkCommandBufferAllocateInfo info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
 
 	info.pNext = nullptr;
@@ -92,8 +90,7 @@ VkPipelineViewportStateCreateInfo vkinit::viewportStateCreateInfo(const VkViewpo
 	return viewportState;
 }
 
-VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPolygonMode polygonMode, VkCullModeFlagBits cullMode)
-{
+VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPolygonMode polygonMode, VkCullModeFlagBits cullMode) {
 	VkPipelineRasterizationStateCreateInfo rasterizerInfo = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 
 	rasterizerInfo.pNext = nullptr;
@@ -114,8 +111,7 @@ VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPo
 	return rasterizerInfo;
 }
 
-VkPipelineMultisampleStateCreateInfo vkinit::multisamplingStateCreateInfo(VkSampleCountFlagBits msaaSamples)
-{
+VkPipelineMultisampleStateCreateInfo vkinit::multisamplingStateCreateInfo(VkSampleCountFlagBits msaaSamples) {
 	VkPipelineMultisampleStateCreateInfo multisamplingInfo = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
 
 	multisamplingInfo.pNext = nullptr;
@@ -131,7 +127,7 @@ VkPipelineMultisampleStateCreateInfo vkinit::multisamplingStateCreateInfo(VkSamp
 
 VkPipelineDepthStencilStateCreateInfo vkinit::depthStencilCreateInfo(VkCompareOp compareOp) {
 	VkPipelineDepthStencilStateCreateInfo depthStencilInfo{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-	
+
 	depthStencilInfo.depthTestEnable = VK_TRUE;
 	depthStencilInfo.depthWriteEnable = VK_TRUE;
 	depthStencilInfo.depthCompareOp = compareOp;
@@ -142,7 +138,7 @@ VkPipelineDepthStencilStateCreateInfo vkinit::depthStencilCreateInfo(VkCompareOp
 
 VkPipelineColorBlendAttachmentState vkinit::colorBlendAttachmentState() {
 	VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-	
+
 	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
 		VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
 	colorBlendAttachment.blendEnable = VK_FALSE;
@@ -151,7 +147,7 @@ VkPipelineColorBlendAttachmentState vkinit::colorBlendAttachmentState() {
 
 VkPipelineColorBlendStateCreateInfo vkinit::colorBlendAttachmentCreateInfo(VkPipelineColorBlendAttachmentState& colorBlendAttachment) {
 	VkPipelineColorBlendStateCreateInfo colorBlending{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
-	
+
 	colorBlending.logicOpEnable = VK_FALSE;
 	colorBlending.logicOp = VK_LOGIC_OP_COPY;
 	colorBlending.attachmentCount = 1;
@@ -178,8 +174,7 @@ VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo(std::span<VkDescript
 	return pipelineLayoutInfo;
 }
 
-VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent, const std::span<VkImageView>& attachments)
-{
+VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent, const std::span<VkImageView>& attachments) {
 	VkFramebufferCreateInfo framebufferInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 
 	framebufferInfo.pNext = nullptr;
@@ -193,8 +188,7 @@ VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass renderPass, V
 	return framebufferInfo;
 }
 
-VkDescriptorSetLayoutBinding vkinit::descriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount /*= 1*/)
-{
+VkDescriptorSetLayoutBinding vkinit::descriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount /*= 1*/) {
 	VkDescriptorSetLayoutBinding setbind = {};
 	setbind.binding = binding;
 	setbind.descriptorCount = descriptorCount;
@@ -205,17 +199,15 @@ VkDescriptorSetLayoutBinding vkinit::descriptorSetLayoutBinding(VkDescriptorType
 	return setbind;
 }
 
-VkSemaphoreCreateInfo vkinit::semaphoreCreateInfo(VkSemaphoreCreateFlags flags /*= 0*/)
-{
+VkSemaphoreCreateInfo vkinit::semaphoreCreateInfo(VkSemaphoreCreateFlags flags /*= 0*/) {
 	VkSemaphoreCreateInfo semaphoreInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-	
+
 	semaphoreInfo.pNext = nullptr;
 	semaphoreInfo.flags = flags;
 	return semaphoreInfo;
 }
 
-VkFenceCreateInfo vkinit::fenceCreateInfo(VkFenceCreateFlags flags /*= 0*/)
-{
+VkFenceCreateInfo vkinit::fenceCreateInfo(VkFenceCreateFlags flags /*= 0*/) {
 	VkFenceCreateInfo fenceInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
 
 	fenceInfo.pNext = nullptr;

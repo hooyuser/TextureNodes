@@ -20,7 +20,7 @@ namespace engine {
 			viewportState = vkinit::viewportStateCreateInfo(VK_NULL_HANDLE, VK_NULL_HANDLE);
 		}
 		else if (dynamic_viewport == DISABLE_DYNAMIC_VIEWPORT) {
-			viewport.x = 0.0f;
+			/*viewport.x = 0.0f;
 			viewport.y = engine->viewport3D.height;
 			viewport.width = engine->viewport3D.width;
 			viewport.height = -engine->viewport3D.height;
@@ -30,7 +30,7 @@ namespace engine {
 			scissor.offset = { 0, 0 };
 			scissor.extent = { static_cast<uint32_t>(engine->viewport3D.width), static_cast<uint32_t>(engine->viewport3D.height) };
 
-			viewportState = vkinit::viewportStateCreateInfo(&viewport, &scissor);
+			viewportState = vkinit::viewportStateCreateInfo(&viewport, &scissor);*/
 		}
 		else {
 			throw std::runtime_error("failed to set a valid enum value for the parameter dynamic_viewport!");
@@ -56,6 +56,20 @@ namespace engine {
 		dynamicState.pDynamicStates = dynamicStateEnables.data();
 		dynamicState.flags = 0;
 		dynamicState.pNext = nullptr;
+	}
+
+	void PipelineBuilder::set_viewport(float width, float height) {
+		viewport.x = 0.0f;
+		viewport.y = height;
+		viewport.width = width;
+		viewport.height = -height;
+		viewport.minDepth = 0.0f;
+		viewport.maxDepth = 1.0f;
+
+		scissor.offset = { 0, 0 };
+		scissor.extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
+
+		viewportState = vkinit::viewportStateCreateInfo(&viewport, &scissor);
 	}
 
 	void PipelineBuilder::buildPipeline(const VkDevice& device, const VkRenderPass& renderPass, const VkPipelineLayout& pipelineLayout, VkPipeline& graphicsPipeline) {

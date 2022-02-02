@@ -69,21 +69,24 @@ struct ImageData : public NodeData {
 			engine->create_descriptor_set_layout(layout_bindings, descriptor_set_layout);
 		}
 
-		VkDescriptorSetAllocateInfo descriptor_alloc_info{};
-		descriptor_alloc_info.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-		descriptor_alloc_info.descriptorPool = engine->descriptorPool;
-		descriptor_alloc_info.descriptorSetCount = 1;
-		descriptor_alloc_info.pSetLayouts = &descriptor_set_layout;
+		VkDescriptorSetAllocateInfo descriptor_alloc_info{
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.descriptorPool = engine->descriptorPool,
+			.descriptorSetCount = 1,
+			.pSetLayouts = &descriptor_set_layout
+		};
+
 		if (vkAllocateDescriptorSets(engine->device, &descriptor_alloc_info, &descriptor_set) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
 
-		VkDescriptorBufferInfo uniformBufferInfo{};
-		uniformBufferInfo.buffer = uniform_buffer->buffer;
-		uniformBufferInfo.offset = 0;
-		uniformBufferInfo.range = sizeof(UboType);
+		VkDescriptorBufferInfo uniformBufferInfo{
+			.buffer = uniform_buffer->buffer,
+			.offset = 0,
+			.range = sizeof(UboType)
+		};
 
-		engine::PipelineBuilder pipeline_builder(engine);
+		engine::PipelineBuilder pipeline_builder(engine, engine::ENABLE_DYNAMIC_VIEWPORT, engine::DISABLE_VERTEX_INPUT);
 
 		if (image_pocessing_pipeline_layout == nullptr) {
 			std::array descriptor_set_layouts = { descriptor_set_layout };
@@ -105,11 +108,13 @@ struct ImageData : public NodeData {
 		auto shaders = engine::Shader::createFromSpv(engine, shader_files);
 
 		for (auto shader_module : shaders->shaderModules) {
-			VkPipelineShaderStageCreateInfo shader_info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-			shader_info.pNext = nullptr;
-			shader_info.stage = shader_module.stage;
-			shader_info.module = shader_module.shader;
-			shader_info.pName = "main";
+			VkPipelineShaderStageCreateInfo shader_info{
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+				.pNext = nullptr,
+				.stage = shader_module.stage,
+				.module = shader_module.shader,
+				.pName = "main"
+			};
 			pipeline_builder.shaderStages.emplace_back(std::move(shader_info));
 		}
 		pipeline_builder.buildPipeline(engine->device, VK_NULL_HANDLE, image_pocessing_pipeline_layout, image_pocessing_pipeline);
