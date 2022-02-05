@@ -205,7 +205,7 @@ public:
 
 	void parse_material_info();
 
-	void createRenderPass();
+	void create_render_pass();
 
 	void create_descriptor_set_layouts();
 

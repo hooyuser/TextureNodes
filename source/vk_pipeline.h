@@ -34,6 +34,7 @@ namespace engine {
 		std::vector<VkSpecializationMapEntry> specializationMapEntries;
 		VkSpecializationInfo specializationInfo;
 		VkPipelineDynamicStateCreateInfo dynamicState;
+		void* p_next = VK_NULL_HANDLE;
 
 		std::array<VkDynamicState, 2> dynamicStateEnables = {
 			VK_DYNAMIC_STATE_VIEWPORT,

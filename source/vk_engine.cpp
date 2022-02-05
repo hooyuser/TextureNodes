@@ -435,7 +435,7 @@ void VulkanEngine::create_swap_chain_image_views() {
 	}
 }
 
-void VulkanEngine::createRenderPass() {
+void VulkanEngine::create_render_pass() {
 	VkAttachmentDescription colorAttachment{};
 	colorAttachment.format = swapChainImageFormat;
 	colorAttachment.samples = msaaSamples;

@@ -36,8 +36,13 @@ struct ImageData : public NodeData {
 	inline static VkDescriptorSetLayout descriptor_set_layout = nullptr;
 	inline static VkPipelineLayout image_pocessing_pipeline_layout = nullptr;
 	inline static VkPipeline image_pocessing_pipeline = nullptr;
+	inline static VkRenderPass image_pocessing_render_pass = nullptr;
+	inline static VkFramebuffer image_pocessing_framebuffer = nullptr;
+	inline static VkCommandBuffer command_buffer = nullptr;
 	VkDescriptorSet descriptor_set;
 	UboType ubo;
+	uint32_t width = 1024;
+	uint32_t height = 1024;
 	//ImageData(const ImageData& data) {
 	//	texture = data.texture;
 	//	uniform_buffer = data.uniform_buffer;
@@ -86,7 +91,69 @@ struct ImageData : public NodeData {
 			.range = sizeof(UboType)
 		};
 
-		engine::PipelineBuilder pipeline_builder(engine, engine::ENABLE_DYNAMIC_VIEWPORT, engine::DISABLE_VERTEX_INPUT);
+		//create renderpass
+		if (image_pocessing_render_pass == nullptr) {
+			VkAttachmentDescription colorAttachment{
+				.format = VK_FORMAT_R8G8B8A8_UNORM,
+				.samples = VK_SAMPLE_COUNT_1_BIT,
+				.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+				.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+				.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+				.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+				.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+				.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			};
+
+			VkAttachmentReference colorAttachmentRef{
+				.attachment = 0,
+				.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+			};
+
+			VkSubpassDescription subpass{
+				.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
+				.colorAttachmentCount = 1,
+				.pColorAttachments = &colorAttachmentRef,
+			};
+
+			std::array<VkSubpassDependency, 2> dependencies;
+
+			dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
+			dependencies[0].dstSubpass = 0;
+			dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
+			dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+			dependencies[0].srcAccessMask = 0;
+			dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			dependencies[0].dependencyFlags = 0;
+
+			dependencies[1].srcSubpass = 0;
+			dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
+			dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
+			dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+			dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
+			dependencies[1].dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
+			dependencies[1].dependencyFlags = 0;
+
+			std::array attachments = { colorAttachment };
+
+			VkRenderPassCreateInfo renderPassInfo{
+				.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
+				.pNext = nullptr,
+				.attachmentCount = static_cast<uint32_t>(attachments.size()),
+				.pAttachments = attachments.data(),
+				.subpassCount = 1,
+				.pSubpasses = &subpass,
+				.dependencyCount = static_cast<uint32_t>(dependencies.size()),
+				.pDependencies = dependencies.data(),
+			};
+
+			if (vkCreateRenderPass(engine->device, &renderPassInfo, nullptr, &image_pocessing_render_pass) != VK_SUCCESS) {
+				throw std::runtime_error("failed to create render pass!");
+			}
+
+			engine->main_deletion_queue.push_function([=]() {
+				vkDestroyRenderPass(engine->device, image_pocessing_render_pass, nullptr);
+				});
+		}
 
 		if (image_pocessing_pipeline_layout == nullptr) {
 			std::array descriptor_set_layouts = { descriptor_set_layout };
@@ -102,22 +169,91 @@ struct ImageData : public NodeData {
 				});
 		}
 
-		std::array<std::string, sizeof...(Shaders)> shader_files;;
-		size_t i = 0;
-		((shader_files[i++] = Shaders.value), ...);
-		auto shaders = engine::Shader::createFromSpv(engine, shader_files);
+		if (image_pocessing_pipeline == nullptr) {
+			engine::PipelineBuilder pipeline_builder(engine, engine::ENABLE_DYNAMIC_VIEWPORT, engine::DISABLE_VERTEX_INPUT);
+			std::array<std::string, sizeof...(Shaders)> shader_files;;
+			size_t i = 0;
+			((shader_files[i++] = Shaders.value), ...);
+			auto shaders = engine::Shader::createFromSpv(engine, shader_files);
 
-		for (auto shader_module : shaders->shaderModules) {
-			VkPipelineShaderStageCreateInfo shader_info{
-				.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-				.pNext = nullptr,
-				.stage = shader_module.stage,
-				.module = shader_module.shader,
-				.pName = "main"
-			};
-			pipeline_builder.shaderStages.emplace_back(std::move(shader_info));
+			for (auto shader_module : shaders->shaderModules) {
+				VkPipelineShaderStageCreateInfo shader_info{
+					.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+					.pNext = nullptr,
+					.stage = shader_module.stage,
+					.module = shader_module.shader,
+					.pName = "main"
+				};
+				pipeline_builder.shaderStages.emplace_back(std::move(shader_info));
+			}
+			pipeline_builder.buildPipeline(engine->device, image_pocessing_render_pass, image_pocessing_pipeline_layout, image_pocessing_pipeline);
 		}
-		pipeline_builder.buildPipeline(engine->device, VK_NULL_HANDLE, image_pocessing_pipeline_layout, image_pocessing_pipeline);
+
+		if (image_pocessing_framebuffer == nullptr) {
+			std::array framebuffer_attachments = { texture->imageView };
+
+			VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(image_pocessing_render_pass, VkExtent2D{ width , height }, framebuffer_attachments);
+
+			if (vkCreateFramebuffer(engine->device, &framebufferInfo, nullptr, &image_pocessing_framebuffer) != VK_SUCCESS) {
+				throw std::runtime_error("failed to create framebuffer!");
+			}
+
+			engine->main_deletion_queue.push_function([=]() {
+				vkDestroyFramebuffer(engine->device, image_pocessing_framebuffer, nullptr);
+				});
+		}
+
+		if (command_buffer == nullptr) {
+			VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
+
+			if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &command_buffer) != VK_SUCCESS) {
+				throw std::runtime_error("failed to allocate command buffers!");
+			}
+
+			engine->main_deletion_queue.push_function([=]() {
+				vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &command_buffer);
+				});
+
+			VkCommandBufferBeginInfo beginInfo{
+				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+			};
+
+			if (vkBeginCommandBuffer(command_buffer, &beginInfo) != VK_SUCCESS) {
+				throw std::runtime_error("failed to begin recording command buffer!");
+			}
+
+			VkExtent2D image_extent{ width, height };
+
+			VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(image_pocessing_render_pass, image_extent, image_pocessing_framebuffer);
+
+			vkCmdBeginRenderPass(command_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+			VkViewport viewport{
+				.x = 0.0f,
+				.y = static_cast<float>(height),
+				.width = static_cast<float>(width),
+				.height = -static_cast<float>(height),    // flip y axis
+				.minDepth = 0.0f,
+				.maxDepth = 1.0f,
+			};
+
+			VkRect2D scissor{
+				.offset = { 0, 0 },
+				.extent = image_extent,
+			};
+
+			vkCmdSetViewport(command_buffer, 0, 1, &viewport);
+			vkCmdSetScissor(command_buffer, 0, 1, &scissor);
+			vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline);
+			vkCmdDraw(command_buffer, 3, 1, 0, 0);
+			vkCmdEndRenderPass(command_buffer);
+
+			if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
+				throw std::runtime_error("failed to record command buffer!");
+			}
+		}
+
 	}
 };
 
