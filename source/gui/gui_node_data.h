@@ -129,23 +129,28 @@ struct ImageData : public NodeData {
 				.pColorAttachments = &colorAttachmentRef,
 			};
 
-			std::array<VkSubpassDependency, 2> dependencies;
-
-			dependencies[0].srcSubpass = VK_SUBPASS_EXTERNAL;
-			dependencies[0].dstSubpass = 0;
-			dependencies[0].srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-			dependencies[0].dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-			dependencies[0].srcAccessMask = 0;
-			dependencies[0].dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT | VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-			dependencies[0].dependencyFlags = 0;
-
-			dependencies[1].srcSubpass = 0;
-			dependencies[1].dstSubpass = VK_SUBPASS_EXTERNAL;
-			dependencies[1].srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT;
-			dependencies[1].dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
-			dependencies[1].srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT;
-			dependencies[1].dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT;
-			dependencies[1].dependencyFlags = 0;
+			std::array dependencies{
+				VkSubpassDependency {
+					.srcSubpass = VK_SUBPASS_EXTERNAL,
+					.dstSubpass = 0,
+					.srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
+					.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
+									VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+					.srcAccessMask = 0,
+					.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
+									 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+					.dependencyFlags = 0,
+				},
+				VkSubpassDependency {
+					.srcSubpass = 0,
+					.dstSubpass = VK_SUBPASS_EXTERNAL,
+					.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+					.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+					.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+					.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT,
+					.dependencyFlags = 0,
+				}
+			};
 
 			std::array attachments = { colorAttachment };
 
@@ -200,7 +205,9 @@ struct ImageData : public NodeData {
 				};
 				pipeline_builder.shaderStages.emplace_back(std::move(shader_info));
 			}
+
 			pipeline_builder.buildPipeline(engine->device, image_pocessing_render_pass, image_pocessing_pipeline_layout, image_pocessing_pipeline);
+
 			engine->main_deletion_queue.push_function([=]() {
 				vkDestroyPipeline(engine->device, image_pocessing_pipeline, nullptr);
 				});
