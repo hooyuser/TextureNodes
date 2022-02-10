@@ -32,12 +32,14 @@ VkRenderPassBeginInfo vkinit::renderPassBeginInfo(VkRenderPass renderPass, VkExt
 }
 
 VkCommandBufferAllocateInfo vkinit::commandBufferAllocateInfo(VkCommandPool pool, uint32_t count /*= 1*/, VkCommandBufferLevel level /*= VK_COMMAND_BUFFER_LEVEL_PRIMARY*/) {
-	VkCommandBufferAllocateInfo info = { VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO };
+	VkCommandBufferAllocateInfo info {
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO ,
+		.pNext = nullptr,
+		.commandPool = pool,
+		.level = level,
+		.commandBufferCount = count,
+	};
 
-	info.pNext = nullptr;
-	info.commandPool = pool;
-	info.commandBufferCount = count;
-	info.level = level;
 	return info;
 }
 

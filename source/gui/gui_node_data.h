@@ -59,8 +59,10 @@ struct ImageData : public NodeData {
 		texture = engine::Texture::create_2D_render_target(engine,
 			1024,
 			1024,
-			VK_FORMAT_R8G8B8A8_SRGB,
+			VK_FORMAT_R8G8B8A8_UNORM,
 			VK_IMAGE_ASPECT_COLOR_BIT);
+
+		texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		uniform_buffer = engine::Buffer::createBuffer(engine,
 			sizeof(UboType),
@@ -91,6 +93,18 @@ struct ImageData : public NodeData {
 			.range = sizeof(UboType)
 		};
 
+		VkWriteDescriptorSet descriptor_write{
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.dstSet = descriptor_set,
+			.dstBinding = 0,
+			.dstArrayElement = 0,
+			.descriptorCount = 1,
+			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			.pBufferInfo = &uniformBufferInfo,
+		};
+
+		vkUpdateDescriptorSets(engine->device, 1, &descriptor_write, 0, nullptr);
+
 		//create renderpass
 		if (image_pocessing_render_pass == nullptr) {
 			VkAttachmentDescription colorAttachment{
@@ -100,7 +114,7 @@ struct ImageData : public NodeData {
 				.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 				.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 				.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-				.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+				.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 				.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 			};
 
@@ -164,7 +178,7 @@ struct ImageData : public NodeData {
 				throw std::runtime_error("failed to create pipeline layout!");
 			}
 
-			engine->swapChainDeletionQueue.push_function([=]() {
+			engine->main_deletion_queue.push_function([=]() {
 				vkDestroyPipelineLayout(engine->device, image_pocessing_pipeline_layout, nullptr);
 				});
 		}
@@ -187,6 +201,9 @@ struct ImageData : public NodeData {
 				pipeline_builder.shaderStages.emplace_back(std::move(shader_info));
 			}
 			pipeline_builder.buildPipeline(engine->device, image_pocessing_render_pass, image_pocessing_pipeline_layout, image_pocessing_pipeline);
+			engine->main_deletion_queue.push_function([=]() {
+				vkDestroyPipeline(engine->device, image_pocessing_pipeline, nullptr);
+				});
 		}
 
 		if (image_pocessing_framebuffer == nullptr) {
@@ -204,7 +221,7 @@ struct ImageData : public NodeData {
 		}
 
 		if (command_buffer == nullptr) {
-			VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
+			VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
 
 			if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &command_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to allocate command buffers!");

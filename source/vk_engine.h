@@ -209,7 +209,7 @@ public:
 
 	void create_descriptor_set_layouts();
 
-	void createGraphicsPipeline();
+	void create_graphics_pipeline();
 
 	void createMeshPipeline();
 

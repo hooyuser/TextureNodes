@@ -57,7 +57,7 @@ constexpr std::array<const char*, 0> instance_extensions = {
 
 constexpr std::array deviceExtensions = {
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
-	VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
+	//VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
 };
 
 #ifdef NDEBUG
@@ -149,7 +149,7 @@ void VulkanEngine::init_vulkan() {
 	create_uniform_buffers();
 	create_descriptor_pool();
 	create_descriptor_sets();
-	createGraphicsPipeline();
+	create_graphics_pipeline();
 
 	create_sync_objects();
 
@@ -778,7 +778,7 @@ void VulkanEngine::createEnvLightPipeline() {
 		});
 }
 
-void VulkanEngine::createGraphicsPipeline() {
+void VulkanEngine::create_graphics_pipeline() {
 	createMeshPipeline();
 	createEnvLightPipeline();
 }
@@ -1663,7 +1663,7 @@ void VulkanEngine::mouseButtonCallback(GLFWwindow* window, int button, int actio
 
 void VulkanEngine::mouseScrollCallback(GLFWwindow* window, double xoffset, double yoffset) {
 	if (mouse_hover_viewport) {
-		camera.zoom((float)yoffset, 0.3f);
+		camera.zoom(static_cast<float>(yoffset), 0.3f);
 	}
 }
 
