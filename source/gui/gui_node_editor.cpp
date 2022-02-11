@@ -3,6 +3,10 @@
 #include "../vk_initializers.h"
 #include "../vk_shader.h"
 
+static const std::unordered_set<std::string> image_node_type_name{
+	"Uniform Color"
+};
+
 static ImRect imgui_get_item_rect() {
 	return ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
 }
@@ -10,6 +14,27 @@ static ImRect imgui_get_item_rect() {
 namespace engine {
 	constexpr int NodeEditor::get_next_id() {
 		return next_id++;
+	}
+
+	template<typename T>
+	void NodeEditor::update_from(Node* node) {
+		auto data = std::static_pointer_cast<T::data_type>(node->data);
+
+		std::vector<VkCommandBuffer> submitCommandBuffers;
+		if constexpr (std::is_base_of_v<NodeTypeImageBase, T>) {
+			submitCommandBuffers.emplace_back(data->get_node_cmd_buffer());
+		}
+
+		VkSubmitInfo submitInfo{
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size()),
+			.pCommandBuffers = submitCommandBuffers.data(),
+		};
+
+		if (vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, node->fence) != VK_SUCCESS) {
+			throw std::runtime_error("failed to submit draw command buffer!");
+		}
+		
 	}
 
 	Node* NodeEditor::create_node_add(std::string name) {
@@ -27,12 +52,14 @@ namespace engine {
 	}
 
 	Node* NodeEditor::create_node_uniform_color(std::string name) {
-		nodes.emplace_back(get_next_id(), name, NodeUniformColor{}, engine);
+		using NODE_TYPE = NodeUniformColor;
+		nodes.emplace_back(get_next_id(), name, NODE_TYPE{}, engine);
 		auto& node = nodes.back();
 		node.inputs.emplace_back(get_next_id(), "Color", PinColor{});
 		node.outputs.emplace_back(get_next_id(), "Result", PinImage{});
 
 		build_node(&node);
+		update_from<NODE_TYPE>(&node);
 
 		return &node;
 	}
@@ -76,10 +103,15 @@ namespace engine {
 			//add_node_add = false;
 		//}
 
-		for (auto& node : nodes) {
+		for (auto& node : nodes) {	
+			
 			ed::BeginNode(node.id);
+			auto yy = ImGui::GetCursorPosY();
 			ImGui::Text(node.type_name.c_str());
+			
+			//auto rect_now = imgui_get_item_rect();
 			ImGui::Dummy(ImVec2(160.0f, 3.0f));
+			//auto node_rect_start = imgui_get_item_rect();
 			auto node_rect = imgui_get_item_rect();
 			ImGui::GetWindowDrawList()->AddRectFilled(node_rect.GetTL(), node_rect.GetBR(), ImColor(68, 129, 196, 160));
 			//ImGui::BeginVertical("delegates", ImVec2(0, 28));
@@ -162,14 +194,26 @@ namespace engine {
 				ed::EndPin();
 				ed::PopStyleVar(1);
 			}
+			
 			ed::EndNode();
+
+			if (image_node_type_name.contains(node.type_name)) {
+				//auto rect_now = imgui_get_item_rect();
+				ImGui::SetCursorPosX(node_rect.GetCenter().x - image_size * 0.5);
+				ImGui::SetCursorPosY(yy - image_size - 15);
+
+				vkWaitForFences(engine->device, 1, &node.fence, VK_TRUE, UINT64_MAX);
+				ImGui::Image(static_cast<ImTextureID>(node.gui_texture), ImVec2{ image_size, image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
+			}
 
 			if (handle_color_pin) {
 				ed::Suspend();
+				
 				if (ImGui::BeginPopup(("ColorPopup##" + std::to_string(color_pin->id.Get())).c_str()))
 				{
 					ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin->id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Float4Data>(&(color_pin->default_value))), ImGuiColorEditFlags_None, NULL);
 					ImGui::EndPopup();
+					//node->pUniformBuffers[currentImage]->copyFromHost(&ubo);
 				}
 				ed::Resume();
 			}
@@ -316,7 +360,15 @@ namespace engine {
 		ed::Config config;
 		config.SettingsFile = "Simple.json";
 		context = ed::CreateEditor(&config);
+
+		//VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
+
+		/*if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &command_buffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate command buffers!");
+		}*/
+
 		engine->main_deletion_queue.push_function([=]() {
+			//vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &command_buffer);
 			ed::DestroyEditor(context);
 			});
 	}

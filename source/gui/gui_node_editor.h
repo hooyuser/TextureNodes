@@ -9,6 +9,7 @@
 
 #include <imgui_node_editor.h>
 #include <imgui_internal.h>
+#include <imgui_impl_vulkan.h>
 
 #include "gui_node_data.h"
 
@@ -55,6 +56,8 @@ struct NodeAdd : NodeTypeBase {
 	constexpr auto static name() { return "Add"; }
 };
 
+//using NodeDataVariant = std::variant<NodeUniformColor::data_type, NodeAdd::data_type>;
+
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 struct Node;
@@ -83,11 +86,24 @@ struct Node {
 	std::string type_name;
 	ImVec2 size = { 0, 0 };
 	std::shared_ptr<NodeData> data;
+	void* gui_texture = nullptr;
+	VkFence fence = nullptr;
 
 	template<std::derived_from<NodeTypeBase> T>
 	Node(int id, std::string name, const T&, VulkanEngine* engine) :
 		id(id), name(name), type_name(T::name()),
 		data(std::static_pointer_cast<NodeData>(std::make_shared<T::data_type>(engine))) {
+		if constexpr (std::is_base_of_v<NodeTypeImageBase, T>) {
+			auto image_data = std::static_pointer_cast<T::data_type>(data);
+			auto fenceInfo = vkinit::fenceCreateInfo();
+			if (vkCreateFence(engine->device, &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
+				throw std::runtime_error("failed to create fence!");
+			}
+			engine->main_deletion_queue.push_function([=]() {
+				vkDestroyFence(engine->device, fence, nullptr);
+				});
+			gui_texture = ImGui_ImplVulkan_AddTexture(image_data->texture->sampler, image_data->texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		}
 	}
 };
 
@@ -123,8 +139,13 @@ namespace engine {
 		std::vector<Node> nodes;
 		std::unordered_set<Link> links;
 		int next_id = 1;
+		constexpr static inline int image_size = 128;
+		//VkCommandBuffer command_buffer = nullptr;
 
 		constexpr int get_next_id();
+
+		template<typename T>
+		void update_from(Node* node);
 
 		void build_node(Node* node);
 

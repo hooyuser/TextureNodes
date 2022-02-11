@@ -38,8 +38,9 @@ struct ImageData : public NodeData {
 	inline static VkPipeline image_pocessing_pipeline = nullptr;
 	inline static VkRenderPass image_pocessing_render_pass = nullptr;
 	inline static VkFramebuffer image_pocessing_framebuffer = nullptr;
-	inline static VkCommandBuffer command_buffer = nullptr;
+	inline static VkCommandBuffer node_cmd_buffer = nullptr;
 	VkDescriptorSet descriptor_set;
+	//VkFence fence;
 	UboType ubo;
 	uint32_t width = 1024;
 	uint32_t height = 1024;
@@ -104,6 +105,8 @@ struct ImageData : public NodeData {
 		};
 
 		vkUpdateDescriptorSets(engine->device, 1, &descriptor_write, 0, nullptr);
+
+
 
 		//create renderpass
 		if (image_pocessing_render_pass == nullptr) {
@@ -227,22 +230,22 @@ struct ImageData : public NodeData {
 				});
 		}
 
-		if (command_buffer == nullptr) {
-			VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, VK_COMMAND_BUFFER_LEVEL_SECONDARY);
+		if (node_cmd_buffer == nullptr) {
+			VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
 
-			if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &command_buffer) != VK_SUCCESS) {
+			if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &node_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to allocate command buffers!");
 			}
 
 			engine->main_deletion_queue.push_function([=]() {
-				vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &command_buffer);
+				vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &node_cmd_buffer);
 				});
 
 			VkCommandBufferBeginInfo beginInfo{
 				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
 			};
 
-			if (vkBeginCommandBuffer(command_buffer, &beginInfo) != VK_SUCCESS) {
+			if (vkBeginCommandBuffer(node_cmd_buffer, &beginInfo) != VK_SUCCESS) {
 				throw std::runtime_error("failed to begin recording command buffer!");
 			}
 
@@ -250,7 +253,7 @@ struct ImageData : public NodeData {
 
 			VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(image_pocessing_render_pass, image_extent, image_pocessing_framebuffer);
 
-			vkCmdBeginRenderPass(command_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+			vkCmdBeginRenderPass(node_cmd_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 			VkViewport viewport{
 				.x = 0.0f,
@@ -266,19 +269,23 @@ struct ImageData : public NodeData {
 				.extent = image_extent,
 			};
 
-			vkCmdSetViewport(command_buffer, 0, 1, &viewport);
-			vkCmdSetScissor(command_buffer, 0, 1, &scissor);
-			vkCmdBindDescriptorSets(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
-			vkCmdBindPipeline(command_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline);
-			vkCmdDraw(command_buffer, 3, 1, 0, 0);
-			vkCmdEndRenderPass(command_buffer);
+			vkCmdSetViewport(node_cmd_buffer, 0, 1, &viewport);
+			vkCmdSetScissor(node_cmd_buffer, 0, 1, &scissor);
+			vkCmdBindDescriptorSets(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+			vkCmdBindPipeline(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline);
+			vkCmdDraw(node_cmd_buffer, 3, 1, 0, 0);
+			vkCmdEndRenderPass(node_cmd_buffer);
 
-			if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
+			if (vkEndCommandBuffer(node_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to record command buffer!");
-			}
+			}	
 		}
-
 	}
+
+	VkCommandBuffer get_node_cmd_buffer() {
+		return node_cmd_buffer;
+	}
+
 };
 
 template<typename UboType, StringLiteral ...Shaders>

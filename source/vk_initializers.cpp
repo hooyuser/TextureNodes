@@ -211,9 +211,10 @@ VkSemaphoreCreateInfo vkinit::semaphoreCreateInfo(VkSemaphoreCreateFlags flags /
 }
 
 VkFenceCreateInfo vkinit::fenceCreateInfo(VkFenceCreateFlags flags /*= 0*/) {
-	VkFenceCreateInfo fenceInfo = { VK_STRUCTURE_TYPE_FENCE_CREATE_INFO };
-
-	fenceInfo.pNext = nullptr;
-	fenceInfo.flags = flags;
+	VkFenceCreateInfo fenceInfo = { 
+		.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+		.pNext = nullptr,
+		.flags = flags,
+	};
 	return fenceInfo;
 }
