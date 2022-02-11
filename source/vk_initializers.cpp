@@ -5,11 +5,13 @@
 
 
 VkCommandPoolCreateInfo vkinit::commandPoolCreateInfo(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags /*= 0*/) {
-	VkCommandPoolCreateInfo commandPoolInfo = { VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO };
+	VkCommandPoolCreateInfo commandPoolInfo = { 
+		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
+		.pNext = nullptr,
+		.flags = flags,
+		.queueFamilyIndex = queueFamilyIndex,
+	};
 
-	commandPoolInfo.pNext = nullptr;
-	commandPoolInfo.queueFamilyIndex = queueFamilyIndex;
-	commandPoolInfo.flags = flags;
 	return commandPoolInfo;
 }
 
@@ -32,7 +34,7 @@ VkRenderPassBeginInfo vkinit::renderPassBeginInfo(VkRenderPass renderPass, VkExt
 }
 
 VkCommandBufferAllocateInfo vkinit::commandBufferAllocateInfo(VkCommandPool pool, uint32_t count /*= 1*/, VkCommandBufferLevel level /*= VK_COMMAND_BUFFER_LEVEL_PRIMARY*/) {
-	VkCommandBufferAllocateInfo info {
+	VkCommandBufferAllocateInfo info{
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO ,
 		.pNext = nullptr,
 		.commandPool = pool,
@@ -148,16 +150,15 @@ VkPipelineColorBlendAttachmentState vkinit::colorBlendAttachmentState() {
 }
 
 VkPipelineColorBlendStateCreateInfo vkinit::colorBlendAttachmentCreateInfo(VkPipelineColorBlendAttachmentState& colorBlendAttachment) {
-	VkPipelineColorBlendStateCreateInfo colorBlending{ VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO };
+	VkPipelineColorBlendStateCreateInfo colorBlending{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
+		.logicOpEnable = VK_FALSE,
+		.logicOp = VK_LOGIC_OP_COPY,
+		.attachmentCount = 1,
+		.pAttachments = &colorBlendAttachment,
+		.blendConstants{ 0.0f, 0.0f, 0.0f, 0.0f },
+	};
 
-	colorBlending.logicOpEnable = VK_FALSE;
-	colorBlending.logicOp = VK_LOGIC_OP_COPY;
-	colorBlending.attachmentCount = 1;
-	colorBlending.pAttachments = &colorBlendAttachment;
-	colorBlending.blendConstants[0] = 0.0f;
-	colorBlending.blendConstants[1] = 0.0f;
-	colorBlending.blendConstants[2] = 0.0f;
-	colorBlending.blendConstants[3] = 0.0f;
 	return colorBlending;
 }
 
