@@ -44,10 +44,10 @@ struct NodeTypeBase {};
 struct NodeTypeImageBase : NodeTypeBase {};
 
 struct NodeUniformColor : NodeTypeImageBase {
-	using data_type = ImageData<Float4Data,
+	using data_type = std::shared_ptr<ImageData<Float4Data,
 		"assets/shaders/node_uniform_color.vert.spv",
 		"assets/shaders/node_uniform_color.frag.spv"
-	>;
+	>>;
 	constexpr auto static name() { return "Uniform Color"; }
 };
 
@@ -56,7 +56,7 @@ struct NodeAdd : NodeTypeBase {
 	constexpr auto static name() { return "Add"; }
 };
 
-//using NodeDataVariant = std::variant<NodeUniformColor::data_type, NodeAdd::data_type>;
+using NodeDataVariant = std::variant<NodeUniformColor::data_type, NodeAdd::data_type>;
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -85,24 +85,16 @@ struct Node {
 	//ImColor Color ;
 	std::string type_name;
 	ImVec2 size = { 0, 0 };
-	std::shared_ptr<NodeData> data;
-	void* gui_texture = nullptr;
-	VkFence fence = nullptr;
+	NodeDataVariant data;
 
 	template<std::derived_from<NodeTypeBase> T>
 	Node(int id, std::string name, const T&, VulkanEngine* engine) :
-		id(id), name(name), type_name(T::name()),
-		data(std::static_pointer_cast<NodeData>(std::make_shared<T::data_type>(engine))) {
-		if constexpr (std::is_base_of_v<NodeTypeImageBase, T>) {
-			auto image_data = std::static_pointer_cast<T::data_type>(data);
-			auto fenceInfo = vkinit::fenceCreateInfo();
-			if (vkCreateFence(engine->device, &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
-				throw std::runtime_error("failed to create fence!");
-			}
-			engine->main_deletion_queue.push_function([=]() {
-				vkDestroyFence(engine->device, fence, nullptr);
-				});
-			gui_texture = ImGui_ImplVulkan_AddTexture(image_data->texture->sampler, image_data->texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		id(id), name(name), type_name(T::name()) {
+		if constexpr (std::derived_from<T, NodeTypeImageBase>) {
+			using ref_type = std::decay_t<decltype(*std::declval<T::data_type>())>;
+			data = std::make_shared<ref_type>(engine);
+			auto p = std::holds_alternative<T::data_type>(data);
+			auto debug = 0;
 		}
 	}
 };
@@ -144,7 +136,6 @@ namespace engine {
 
 		constexpr int get_next_id();
 
-		template<typename T>
 		void update_from(Node* node);
 
 		void build_node(Node* node);

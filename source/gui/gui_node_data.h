@@ -32,18 +32,20 @@ struct NodeData {};
 template<typename UboType, StringLiteral ...Shaders>
 struct ImageData : public NodeData {
 	TexturePtr texture;
+	void* gui_texture;
+	VkDescriptorSet descriptor_set;
+	VkFramebuffer image_pocessing_framebuffer;
+	VkCommandBuffer node_cmd_buffer;
 	BufferPtr uniform_buffer;
+	UboType ubo;
+	uint32_t width = 1024;
+	uint32_t height = 1024;
+	VkFence fence;
 	inline static VkDescriptorSetLayout descriptor_set_layout = nullptr;
 	inline static VkPipelineLayout image_pocessing_pipeline_layout = nullptr;
 	inline static VkPipeline image_pocessing_pipeline = nullptr;
 	inline static VkRenderPass image_pocessing_render_pass = nullptr;
-	inline static VkFramebuffer image_pocessing_framebuffer = nullptr;
-	inline static VkCommandBuffer node_cmd_buffer = nullptr;
-	VkDescriptorSet descriptor_set;
-	//VkFence fence;
-	UboType ubo;
-	uint32_t width = 1024;
-	uint32_t height = 1024;
+	
 	//ImageData(const ImageData& data) {
 	//	texture = data.texture;
 	//	uniform_buffer = data.uniform_buffer;
@@ -57,6 +59,14 @@ struct ImageData : public NodeData {
 	//}
 	//ImageData(){};
 	ImageData(VulkanEngine* engine) {
+		auto fenceInfo = vkinit::fenceCreateInfo();
+		if (vkCreateFence(engine->device, &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create fence!");
+		}
+		engine->main_deletion_queue.push_function([=]() {
+			vkDestroyFence(engine->device, fence, nullptr);
+			});
+
 		texture = engine::Texture::create_2D_render_target(engine,
 			1024,
 			1024,
@@ -65,6 +75,8 @@ struct ImageData : public NodeData {
 
 		texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
+		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		
 		uniform_buffer = engine::Buffer::createBuffer(engine,
 			sizeof(UboType),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -216,70 +228,70 @@ struct ImageData : public NodeData {
 				});
 		}
 
-		if (image_pocessing_framebuffer == nullptr) {
-			std::array framebuffer_attachments = { texture->imageView };
+		//create framebuffer
 
-			VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(image_pocessing_render_pass, VkExtent2D{ width , height }, framebuffer_attachments);
+		std::array framebuffer_attachments = { texture->imageView };
 
-			if (vkCreateFramebuffer(engine->device, &framebufferInfo, nullptr, &image_pocessing_framebuffer) != VK_SUCCESS) {
-				throw std::runtime_error("failed to create framebuffer!");
-			}
+		VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(image_pocessing_render_pass, VkExtent2D{ width , height }, framebuffer_attachments);
 
-			engine->main_deletion_queue.push_function([=]() {
-				vkDestroyFramebuffer(engine->device, image_pocessing_framebuffer, nullptr);
-				});
+		if (vkCreateFramebuffer(engine->device, &framebufferInfo, nullptr, &image_pocessing_framebuffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create framebuffer!");
 		}
 
-		if (node_cmd_buffer == nullptr) {
-			VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
+		engine->main_deletion_queue.push_function([=]() {
+			vkDestroyFramebuffer(engine->device, image_pocessing_framebuffer, nullptr);
+			});
+		
+		//create command buffer
+		
+		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
 
-			if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &node_cmd_buffer) != VK_SUCCESS) {
-				throw std::runtime_error("failed to allocate command buffers!");
-			}
-
-			engine->main_deletion_queue.push_function([=]() {
-				vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &node_cmd_buffer);
-				});
-
-			VkCommandBufferBeginInfo beginInfo{
-				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
-			};
-
-			if (vkBeginCommandBuffer(node_cmd_buffer, &beginInfo) != VK_SUCCESS) {
-				throw std::runtime_error("failed to begin recording command buffer!");
-			}
-
-			VkExtent2D image_extent{ width, height };
-
-			VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(image_pocessing_render_pass, image_extent, image_pocessing_framebuffer);
-
-			vkCmdBeginRenderPass(node_cmd_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
-
-			VkViewport viewport{
-				.x = 0.0f,
-				.y = static_cast<float>(height),
-				.width = static_cast<float>(width),
-				.height = -static_cast<float>(height),    // flip y axis
-				.minDepth = 0.0f,
-				.maxDepth = 1.0f,
-			};
-
-			VkRect2D scissor{
-				.offset = { 0, 0 },
-				.extent = image_extent,
-			};
-
-			vkCmdSetViewport(node_cmd_buffer, 0, 1, &viewport);
-			vkCmdSetScissor(node_cmd_buffer, 0, 1, &scissor);
-			vkCmdBindDescriptorSets(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
-			vkCmdBindPipeline(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline);
-			vkCmdDraw(node_cmd_buffer, 3, 1, 0, 0);
-			vkCmdEndRenderPass(node_cmd_buffer);
-
-			if (vkEndCommandBuffer(node_cmd_buffer) != VK_SUCCESS) {
-				throw std::runtime_error("failed to record command buffer!");
-			}	
+		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &node_cmd_buffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate command buffers!");
 		}
+
+		engine->main_deletion_queue.push_function([=]() {
+			vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &node_cmd_buffer);
+			});
+
+		VkCommandBufferBeginInfo beginInfo{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+		};
+
+		if (vkBeginCommandBuffer(node_cmd_buffer, &beginInfo) != VK_SUCCESS) {
+			throw std::runtime_error("failed to begin recording command buffer!");
+		}
+
+		VkExtent2D image_extent{ width, height };
+
+		VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(image_pocessing_render_pass, image_extent, image_pocessing_framebuffer);
+
+		vkCmdBeginRenderPass(node_cmd_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+
+		VkViewport viewport{
+			.x = 0.0f,
+			.y = static_cast<float>(height),
+			.width = static_cast<float>(width),
+			.height = -static_cast<float>(height),    // flip y axis
+			.minDepth = 0.0f,
+			.maxDepth = 1.0f,
+		};
+
+		VkRect2D scissor{
+			.offset = { 0, 0 },
+			.extent = image_extent,
+		};
+
+		vkCmdSetViewport(node_cmd_buffer, 0, 1, &viewport);
+		vkCmdSetScissor(node_cmd_buffer, 0, 1, &scissor);
+		vkCmdBindDescriptorSets(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+		vkCmdBindPipeline(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline);
+		vkCmdDraw(node_cmd_buffer, 3, 1, 0, 0);
+		vkCmdEndRenderPass(node_cmd_buffer);
+
+		if (vkEndCommandBuffer(node_cmd_buffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to record command buffer!");
+		}	
 	}
 
 	VkCommandBuffer get_node_cmd_buffer() {
