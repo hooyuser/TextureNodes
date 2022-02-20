@@ -3,9 +3,9 @@
 #include "../vk_initializers.h"
 #include "../vk_shader.h"
 
-static const std::unordered_set<std::string> image_node_type_name{
-	"Uniform Color"
-};
+//static const std::unordered_set<std::string> image_node_type_name{
+//	"Uniform Color"
+//};
 
 static ImRect imgui_get_item_rect() {
 	return ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
@@ -202,9 +202,8 @@ namespace engine {
 					ImGui::SetCursorPosY(yy - image_size - 15);
 					vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);	
 					ImGui::Image(static_cast<ImTextureID>(arg->gui_texture), ImVec2{ image_size, image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
-
 				}
-				else if constexpr (std::is_same_v<T, Color4Data>) {
+				else if constexpr (std::is_same_v<T, NodeAdd::data_type>) {
 
 				}
 				}, node.data);

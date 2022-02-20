@@ -113,8 +113,9 @@ struct Node {
 		if constexpr (std::derived_from<T, NodeTypeImageBase>) {
 			using ref_type = std::decay_t<decltype(*std::declval<T::data_type>())>;
 			data = std::make_shared<ref_type>(engine);
-			auto p = std::holds_alternative<T::data_type>(data);
-			auto debug = 0;
+		}
+		else {
+			data = NodeDataVariant(std::in_place_type<T::data_type>);
 		}
 	}
 };
