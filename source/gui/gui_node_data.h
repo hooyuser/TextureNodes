@@ -59,7 +59,7 @@ struct ImageData : public NodeData {
 	//}
 	//ImageData(){};
 	ImageData(VulkanEngine* engine) {
-		auto fenceInfo = vkinit::fenceCreateInfo();
+		auto fenceInfo = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
 		if (vkCreateFence(engine->device, &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create fence!");
 		}
@@ -84,7 +84,7 @@ struct ImageData : public NodeData {
 			SWAPCHAIN_INDEPENDENT_BIT);
 
 		if (descriptor_set_layout == nullptr) {
-			auto ubo_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+			auto ubo_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
 			std::array layout_bindings = { ubo_layout_binding };
 			engine->create_descriptor_set_layout(layout_bindings, descriptor_set_layout);
 		}
@@ -93,7 +93,7 @@ struct ImageData : public NodeData {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.descriptorPool = engine->descriptorPool,
 			.descriptorSetCount = 1,
-			.pSetLayouts = &descriptor_set_layout
+			.pSetLayouts = &descriptor_set_layout,
 		};
 
 		if (vkAllocateDescriptorSets(engine->device, &descriptor_alloc_info, &descriptor_set) != VK_SUCCESS) {
@@ -117,8 +117,6 @@ struct ImageData : public NodeData {
 		};
 
 		vkUpdateDescriptorSets(engine->device, 1, &descriptor_write, 0, nullptr);
-
-
 
 		//create renderpass
 		if (image_pocessing_render_pass == nullptr) {
@@ -169,7 +167,7 @@ struct ImageData : public NodeData {
 
 			std::array attachments = { colorAttachment };
 
-			VkRenderPassCreateInfo renderPassInfo{
+			VkRenderPassCreateInfo render_pass_info{
 				.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 				.pNext = nullptr,
 				.attachmentCount = static_cast<uint32_t>(attachments.size()),
@@ -180,7 +178,7 @@ struct ImageData : public NodeData {
 				.pDependencies = dependencies.data(),
 			};
 
-			if (vkCreateRenderPass(engine->device, &renderPassInfo, nullptr, &image_pocessing_render_pass) != VK_SUCCESS) {
+			if (vkCreateRenderPass(engine->device, &render_pass_info, nullptr, &image_pocessing_render_pass) != VK_SUCCESS) {
 				throw std::runtime_error("failed to create render pass!");
 			}
 
@@ -277,6 +275,15 @@ struct ImageData : public NodeData {
 			.maxDepth = 1.0f,
 		};
 
+		//VkViewport viewport{
+		//	.x = 0.0f,
+		//	.y = 0.0f,
+		//	.width = static_cast<float>(width),
+		//	.height = static_cast<float>(height),    // flip y axis
+		//	.minDepth = 0.0f,
+		//	.maxDepth = 1.0f,
+		//};
+
 		VkRect2D scissor{
 			.offset = { 0, 0 },
 			.extent = image_extent,
@@ -311,5 +318,10 @@ struct FloatData : public NodeData {
 struct Float4Data : public NodeData {
 	float value[4] = { 0.0f };
 	Float4Data(VulkanEngine* engine = nullptr) {};
+};
+
+struct Color4Data : public NodeData {
+	float value[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	Color4Data(VulkanEngine* engine = nullptr) {};
 };
 

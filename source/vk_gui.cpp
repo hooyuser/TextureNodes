@@ -110,19 +110,21 @@ namespace engine {
 		create_framebuffers();
 		init_command_buffers();
 
+		constexpr size_t descriptor_pool_size  = 2000;
+
 		VkDescriptorPoolSize pool_sizes[] =
 		{
-			{ VK_DESCRIPTOR_TYPE_SAMPLER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, 1000 },
-			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, 1000 },
-			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, 1000 },
-			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, 1000 }
+			{ VK_DESCRIPTOR_TYPE_SAMPLER, descriptor_pool_size },
+			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptor_pool_size },
+			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, descriptor_pool_size },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, descriptor_pool_size },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, descriptor_pool_size },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_TEXEL_BUFFER, descriptor_pool_size },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptor_pool_size },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, descriptor_pool_size },
+			{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER_DYNAMIC, descriptor_pool_size },
+			{ VK_DESCRIPTOR_TYPE_STORAGE_BUFFER_DYNAMIC, descriptor_pool_size },
+			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, descriptor_pool_size }
 		};
 
 		VkDescriptorPoolCreateInfo poolInfo = {};

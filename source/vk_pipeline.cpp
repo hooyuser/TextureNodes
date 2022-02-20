@@ -11,7 +11,13 @@ namespace engine {
 			vertexInput = vkinit::vertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
 		}
 		else if (enable_vertex_input == DISABLE_VERTEX_INPUT) {
-			VkPipelineVertexInputStateCreateInfo vertexInputInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
+			VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+				.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
+				.vertexBindingDescriptionCount = 0,
+				.pVertexBindingDescriptions = nullptr,
+				.vertexAttributeDescriptionCount = 0,
+				.pVertexAttributeDescriptions = nullptr,
+			};
 			vertexInput = vertexInputInfo;
 		}
 		inputAssembly = vkinit::inputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
@@ -37,10 +43,10 @@ namespace engine {
 		}
 
 		if (enable_vertex_input == ENABLE_VERTEX_INPUT) {
-			rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+			rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL); // possibly set culling mode
 		}
 		else {
-			rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL, VK_CULL_MODE_FRONT_BIT);
+			rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
 		}
 
 		multisampling = vkinit::multisamplingStateCreateInfo(engine->msaaSamples);

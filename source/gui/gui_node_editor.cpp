@@ -17,30 +17,33 @@ namespace engine {
 	}
 
 	void NodeEditor::update_from(Node* node) {
-		std::visit([&](auto&& arg) {
-			using T = std::decay_t<decltype(arg)>;
-			if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
-				std::vector<VkCommandBuffer> submitCommandBuffers;
-				submitCommandBuffers.emplace_back(arg->get_node_cmd_buffer());
-				
-				vkResetFences(engine->device, 1, &arg->fence);
-				
-				VkSubmitInfo submitInfo{
-					.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-					.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size()),
-					.pCommandBuffers = submitCommandBuffers.data(),
-				};
-				
-				if (vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, arg->fence) != VK_SUCCESS) {
-					throw std::runtime_error("failed to submit draw command buffer!");
+		//if (node->updated == NodeState::Updated) {
+			std::visit([&](auto&& arg) {
+				using T = std::decay_t<decltype(arg)>;
+				if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
+					std::vector<VkCommandBuffer> submitCommandBuffers;
+					submitCommandBuffers.emplace_back(arg->get_node_cmd_buffer());
+
+					vkResetFences(engine->device, 1, &arg->fence);
+
+					VkSubmitInfo submitInfo{
+						.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+						.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size()),
+						.pCommandBuffers = submitCommandBuffers.data(),
+					};
+
+					auto result = vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, arg->fence);
+					if (result != VK_SUCCESS) {
+						throw std::runtime_error("failed to submit draw command buffer!");
+					}
+
 				}
-			}
-			else if constexpr (std::is_same_v<T, Float4Data>) {
-
-
-
-			}
-			}, node->data);
+				else if constexpr (std::is_same_v<T, Color4Data>) {
+					int xxxxxxxx = 0;
+				}
+				}, node->data);
+			//node->updated = NodeState::Processing;
+			//}
 	}
 
 	Node* NodeEditor::create_node_add(std::string name) {
@@ -58,14 +61,20 @@ namespace engine {
 	}
 
 	Node* NodeEditor::create_node_uniform_color(std::string name) {
-		using NODE_TYPE = NodeUniformColor;
-		nodes.emplace_back(get_next_id(), name, NODE_TYPE{}, engine);
+		using NodeType = NodeUniformColor;
+		nodes.emplace_back(get_next_id(), name, NodeType{}, engine);
 		auto& node = nodes.back();
-		node.inputs.emplace_back(get_next_id(), "Color", PinColor{});
+		
+		using PinType1 = PinColor;
+		node.inputs.emplace_back(get_next_id(), "Color", PinType1{});
+		std::get<NodeUniformColor::data_type>(node.data)->ubo.color = std::get<PinType1::data_type>(node.inputs.back().default_value);
+		
 		node.outputs.emplace_back(get_next_id(), "Result", PinImage{});
 
 		build_node(&node);
-		update_from(&node);
+		//node.updated = NodeState::Updated;
+		//update_from(&node);
+		//update_from(&node);
 
 		return &node;
 	}
@@ -114,10 +123,7 @@ namespace engine {
 			ed::BeginNode(node.id);
 			auto yy = ImGui::GetCursorPosY();
 			ImGui::Text(node.type_name.c_str());
-
-			//auto rect_now = imgui_get_item_rect();
 			ImGui::Dummy(ImVec2(160.0f, 3.0f));
-			//auto node_rect_start = imgui_get_item_rect();
 			auto node_rect = imgui_get_item_rect();
 			ImGui::GetWindowDrawList()->AddRectFilled(node_rect.GetTL(), node_rect.GetBR(), ImColor(68, 129, 196, 160));
 			//ImGui::BeginVertical("delegates", ImVec2(0, 28));
@@ -146,9 +152,8 @@ namespace engine {
 				//ed::PopStyleVar(1);
 			}
 
-			Pin* color_pin;
+			Pin* color_pin = nullptr;
 
-			bool handle_color_pin = false;
 			for (std::size_t i = 0; i < node.inputs.size(); ++i) {
 				auto pin = &node.inputs[i];
 				ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
@@ -169,7 +174,7 @@ namespace engine {
 							ImGui::PopItemWidth();
 						}
 					}
-					else if constexpr (std::is_same_v<T, Float4Data>) {
+					else if constexpr (std::is_same_v<T, Color4Data>) {
 
 						ImGui::Text(pin->name.c_str());
 						rect = imgui_get_item_rect();
@@ -183,7 +188,7 @@ namespace engine {
 								ImGui::OpenPopup(("ColorPopup##" + std::to_string(pin->id.Get())).c_str());
 								ed::Resume();
 							}
-							handle_color_pin = true;
+
 							color_pin = pin;
 						}
 					}
@@ -208,28 +213,46 @@ namespace engine {
 				if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
 					ImGui::SetCursorPosX(node_rect.GetCenter().x - image_size * 0.5);
 					ImGui::SetCursorPosY(yy - image_size - 15);
-
-					vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);
+					//if (node.updated == NodeState::Processing) {
+						vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);
+						//node.updated = NodeState::Normal;
+					//}					
 					ImGui::Image(static_cast<ImTextureID>(arg->gui_texture), ImVec2{ image_size, image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
 				}
-				else if constexpr (std::is_same_v<T, Float4Data>) {
+				else if constexpr (std::is_same_v<T, Color4Data>) {
 
 				}
 				}, node.data);
 
-			//if (image_node_type_name.contains(node.type_name)) {
-			//	//auto rect_now = imgui_get_item_rect();
-			//	
-			//}
-
-			if (handle_color_pin) {
+		
+			if (color_pin) {
 				ed::Suspend();
+				if (ImGui::BeginPopup(("ColorPopup##" + std::to_string(color_pin->id.Get())).c_str())) {
+					if (ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin->id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Color4Data>(&(color_pin->default_value))), ImGuiColorEditFlags_None, NULL)) {
+						int index = 0;
+						for (const auto& input_pin : node.inputs) {
+							if (input_pin.id == color_pin->id) {
+								break;
+							}
+							index++;
+						}
+						auto& ubo = std::get<NodeUniformColor::data_type>(node.data)->ubo;
+						std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
+							value = std::get<Color4Data>(node.inputs.back().default_value);
+							});
 
-				if (ImGui::BeginPopup(("ColorPopup##" + std::to_string(color_pin->id.Get())).c_str()))
-				{
-					ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin->id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Float4Data>(&(color_pin->default_value))), ImGuiColorEditFlags_None, NULL);
+						std::visit([&](auto&& arg) {
+							using T = std::decay_t<decltype(arg)>;
+							if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
+								arg->uniform_buffer->copyFromHost(&ubo);
+								//if (node.updated == NodeState::Normal) {
+								//	node.updated = NodeState::Updated;
+								//}
+								update_from(&node);
+							}
+							}, node.data);
+					}
 					ImGui::EndPopup();
-					//node->pUniformBuffers[currentImage]->copyFromHost(&ubo);
 				}
 				ed::Resume();
 			}

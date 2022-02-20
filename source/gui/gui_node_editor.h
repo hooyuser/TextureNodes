@@ -10,10 +10,11 @@
 #include <imgui_node_editor.h>
 #include <imgui_internal.h>
 #include <imgui_impl_vulkan.h>
-
+#include "Reflect.h"
 #include "gui_node_data.h"
 
 namespace ed = ax::NodeEditor;
+using namespace Reflect;
 
 enum class PinInOut {
 	INPUT,
@@ -23,7 +24,7 @@ enum class PinInOut {
 struct PinTypeBase {};
 
 struct PinColor : PinTypeBase {
-	using data_type = Float4Data;
+	using data_type = Color4Data;
 };
 
 struct PinFloat : PinTypeBase {
@@ -32,10 +33,10 @@ struct PinFloat : PinTypeBase {
 
 struct PinImage : PinTypeBase {
 	using data_type = TexturePtr;
-	using uniform_buffer_type = Float4Data;
+	using uniform_buffer_type = Color4Data;
 };
 
-using PinVariant = std::variant<float, Float4Data, TexturePtr>;
+using PinVariant = std::variant<float, Color4Data, TexturePtr>;
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -44,10 +45,18 @@ struct NodeTypeBase {};
 struct NodeTypeImageBase : NodeTypeBase {};
 
 struct NodeUniformColor : NodeTypeImageBase {
-	using data_type = std::shared_ptr<ImageData<Float4Data,
+
+	struct UBO {
+		Color4Data color;
+		REFLECT(UBO,
+			color)
+	};
+
+	using data_type = std::shared_ptr<ImageData<UBO,
 		"assets/shaders/node_uniform_color.vert.spv",
 		"assets/shaders/node_uniform_color.frag.spv"
-	>>;
+		>>;
+
 	constexpr auto static name() { return "Uniform Color"; }
 };
 
@@ -68,13 +77,23 @@ struct Pin {
 	std::string name;
 	PinInOut flow_direction = PinInOut::INPUT;
 	PinVariant default_value;
-
+	
 	template<std::derived_from<PinTypeBase> T>
 	Pin(ed::PinId id, std::string name, const T&) :
 		id(id), name(name), default_value(std::in_place_type<T::data_type>) {
 	}
 
+	bool operator==(const Pin& pin) const {
+		return (this->id == pin.id);
+	}
+
 	ImRect display();
+};
+
+enum class NodeState {
+	Normal = 0,
+	Updated = 1,
+	Processing = 2
 };
 
 struct Node {
@@ -86,6 +105,7 @@ struct Node {
 	std::string type_name;
 	ImVec2 size = { 0, 0 };
 	NodeDataVariant data;
+	NodeState updated = NodeState::Normal;
 
 	template<std::derived_from<NodeTypeBase> T>
 	Node(int id, std::string name, const T&, VulkanEngine* engine) :

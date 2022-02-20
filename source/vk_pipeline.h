@@ -36,7 +36,7 @@ namespace engine {
 		VkPipelineDynamicStateCreateInfo dynamicState;
 		void* p_next = VK_NULL_HANDLE;
 
-		std::array<VkDynamicState, 2> dynamicStateEnables = {
+		const std::array<VkDynamicState, 2> dynamicStateEnables = {
 			VK_DYNAMIC_STATE_VIEWPORT,
 			VK_DYNAMIC_STATE_SCISSOR
 		};

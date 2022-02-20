@@ -16,19 +16,27 @@ VkCommandPoolCreateInfo vkinit::commandPoolCreateInfo(uint32_t queueFamilyIndex,
 }
 
 VkRenderPassBeginInfo vkinit::renderPassBeginInfo(VkRenderPass renderPass, VkExtent2D extent, VkFramebuffer framebuffer) {
-	VkRenderPassBeginInfo renderPassInfo{};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-	renderPassInfo.renderPass = renderPass;
-	renderPassInfo.framebuffer = framebuffer;
-	renderPassInfo.renderArea.offset = { 0, 0 };
-	renderPassInfo.renderArea.extent = extent;
 
-	static std::array<VkClearValue, 2> clearValues{};
-	clearValues[0].color = { {0.0f, 0.0f, 0.0f, 1.0f} };
-	clearValues[1].depthStencil = { 1.0f, 0 };
+	static const std::array clearValues{
+		VkClearValue{
+			.color = { {1.0f, 0.0f, 0.0f, 1.0f} },
+		},
+		VkClearValue{
+			.depthStencil = { 1.0f, 0 },
+		},
+	};
 
-	renderPassInfo.clearValueCount = static_cast<uint32_t>(clearValues.size());
-	renderPassInfo.pClearValues = clearValues.data();
+	VkRenderPassBeginInfo renderPassInfo{
+		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+		.renderPass = renderPass,
+		.framebuffer = framebuffer,
+		.renderArea = {
+			.offset = {0, 0},
+			.extent = extent,
+		},
+		.clearValueCount = static_cast<uint32_t>(clearValues.size()),
+		.pClearValues = clearValues.data(),
+	};
 
 	return renderPassInfo;
 }
@@ -94,7 +102,7 @@ VkPipelineViewportStateCreateInfo vkinit::viewportStateCreateInfo(const VkViewpo
 	return viewportState;
 }
 
-VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPolygonMode polygonMode, VkCullModeFlagBits cullMode) {
+VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPolygonMode polygonMode, VkCullModeFlagBits cullMode/*= VK_CULL_MODE_NONE*/) {
 	VkPipelineRasterizationStateCreateInfo rasterizerInfo = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 
 	rasterizerInfo.pNext = nullptr;
@@ -163,17 +171,16 @@ VkPipelineColorBlendStateCreateInfo vkinit::colorBlendAttachmentCreateInfo(VkPip
 }
 
 VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo(std::span<VkDescriptorSetLayout> descriptorSetLayouts) {
-	VkPipelineLayoutCreateInfo pipelineLayoutInfo{ VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO };
+	VkPipelineLayoutCreateInfo pipelineLayoutInfo{
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
+		.pNext = nullptr,
+		.flags = 0,
+		.setLayoutCount = static_cast<uint32_t>(descriptorSetLayouts.size()),
+		.pSetLayouts = descriptorSetLayouts.data(),
+		.pushConstantRangeCount = 0,
+		.pPushConstantRanges = nullptr,
+	};
 
-	pipelineLayoutInfo.pNext = nullptr;
-	//empty defaults
-	pipelineLayoutInfo.flags = 0;
-
-	pipelineLayoutInfo.setLayoutCount = descriptorSetLayouts.size();
-	pipelineLayoutInfo.pSetLayouts = descriptorSetLayouts.data();
-
-	pipelineLayoutInfo.pushConstantRangeCount = 0;
-	pipelineLayoutInfo.pPushConstantRanges = nullptr;
 	return pipelineLayoutInfo;
 }
 
