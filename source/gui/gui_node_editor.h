@@ -90,11 +90,12 @@ struct Pin {
 	ImRect display();
 };
 
-enum class NodeState {
-	Normal = 0,
-	Updated = 1,
-	Processing = 2
-};
+//enum class NodeState {
+//	Normal = 0,
+//	Updated = 1,
+//	Processing = 2,
+//	ADD_NODE = 3,
+//};
 
 struct Node {
 	ed::NodeId id;
@@ -105,7 +106,6 @@ struct Node {
 	std::string type_name;
 	ImVec2 size = { 0, 0 };
 	NodeDataVariant data;
-	NodeState updated = NodeState::Normal;
 
 	template<std::derived_from<NodeTypeBase> T>
 	Node(int id, std::string name, const T&, VulkanEngine* engine) :

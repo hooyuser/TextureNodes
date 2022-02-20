@@ -12,6 +12,7 @@ build[0-9]*/*
 *.gltf
 *.ini
 *.json
+*.exe
 
 # User-specific files
 *.rsuser

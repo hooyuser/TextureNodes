@@ -17,33 +17,31 @@ namespace engine {
 	}
 
 	void NodeEditor::update_from(Node* node) {
-		//if (node->updated == NodeState::Updated) {
-			std::visit([&](auto&& arg) {
-				using T = std::decay_t<decltype(arg)>;
-				if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
-					std::vector<VkCommandBuffer> submitCommandBuffers;
-					submitCommandBuffers.emplace_back(arg->get_node_cmd_buffer());
+		std::visit([&](auto&& arg) {
+			using T = std::decay_t<decltype(arg)>;
+			if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
+				std::vector<VkCommandBuffer> submitCommandBuffers;
+				submitCommandBuffers.emplace_back(arg->get_node_cmd_buffer());
 
-					vkResetFences(engine->device, 1, &arg->fence);
+				vkResetFences(engine->device, 1, &arg->fence);
 
-					VkSubmitInfo submitInfo{
-						.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-						.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size()),
-						.pCommandBuffers = submitCommandBuffers.data(),
-					};
+				VkSubmitInfo submitInfo{
+					.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+					.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size()),
+					.pCommandBuffers = submitCommandBuffers.data(),
+				};
 
-					auto result = vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, arg->fence);
-					if (result != VK_SUCCESS) {
-						throw std::runtime_error("failed to submit draw command buffer!");
-					}
-
+				auto result = vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, arg->fence);
+				if (result != VK_SUCCESS) {
+					throw std::runtime_error("failed to submit draw command buffer!");
 				}
-				else if constexpr (std::is_same_v<T, Color4Data>) {
-					int xxxxxxxx = 0;
-				}
-				}, node->data);
-			//node->updated = NodeState::Processing;
-			//}
+
+				arg->uniform_buffer->copyFromHost(&arg->ubo);
+			}
+			else if constexpr (std::is_same_v<T, Color4Data>) {
+				int xxxxxxxx = 0;
+			}
+			}, node->data);
 	}
 
 	Node* NodeEditor::create_node_add(std::string name) {
@@ -70,11 +68,7 @@ namespace engine {
 		std::get<NodeUniformColor::data_type>(node.data)->ubo.color = std::get<PinType1::data_type>(node.inputs.back().default_value);
 		
 		node.outputs.emplace_back(get_next_id(), "Result", PinImage{});
-
 		build_node(&node);
-		//node.updated = NodeState::Updated;
-		//update_from(&node);
-		//update_from(&node);
 
 		return &node;
 	}
@@ -92,15 +86,14 @@ namespace engine {
 	}
 
 	void NodeEditor::draw() {
-		//static bool add_node_add = false;
-
 		if (ImGui::BeginMenuBar()) {
 			if (ImGui::BeginMenu("Add")) {
 				if (ImGui::MenuItem("Add")) {
 					create_node_add("Add");
 				}
 				if (ImGui::MenuItem("Uniform Color")) {
-					create_node_uniform_color("Uniform Color");
+					auto node = create_node_uniform_color("Uniform Color");
+					update_from(node);
 				}
 				ImGui::EndMenu();
 			}
@@ -112,12 +105,6 @@ namespace engine {
 		ed::Begin("My Editor", ImVec2(0.0f, 0.0f));
 
 		// Start drawing nodes.
-
-		//if (add_node_add) {
-			//create_node_add("Add", ImVec2(0, 0));
-			//add_node_add = false;
-		//}
-
 		for (auto& node : nodes) {
 
 			ed::BeginNode(node.id);
@@ -213,11 +200,9 @@ namespace engine {
 				if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
 					ImGui::SetCursorPosX(node_rect.GetCenter().x - image_size * 0.5);
 					ImGui::SetCursorPosY(yy - image_size - 15);
-					//if (node.updated == NodeState::Processing) {
-						vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);
-						//node.updated = NodeState::Normal;
-					//}					
+					vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);	
 					ImGui::Image(static_cast<ImTextureID>(arg->gui_texture), ImVec2{ image_size, image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
+
 				}
 				else if constexpr (std::is_same_v<T, Color4Data>) {
 
@@ -244,10 +229,6 @@ namespace engine {
 						std::visit([&](auto&& arg) {
 							using T = std::decay_t<decltype(arg)>;
 							if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
-								arg->uniform_buffer->copyFromHost(&ubo);
-								//if (node.updated == NodeState::Normal) {
-								//	node.updated = NodeState::Updated;
-								//}
 								update_from(&node);
 							}
 							}, node.data);
@@ -393,6 +374,7 @@ namespace engine {
 
 		ed::End();
 		ed::SetCurrentEditor(nullptr);
+		
 	}
 
 	NodeEditor::NodeEditor(VulkanEngine* engine) :engine(engine) {
@@ -400,14 +382,7 @@ namespace engine {
 		config.SettingsFile = "Simple.json";
 		context = ed::CreateEditor(&config);
 
-		//VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
-
-		/*if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &command_buffer) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate command buffers!");
-		}*/
-
 		engine->main_deletion_queue.push_function([=]() {
-			//vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &command_buffer);
 			ed::DestroyEditor(context);
 			});
 	}
