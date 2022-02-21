@@ -13,12 +13,12 @@ struct Pbr {
 	int prefilteredMapId = 0;
 	int texture2DArraySize = 1;
 	int baseColorTextureID = -1;
-	float baseColorRed = 1.0;
-	float baseColorGreen = 0.0;
-	float baseColorBlue = 1.0;
+	float baseColorRed = 1.0f;
+	float baseColorGreen = 0.0f;
+	float baseColorBlue = 1.0f;
 	int metallicRoughnessTextureId = -1;
-	float metalnessFactor = 0.0;
-	float roughnessFactor = 0.4;
+	float metalnessFactor = 0.0f;
+	float roughnessFactor = 0.4f;
 
 	REFLECT(Pbr,
 		textureCubemapArraySize,

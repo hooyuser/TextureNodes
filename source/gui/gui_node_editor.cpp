@@ -33,7 +33,7 @@ namespace engine {
 	void NodeEditor::update_from(Node* node) {
 		std::visit([&](auto&& arg) {
 			using T = std::decay_t<decltype(arg)>;
-			if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
+			if constexpr (is_image_data<T>()) {
 				std::vector<VkCommandBuffer> submitCommandBuffers;
 				submitCommandBuffers.emplace_back(arg->get_node_cmd_buffer());
 
@@ -125,22 +125,6 @@ namespace engine {
 						update_from(create_node<T>());
 					}
 				});
-				//static int a = 1;
-				//NodeTypeList::for_each([&]<typename T> () {
-				//	//auto name = T::name();
-				//	if (ImGui::MenuItem(T::name())) {
-				//		a = 2;
-				//		using data_t = typename T::data_type;
-				//		std::cout << T::name();
-				//	}
-				//});
-				//if (ImGui::MenuItem("Add")) {
-				//	create_node_add("Add");
-				//}
-				//if (ImGui::MenuItem("Uniform Color")) {
-				//	auto node = create_node_uniform_color("Uniform Color");
-				//	update_from(node);
-				//}
 				ImGui::EndMenu();
 			}
 			ImGui::EndMenuBar();
@@ -201,14 +185,29 @@ namespace engine {
 						//ImGui::Text(pin->name.c_str());
 
 						if (pin->connected_pins.empty()) {
-							ImGui::PushItemWidth(130.f);
+							ImGui::PushItemWidth(150.f);
 							//ImGui::SameLine();
+							bool response_flag = false;
 							if constexpr (std::is_same_v<T, FloatData>) {
-								ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(), &std::get<T>(pin->default_value).value, 0.005f, 0.0f, 0.0f, (pin->name + " : %.3f").c_str());
+								response_flag |= ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(), &std::get<T>(pin->default_value).value, 0.005f, 0.0f, 0.0f, (pin->name + " : %.3f").c_str());
 							}
 							else if constexpr (std::is_same_v<T, IntData>) {
-								ImGui::DragInt(("##" + std::to_string(pin->id.Get())).c_str(), &std::get<T>(pin->default_value).value, 0.1f, 0, 64);
+								response_flag |= ImGui::DragInt(("##" + std::to_string(pin->id.Get())).c_str(), &std::get<T>(pin->default_value).value, 0.1f, 0, 64);
 							}
+							if (response_flag) {
+								std::visit([&](auto&& arg) {
+									using T = std::decay_t<decltype(arg)>;
+									if constexpr (is_image_data<T>()) {
+										auto& ubo = std::get<T>(node.data)->ubo;
+										std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, i, [&](auto& field, auto& value) {
+											using TV = std::decay_t<decltype(value)>;
+											value = std::get<TV>(node.inputs[i].default_value);
+											});
+									}
+									}, node.data);
+								update_from(&node);
+							}
+
 
 							ImGui::PopItemWidth();
 						}
@@ -250,7 +249,7 @@ namespace engine {
 
 			std::visit([&](auto&& arg) {
 				using T = std::decay_t<decltype(arg)>;
-				if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
+				if constexpr (is_image_data<T>()) {
 					ImGui::SetCursorPosX(node_rect.GetCenter().x - image_size * 0.5);
 					ImGui::SetCursorPosY(yy - image_size - 15);
 					vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);

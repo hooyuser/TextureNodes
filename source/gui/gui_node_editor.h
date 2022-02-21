@@ -26,12 +26,11 @@ using namespace Reflect;
 //using namespace std::literals;
 static std::string first_letter_to_upper(std::string_view str);
 
-
-template <template<typename ...> typename TypeList, typename ...Ts>
-constexpr auto to_data_type(TypeList<Ts...>)->TypeList<typename Ts::data_type...>;
-
 template<typename UnknownType, typename ...ReferenceTypes>
 concept any_of = (std::same_as<std::decay_t<UnknownType>, ReferenceTypes> || ...);
+
+template <template<typename ...> typename TypeList, typename ...Ts>
+consteval auto to_data_type(TypeList<Ts...>)->TypeList<typename Ts::data_type...>;
 
 enum class PinInOut {
 	INPUT,
@@ -118,18 +117,17 @@ using ImageNodeDataTypeTuple = decltype(make_unique_typeset(to_data_type(std::de
 
 //template <typename T>
 //constexpr bool is_image_data() {
-//	using tuple_type = std::remove_reference_t<>;
-//	return std::invoke([] <typename... Ts> (std::tuple<Ts...>) {
+//	return [] <typename... Ts> (std::tuple<Ts...>) {
 //		return any_of<T, Ts...>;
-//	}, ImageNodeDataTypeTuple{});
+//	}(ImageNodeDataTypeTuple{});
 //}
 
 template <typename T>
-constexpr bool is_image_data() {
+consteval bool is_image_data() {
 	using tuple_type = ImageNodeDataTypeTuple;
-	return[] <std::size_t... I> (std::index_sequence<I...>) {
-		return (any_of<T, std::tuple_element_t<I, tuple_type>> || ...);
-	}(std::make_index_sequence<std::tuple_size<tuple_type>::value>{});
+	return std::invoke([] <std::size_t... I> (std::index_sequence<I...>) {
+		return any_of<T, std::tuple_element_t<I, tuple_type>...>;
+	}, std::make_index_sequence<std::tuple_size<tuple_type>::value>{});
 }
 
 ////////////////////////////////////////////////////////////////////////////////////////////
