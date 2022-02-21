@@ -2,6 +2,7 @@
 #include "../vk_engine.h"
 #include "../vk_initializers.h"
 #include "../vk_shader.h"
+#include <ranges>
 
 //static const std::unordered_set<std::string> image_node_type_name{
 //	"Uniform Color"
@@ -9,6 +10,19 @@
 
 static ImRect imgui_get_item_rect() {
 	return ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
+}
+
+std::string first_letter_to_upper(std::string_view str) {
+	auto split = str
+		| std::ranges::views::split('_')
+		| std::ranges::views::transform([](auto&& str) { return std::string_view(&*str.begin(), std::ranges::distance(str)); });
+
+	std::string upper_str = "";
+	std::string_view separator = "";
+	for (auto&& word : split) {
+		upper_str += std::exchange(separator, " ").data() + (static_cast<char>(std::toupper(word[0])) + std::string(word.substr(1, word.size() - 1)));
+	}
+	return upper_str;
 }
 
 namespace engine {
@@ -39,7 +53,7 @@ namespace engine {
 				arg->uniform_buffer->copyFromHost(&arg->ubo);
 			}
 			else if constexpr (std::is_same_v<T, Color4Data>) {
-				int xxxxxxxx = 0;
+
 			}
 			}, node->data);
 	}
@@ -47,9 +61,9 @@ namespace engine {
 	Node* NodeEditor::create_node_add(std::string name) {
 		nodes.emplace_back(get_next_id(), name, NodeAdd{}, engine);
 		auto& node = nodes.back();
-		node.inputs.emplace_back(get_next_id(), "Value", PinFloat{});
-		node.inputs.emplace_back(get_next_id(), "Value", PinFloat{});
-		node.outputs.emplace_back(get_next_id(), "Result", PinFloat{});
+		node.inputs.emplace_back(get_next_id(), "Value", FloatData{});
+		node.inputs.emplace_back(get_next_id(), "Value", FloatData{});
+		node.outputs.emplace_back(get_next_id(), "Result", FloatData{});
 
 		build_node(&node);
 
@@ -62,12 +76,17 @@ namespace engine {
 		using NodeType = NodeUniformColor;
 		nodes.emplace_back(get_next_id(), name, NodeType{}, engine);
 		auto& node = nodes.back();
-		
-		using PinType1 = PinColor;
-		node.inputs.emplace_back(get_next_id(), "Color", PinType1{});
-		std::get<NodeUniformColor::data_type>(node.data)->ubo.color = std::get<PinType1::data_type>(node.inputs.back().default_value);
-		
-		node.outputs.emplace_back(get_next_id(), "Result", PinImage{});
+
+		if constexpr (std::derived_from<NodeType, NodeTypeImageBase>) {
+			auto& ubo = std::get<NodeType::data_type>(node.data)->ubo;
+			std::decay_t<decltype(ubo)>::Class::ForEachField(ubo, [&](auto& field, auto& value) {
+				using PinType = std::decay_t<decltype(value)>;
+				node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
+				value = std::get<PinType>(node.inputs.back().default_value);
+				});
+			node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TexturePtr>);
+		}
+
 		build_node(&node);
 
 		return &node;
@@ -88,13 +107,27 @@ namespace engine {
 	void NodeEditor::draw() {
 		if (ImGui::BeginMenuBar()) {
 			if (ImGui::BeginMenu("Add")) {
-				if (ImGui::MenuItem("Add")) {
-					create_node_add("Add");
-				}
-				if (ImGui::MenuItem("Uniform Color")) {
-					auto node = create_node_uniform_color("Uniform Color");
-					update_from(node);
-				}
+				NodeTypeList::for_each([&]<typename T> () {
+					if (ImGui::MenuItem(T::name())) {
+						update_from(create_node<T>());
+					}
+				});
+				//static int a = 1;
+				//NodeTypeList::for_each([&]<typename T> () {
+				//	//auto name = T::name();
+				//	if (ImGui::MenuItem(T::name())) {
+				//		a = 2;
+				//		using data_t = typename T::data_type;
+				//		std::cout << T::name();
+				//	}
+				//});
+				//if (ImGui::MenuItem("Add")) {
+				//	create_node_add("Add");
+				//}
+				//if (ImGui::MenuItem("Uniform Color")) {
+				//	auto node = create_node_uniform_color("Uniform Color");
+				//	update_from(node);
+				//}
 				ImGui::EndMenu();
 			}
 			ImGui::EndMenuBar();
@@ -151,15 +184,22 @@ namespace engine {
 				ImRect rect;
 				std::visit([&](auto&& arg) {
 					using T = std::decay_t<decltype(arg)>;
-					if constexpr (std::is_same_v<T, float>) {
-						ImGui::Text(pin->name.c_str());
-						rect = imgui_get_item_rect();
+					if constexpr (std::is_same_v<T, FloatData> || std::is_same_v<T, IntData>) {
+						//ImGui::Text(pin->name.c_str());
+						
 						if (pin->connected_pins.empty()) {
-							ImGui::PushItemWidth(100.f);
-							ImGui::SameLine();
-							ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(), std::get_if<float>(&(pin->default_value)), 0.005f);
+							ImGui::PushItemWidth(130.f);
+							//ImGui::SameLine();
+							if constexpr (std::is_same_v<T, FloatData>) {
+								ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(), &std::get<T>(pin->default_value).value, 0.005f, 0.0f, 0.0f, (pin->name + " : %.3f").c_str());
+							}
+							else if constexpr (std::is_same_v<T, IntData>) {
+								ImGui::DragInt(("##" + std::to_string(pin->id.Get())).c_str(), &std::get<T>(pin->default_value).value, 0.1f, 0, 64);
+							}
+							
 							ImGui::PopItemWidth();
 						}
+						rect = imgui_get_item_rect();
 					}
 					else if constexpr (std::is_same_v<T, Color4Data>) {
 
@@ -200,7 +240,7 @@ namespace engine {
 				if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
 					ImGui::SetCursorPosX(node_rect.GetCenter().x - image_size * 0.5);
 					ImGui::SetCursorPosY(yy - image_size - 15);
-					vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);	
+					vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);
 					ImGui::Image(static_cast<ImTextureID>(arg->gui_texture), ImVec2{ image_size, image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
 				}
 				else if constexpr (std::is_same_v<T, NodeAdd::data_type>) {
@@ -208,7 +248,7 @@ namespace engine {
 				}
 				}, node.data);
 
-		
+
 			if (color_pin) {
 				ed::Suspend();
 				if (ImGui::BeginPopup(("ColorPopup##" + std::to_string(color_pin->id.Get())).c_str())) {
@@ -216,21 +256,20 @@ namespace engine {
 						int index = 0;
 						for (const auto& input_pin : node.inputs) {
 							if (input_pin.id == color_pin->id) {
+								std::visit([&](auto&& arg) {
+									using T = std::decay_t<decltype(arg)>;
+									if constexpr (is_image_data<T>()) {
+										auto& ubo = std::get<T>(node.data)->ubo;
+										std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
+											value = std::get<Color4Data>(node.inputs.back().default_value);
+											});
+										update_from(&node);
+									}
+									}, node.data);
 								break;
 							}
 							index++;
-						}
-						auto& ubo = std::get<NodeUniformColor::data_type>(node.data)->ubo;
-						std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
-							value = std::get<Color4Data>(node.inputs.back().default_value);
-							});
-
-						std::visit([&](auto&& arg) {
-							using T = std::decay_t<decltype(arg)>;
-							if constexpr (std::is_same_v<T, NodeUniformColor::data_type>) {
-								update_from(&node);
-							}
-							}, node.data);
+						}						
 					}
 					ImGui::EndPopup();
 				}
@@ -373,7 +412,7 @@ namespace engine {
 
 		ed::End();
 		ed::SetCurrentEditor(nullptr);
-		
+
 	}
 
 	NodeEditor::NodeEditor(VulkanEngine* engine) :engine(engine) {

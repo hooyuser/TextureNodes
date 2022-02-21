@@ -310,18 +310,23 @@ struct ImageData : public NodeData {
 template<typename UboType, StringLiteral ...Shaders>
 using ImageDataPtr = std::shared_ptr<ImageData<UboType, Shaders...>>;
 
+struct IntData : public NodeData {
+	int32_t value = 0;
+	//IntData(VulkanEngine* engine = nullptr) {};
+};
+
 struct FloatData : public NodeData {
 	float value = 0.0f;
-	FloatData(VulkanEngine* engine = nullptr) {};
+	//FloatData(VulkanEngine* engine = nullptr) {};
 };
 
 struct Float4Data : public NodeData {
 	float value[4] = { 0.0f };
-	Float4Data(VulkanEngine* engine = nullptr) {};
+	//Float4Data(VulkanEngine* engine = nullptr) {};
 };
 
 struct Color4Data : public NodeData {
 	float value[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	Color4Data(VulkanEngine* engine = nullptr) {};
+	//Color4Data(VulkanEngine* engine = nullptr) {};
 };
 

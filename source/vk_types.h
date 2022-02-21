@@ -11,7 +11,8 @@
 #include <optional>
 #include <any>
 
-#include "util.h"
+#include "util/util.h"
+#include "util/flag_bit_enum.h"
 
 template <class R, class T>
 concept Matrix =

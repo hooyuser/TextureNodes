@@ -1,6 +1,6 @@
 #include "vk_mesh.h"
 #include "vk_engine.h"
-#include "util.h"
+#include "util/class_field_counter.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
