@@ -275,15 +275,6 @@ struct ImageData : public NodeData {
 			.maxDepth = 1.0f,
 		};
 
-		//VkViewport viewport{
-		//	.x = 0.0f,
-		//	.y = 0.0f,
-		//	.width = static_cast<float>(width),
-		//	.height = static_cast<float>(height),    // flip y axis
-		//	.minDepth = 0.0f,
-		//	.maxDepth = 1.0f,
-		//};
-
 		VkRect2D scissor{
 			.offset = { 0, 0 },
 			.extent = image_extent,

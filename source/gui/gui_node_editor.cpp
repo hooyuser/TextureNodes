@@ -58,45 +58,58 @@ namespace engine {
 			}, node->data);
 	}
 
-	Node* NodeEditor::create_node_add(std::string name) {
-		nodes.emplace_back(get_next_id(), name, NodeAdd{}, engine);
-		auto& node = nodes.back();
-		node.inputs.emplace_back(get_next_id(), "Value", FloatData{});
-		node.inputs.emplace_back(get_next_id(), "Value", FloatData{});
-		node.outputs.emplace_back(get_next_id(), "Result", FloatData{});
+	//Node* NodeEditor::create_node_add(std::string name) {
+	//	nodes.emplace_back(get_next_id(), name, NodeAdd{}, engine);
+	//	auto& node = nodes.back();
+	//	node.inputs.emplace_back(get_next_id(), "Value", FloatData{});
+	//	node.inputs.emplace_back(get_next_id(), "Value", FloatData{});
+	//	node.outputs.emplace_back(get_next_id(), "Result", FloatData{});
 
-		build_node(&node);
+	//	build_node(&node);
 
-		//ed::SetNodePosition(node.id, pos);
+	//	//ed::SetNodePosition(node.id, pos);
 
-		return &node;
-	}
+	//	return &node;
+	//}
 
-	Node* NodeEditor::create_node_uniform_color(std::string name) {
-		using NodeType = NodeUniformColor;
-		nodes.emplace_back(get_next_id(), name, NodeType{}, engine);
-		auto& node = nodes.back();
+	//Node* NodeEditor::create_node_uniform_color(std::string name) {
+	//	using NodeType = NodeUniformColor;
+	//	nodes.emplace_back(get_next_id(), name, NodeType{}, engine);
+	//	auto& node = nodes.back();
 
-		if constexpr (std::derived_from<NodeType, NodeTypeImageBase>) {
-			auto& ubo = std::get<NodeType::data_type>(node.data)->ubo;
-			std::decay_t<decltype(ubo)>::Class::ForEachField(ubo, [&](auto& field, auto& value) {
-				using PinType = std::decay_t<decltype(value)>;
-				node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
-				value = std::get<PinType>(node.inputs.back().default_value);
-				});
-			node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TexturePtr>);
-		}
+	//	if constexpr (std::derived_from<NodeType, NodeTypeImageBase>) {
+	//		auto& ubo = std::get<NodeType::data_type>(node.data)->ubo;
+	//		std::decay_t<decltype(ubo)>::Class::ForEachField(ubo, [&](auto& field, auto& value) {
+	//			using PinType = std::decay_t<decltype(value)>;
+	//			node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
+	//			value = std::get<PinType>(node.inputs.back().default_value);
+	//			});
+	//		node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TexturePtr>);
+	//	}
 
-		build_node(&node);
+	//	build_node(&node);
 
-		return &node;
-	}
+	//	return &node;
+	//}
 
 	void NodeEditor::build_node(Node* node) {
 		for (auto&& input : node->inputs) {
 			input.node = node;
 			input.flow_direction = PinInOut::INPUT;
 		}
+
+		std::visit([&](auto&& arg) {
+			using T = std::decay_t<decltype(arg)>;
+			//auto s = cpp_type_name<T>();
+			if constexpr (is_image_data<T>()) {
+				auto& ubo = arg->ubo;
+				for (size_t index = 0; index < node->inputs.size(); ++index) {
+					std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
+						node->inputs[index].default_value = value;
+						});
+				}
+			}
+			}, node->data);
 
 		for (auto&& output : node->outputs) {
 			output.node = node;
@@ -186,7 +199,7 @@ namespace engine {
 					using T = std::decay_t<decltype(arg)>;
 					if constexpr (std::is_same_v<T, FloatData> || std::is_same_v<T, IntData>) {
 						//ImGui::Text(pin->name.c_str());
-						
+
 						if (pin->connected_pins.empty()) {
 							ImGui::PushItemWidth(130.f);
 							//ImGui::SameLine();
@@ -196,7 +209,7 @@ namespace engine {
 							else if constexpr (std::is_same_v<T, IntData>) {
 								ImGui::DragInt(("##" + std::to_string(pin->id.Get())).c_str(), &std::get<T>(pin->default_value).value, 0.1f, 0, 64);
 							}
-							
+
 							ImGui::PopItemWidth();
 						}
 						rect = imgui_get_item_rect();
@@ -261,7 +274,8 @@ namespace engine {
 									if constexpr (is_image_data<T>()) {
 										auto& ubo = std::get<T>(node.data)->ubo;
 										std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
-											value = std::get<Color4Data>(node.inputs.back().default_value);
+											using TV = std::decay_t<decltype(value)>;
+											value = std::get<TV>(node.inputs[index].default_value);
 											});
 										update_from(&node);
 									}
@@ -269,7 +283,7 @@ namespace engine {
 								break;
 							}
 							index++;
-						}						
+						}
 					}
 					ImGui::EndPopup();
 				}

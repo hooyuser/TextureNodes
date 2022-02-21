@@ -15,6 +15,11 @@
 #include "gui_node_data.h"
 #include "../util/type_list.h"
 
+#if NDEBUG
+#else
+#include "../util/debug_type.h"
+#endif
+
 namespace ed = ax::NodeEditor;
 using namespace Reflect;
 
@@ -107,26 +112,25 @@ struct PredImageBase {
 	static inline constexpr bool value = std::is_base_of<NodeTypeImageBase, T>::value;
 };
 
-using ImageNodeTypeList = filter_t<NodeTypeList::to_tuple, PredImageBase>;
+using ImageNodeTypeTuple = filter_t<NodeTypeList::to_tuple, PredImageBase>;
 
-template <typename T>
-using ImageNodeDataTypeList = decltype(make_unique_typeset(to_data_type(std::declval<ImageNodeTypeList>())));
-
-template <typename T>
-constexpr bool is_image_data() {
-	using tuple_type = std::remove_reference_t<decltype(convert_type_list_to_tuple(std::declval<ImageNodeTypeList>()))>;
-	return std::invoke([] <typename... Ts> (std::tuple<Ts...>) {
-		return (any_of<T, Ts> || ...);
-	}, tuple_type{});
-}
+using ImageNodeDataTypeTuple = decltype(make_unique_typeset(to_data_type(std::declval<ImageNodeTypeTuple>())));
 
 //template <typename T>
 //constexpr bool is_image_data() {
-//	using tuple_type = std::remove_reference_t<decltype(convert_type_list_to_tuple(std::declval<ImageNodeTypeList>()))>;
-//	return[] <std::size_t... I> (std::index_sequence<I...>) {
-//		return (any_of<T, std::tuple_element_t<I, tuple_type>> || ...);
-//	}(std::make_index_sequence<std::tuple_size<tuple_type>::value>{});
+//	using tuple_type = std::remove_reference_t<>;
+//	return std::invoke([] <typename... Ts> (std::tuple<Ts...>) {
+//		return any_of<T, Ts...>;
+//	}, ImageNodeDataTypeTuple{});
 //}
+
+template <typename T>
+constexpr bool is_image_data() {
+	using tuple_type = ImageNodeDataTypeTuple;
+	return[] <std::size_t... I> (std::index_sequence<I...>) {
+		return (any_of<T, std::tuple_element_t<I, tuple_type>> || ...);
+	}(std::make_index_sequence<std::tuple_size<tuple_type>::value>{});
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -233,7 +237,7 @@ namespace engine {
 				std::decay_t<decltype(ubo)>::Class::ForEachField(ubo, [&](auto& field, auto& value) {
 					using PinType = std::decay_t<decltype(value)>;
 					node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
-					value = std::get<PinType>(node.inputs.back().default_value);
+					//value = std::get<PinType>(node.inputs.back().default_value);
 					});
 				node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TexturePtr>);
 			}
