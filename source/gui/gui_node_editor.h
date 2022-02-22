@@ -11,9 +11,10 @@
 #include <imgui_node_editor.h>
 #include <imgui_internal.h>
 #include <imgui_impl_vulkan.h>
-#include "Reflect.h"
-#include "gui_node_data.h"
+//#include "Reflect.h"
+
 #include "../util/type_list.h"
+#include "all_node_headers.h"
 
 #if NDEBUG
 #else
@@ -21,7 +22,7 @@
 #endif
 
 namespace ed = ax::NodeEditor;
-using namespace Reflect;
+//using namespace Reflect;
 
 //using namespace std::literals;
 static std::string first_letter_to_upper(std::string_view str);
@@ -41,60 +42,31 @@ using PinVariant = std::variant<
 	TexturePtr,
 	FloatData,
 	IntData,
+	BoolData,
 	Color4Data
 >;
+
+//struct NumberInputWidgetInfo {
+//	float min;
+//	float max;
+//	float speed;
+//	bool enable_slider;
+//};
 
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
-struct NodeTypeBase {};
+//struct NodeTypeBase {};
+//
+//struct NodeTypeImageBase : NodeTypeBase {};
 
-struct NodeTypeImageBase : NodeTypeBase {};
 
-struct NodeUniformColor : NodeTypeImageBase {
 
-	struct UBO {
-		Color4Data color;
-		REFLECT(UBO,
-			color
-		)
-	};
 
-	using data_type = std::shared_ptr<ImageData<UBO,
-		"assets/shaders/node_uniform_color.vert.spv",
-		"assets/shaders/node_uniform_color.frag.spv"
-		>>;
 
-	constexpr auto static name() { return "Uniform Color"; }
-};
 
-struct NodePolygon : NodeTypeImageBase {
 
-	struct UBO {
-		FloatData radius{ .value = 1.0f };
-		FloatData angle{ .value = 0.0f };
-		IntData sides{ .value = 3 };
-		FloatData gradient{ .value = 0.5f };
-		REFLECT(UBO,
-			radius,
-			angle,
-			sides,
-			gradient
-		)
-	};
 
-	using data_type = std::shared_ptr<ImageData<UBO,
-		"assets/shaders/node_polygon.vert.spv",
-		"assets/shaders/node_polygon.frag.spv"
-		>>;
-
-	constexpr auto static name() { return "Polygon"; }
-};
-
-struct NodeAdd : NodeTypeBase {
-	using data_type = FloatData;
-	constexpr auto static name() { return "Add"; }
-};
 
 using NodeTypeList = TypeList<
 	NodeUniformColor,

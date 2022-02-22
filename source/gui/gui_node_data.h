@@ -321,3 +321,7 @@ struct Color4Data : public NodeData {
 	//Color4Data(VulkanEngine* engine = nullptr) {};
 };
 
+struct BoolData : public NodeData {
+	bool value;
+};
+
