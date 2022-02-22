@@ -1,17 +1,13 @@
 #pragma once
-#include <vector>
-#include <string>
+
 #include <unordered_set>
-#include <variant>
 #include <concepts>
-#include <stdexcept>
 #include <functional>
 #define IMGUI_DEFINE_MATH_OPERATORS
 
 #include <imgui_node_editor.h>
 #include <imgui_internal.h>
 #include <imgui_impl_vulkan.h>
-//#include "Reflect.h"
 
 #include "../util/type_list.h"
 #include "all_node_headers.h"
@@ -22,7 +18,6 @@
 #endif
 
 namespace ed = ax::NodeEditor;
-//using namespace Reflect;
 
 //using namespace std::literals;
 static std::string first_letter_to_upper(std::string_view str);
@@ -46,27 +41,7 @@ using PinVariant = std::variant<
 	Color4Data
 >;
 
-//struct NumberInputWidgetInfo {
-//	float min;
-//	float max;
-//	float speed;
-//	bool enable_slider;
-//};
-
-
 ////////////////////////////////////////////////////////////////////////////////////////////
-
-//struct NodeTypeBase {};
-//
-//struct NodeTypeImageBase : NodeTypeBase {};
-
-
-
-
-
-
-
-
 
 using NodeTypeList = TypeList<
 	NodeUniformColor,

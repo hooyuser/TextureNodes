@@ -1,8 +1,6 @@
 #pragma once
-#include "Reflect.h"
-#include "gui_node_data.h"
 
-using namespace Reflect;
+#include "gui_node_data.h"
 
 struct NodeTypeBase {};
 

@@ -4,10 +4,6 @@
 #include "../vk_shader.h"
 #include <ranges>
 
-//static const std::unordered_set<std::string> image_node_type_name{
-//	"Uniform Color"
-//};
-
 static ImRect imgui_get_item_rect() {
 	return ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
 }
