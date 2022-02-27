@@ -164,7 +164,7 @@ namespace engine {
 		std::unordered_set<Link> links;
 		int next_id = 1;
 		constexpr static inline int image_size = 128;
-		//VkCommandBuffer command_buffer = nullptr;
+		constexpr static inline uint32_t max_bindless_node_textures = 300;
 
 		constexpr int get_next_id();
 
@@ -197,9 +197,11 @@ namespace engine {
 			return &node;
 		}
 
-		Node* create_node_add(std::string name);
+		void create_node_descriptor_pool();
 
-		Node* create_node_uniform_color(std::string name);
+		void create_node_descriptor_set_layouts();
+
+		void create_node_texture_descriptor_set();
 
 	public:
 		NodeEditor(VulkanEngine* engine);

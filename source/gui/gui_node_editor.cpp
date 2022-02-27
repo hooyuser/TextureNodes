@@ -409,10 +409,97 @@ namespace engine {
 
 	}
 
+	void NodeEditor::create_node_descriptor_pool() {
+		
+		constexpr uint32_t descriptor_size = 2000;
+		std::array pool_sizes = {
+			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptor_size },
+			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptor_size }
+		};
+
+		VkDescriptorPoolCreateInfo pool_info = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+			.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
+			.maxSets = descriptor_size * 2,
+			.poolSizeCount = static_cast<uint32_t>(pool_sizes.size()),
+			.pPoolSizes = pool_sizes.data(),
+		};
+
+		if (vkCreateDescriptorPool(engine->device, &pool_info, nullptr, &engine->node_descriptor_pool) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create descriptor pool!");
+		}
+
+		engine->main_deletion_queue.push_function([=]() {
+			vkDestroyDescriptorPool(engine->device, engine->node_descriptor_pool, nullptr);
+			});
+	}
+
+	void NodeEditor::create_node_descriptor_set_layouts() {	
+		std::array node_descriptor_set_layout_bindings{
+			VkDescriptorSetLayoutBinding{
+				.binding = 0,
+				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				.descriptorCount = max_bindless_node_textures,
+				.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
+			}
+		};
+
+		constexpr auto binding_num = node_descriptor_set_layout_bindings.size();
+
+		std::array<VkDescriptorBindingFlags, binding_num> descriptor_binding_flags;
+		descriptor_binding_flags[0] = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+		
+		VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_create_info{
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
+			.bindingCount = descriptor_binding_flags.size(),
+			.pBindingFlags = descriptor_binding_flags.data(),
+		};
+
+		VkDescriptorSetLayoutCreateInfo node_descriptor_layout_info = {
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+			.pNext = &binding_flags_create_info,
+			.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
+			.bindingCount = node_descriptor_set_layout_bindings.size(),
+			.pBindings = node_descriptor_set_layout_bindings.data(),
+		};
+
+		if (vkCreateDescriptorSetLayout(engine->device, &node_descriptor_layout_info, nullptr, &engine->node_descriptor_layout) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create descriptor set layout!");
+		}
+
+		engine->main_deletion_queue.push_function([=]() {
+			vkDestroyDescriptorSetLayout(engine->device, engine->node_descriptor_layout, nullptr);
+			});
+	}
+
+	void NodeEditor::create_node_texture_descriptor_set() {
+		VkDescriptorSetVariableDescriptorCountAllocateInfo variabl_descriptor_count_info{
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO,
+			.descriptorSetCount = 1,
+			.pDescriptorCounts = &max_bindless_node_textures,
+		};
+
+		VkDescriptorSetAllocateInfo descriptor_alloc_info{
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.pNext = &variabl_descriptor_count_info,
+			.descriptorPool = engine->node_descriptor_pool,
+			.descriptorSetCount = 1,
+			.pSetLayouts = &engine->node_descriptor_layout,
+		};
+
+		if (vkAllocateDescriptorSets(engine->device, &descriptor_alloc_info, &engine->node_texture_descriptor_set) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate descriptor sets!");
+		}
+	}
+
 	NodeEditor::NodeEditor(VulkanEngine* engine) :engine(engine) {
 		ed::Config config;
 		config.SettingsFile = "Simple.json";
 		context = ed::CreateEditor(&config);
+
+		create_node_descriptor_pool();
+		create_node_descriptor_set_layouts();
+		create_node_texture_descriptor_set();
 
 		engine->main_deletion_queue.push_function([=]() {
 			ed::DestroyEditor(context);

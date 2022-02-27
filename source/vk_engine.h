@@ -165,7 +165,9 @@ public:
 
 	uint32_t swapchain_image_count;
 
-	
+	VkDescriptorPool node_descriptor_pool;
+	VkDescriptorSetLayout node_descriptor_layout;
+	VkDescriptorSet node_texture_descriptor_set;
 
 	void init_window();
 
@@ -205,7 +207,7 @@ public:
 
 	void parse_material_info();
 
-	void create_render_pass();
+	//void create_render_pass();
 
 	void create_descriptor_set_layouts();
 

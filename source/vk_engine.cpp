@@ -331,36 +331,38 @@ void VulkanEngine::create_logical_device() {
 
 	float queuePriority = 1.0f;
 	for (uint32_t queueFamily : uniqueQueueFamilies) {
-		VkDeviceQueueCreateInfo queueCreateInfo{};
-		queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-		queueCreateInfo.queueFamilyIndex = queueFamily;
-		queueCreateInfo.queueCount = 1;
-		queueCreateInfo.pQueuePriorities = &queuePriority;
-		queueCreateInfos.emplace_back(queueCreateInfo);
+		queueCreateInfos.emplace_back(
+			VkDeviceQueueCreateInfo{
+				.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO,
+				.queueFamilyIndex = queueFamily,
+				.queueCount = 1,
+				.pQueuePriorities = &queuePriority,
+			});
 	}
 
-	VkPhysicalDeviceFeatures deviceFeatures{};
-	deviceFeatures.samplerAnisotropy = VK_TRUE;
+	VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
+		.pNext = nullptr,
+		.shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
+		.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE,
+		.descriptorBindingPartiallyBound = VK_TRUE,
+		.descriptorBindingVariableDescriptorCount = VK_TRUE,
+		.runtimeDescriptorArray = VK_TRUE,
+	};
 
-	VkDeviceCreateInfo createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+	VkPhysicalDeviceFeatures deviceFeatures{
+		.samplerAnisotropy = VK_TRUE,
+	};
 
-	createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-	createInfo.pQueueCreateInfos = queueCreateInfos.data();
-
-	createInfo.pEnabledFeatures = &deviceFeatures;
-
-	createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-	createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
-	VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{};
-	descriptorIndexingFeatures.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES;
-	// Enable non-uniform indexing
-	descriptorIndexingFeatures.shaderSampledImageArrayNonUniformIndexing = VK_TRUE;
-	descriptorIndexingFeatures.runtimeDescriptorArray = VK_TRUE;
-	descriptorIndexingFeatures.descriptorBindingVariableDescriptorCount = VK_TRUE;
-	descriptorIndexingFeatures.descriptorBindingPartiallyBound = VK_TRUE;
-	createInfo.pNext = &descriptorIndexingFeatures;
+	VkDeviceCreateInfo createInfo{
+		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
+		.pNext = &descriptorIndexingFeatures,
+		.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
+		.pQueueCreateInfos = queueCreateInfos.data(),
+		.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
+		.ppEnabledExtensionNames = deviceExtensions.data(),
+		.pEnabledFeatures = &deviceFeatures,
+	};
 
 	if constexpr (enableValidationLayers) {
 		createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
@@ -440,83 +442,83 @@ void VulkanEngine::create_swap_chain_image_views() {
 	}
 }
 
-void VulkanEngine::create_render_pass() {
-	VkAttachmentDescription colorAttachment{
-		.format = swapChainImageFormat,
-		.samples = msaaSamples,
-		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-		.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-		.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-		.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
-	};
-
-	VkAttachmentDescription depthAttachment{};
-	depthAttachment.format = find_depth_format();
-	depthAttachment.samples = msaaSamples;
-	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentDescription colorAttachmentResolve{};
-	colorAttachmentResolve.format = swapChainImageFormat;
-	colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
-	colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-	colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-	colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-	colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-	colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference colorAttachmentRef{};
-	colorAttachmentRef.attachment = 0;
-	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference depthAttachmentRef{};
-	depthAttachmentRef.attachment = 1;
-	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
-
-	VkAttachmentReference colorAttachmentResolveRef{};
-	colorAttachmentResolveRef.attachment = 2;
-	colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
-
-	VkSubpassDescription subpass{};
-	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
-	subpass.colorAttachmentCount = 1;
-	subpass.pColorAttachments = &colorAttachmentRef;
-	subpass.pDepthStencilAttachment = &depthAttachmentRef;
-	subpass.pResolveAttachments = &colorAttachmentResolveRef;
-
-	VkSubpassDependency dependency{};
-	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
-	dependency.dstSubpass = 0;
-	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	dependency.srcAccessMask = 0;
-	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
-	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
-
-	std::array<VkAttachmentDescription, 3> attachments = { colorAttachment, depthAttachment, colorAttachmentResolve };
-	VkRenderPassCreateInfo renderPassInfo{};
-	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
-	renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-	renderPassInfo.pAttachments = attachments.data();
-	renderPassInfo.subpassCount = 1;
-	renderPassInfo.pSubpasses = &subpass;
-	renderPassInfo.dependencyCount = 1;
-	renderPassInfo.pDependencies = &dependency;
-
-	if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
-		throw std::runtime_error("failed to create render pass!");
-	}
-
-	swapChainDeletionQueue.push_function([=]() {
-		vkDestroyRenderPass(device, renderPass, nullptr);
-		});
-}
+//void VulkanEngine::create_render_pass() {
+//	VkAttachmentDescription colorAttachment{
+//		.format = swapChainImageFormat,
+//		.samples = msaaSamples,
+//		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+//		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+//		.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+//		.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+//		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+//		.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+//	};
+//
+//	VkAttachmentDescription depthAttachment{};
+//	depthAttachment.format = find_depth_format();
+//	depthAttachment.samples = msaaSamples;
+//	depthAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
+//	depthAttachment.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+//	depthAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+//	depthAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+//	depthAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+//	depthAttachment.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+//
+//	VkAttachmentDescription colorAttachmentResolve{};
+//	colorAttachmentResolve.format = swapChainImageFormat;
+//	colorAttachmentResolve.samples = VK_SAMPLE_COUNT_1_BIT;
+//	colorAttachmentResolve.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+//	colorAttachmentResolve.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
+//	colorAttachmentResolve.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
+//	colorAttachmentResolve.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
+//	colorAttachmentResolve.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
+//	colorAttachmentResolve.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+//
+//	VkAttachmentReference colorAttachmentRef{};
+//	colorAttachmentRef.attachment = 0;
+//	colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+//
+//	VkAttachmentReference depthAttachmentRef{};
+//	depthAttachmentRef.attachment = 1;
+//	depthAttachmentRef.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL;
+//
+//	VkAttachmentReference colorAttachmentResolveRef{};
+//	colorAttachmentResolveRef.attachment = 2;
+//	colorAttachmentResolveRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+//
+//	VkSubpassDescription subpass{};
+//	subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
+//	subpass.colorAttachmentCount = 1;
+//	subpass.pColorAttachments = &colorAttachmentRef;
+//	subpass.pDepthStencilAttachment = &depthAttachmentRef;
+//	subpass.pResolveAttachments = &colorAttachmentResolveRef;
+//
+//	VkSubpassDependency dependency{};
+//	dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
+//	dependency.dstSubpass = 0;
+//	dependency.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+//	dependency.srcAccessMask = 0;
+//	dependency.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT | VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT;
+//	dependency.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT | VK_ACCESS_DEPTH_STENCIL_ATTACHMENT_WRITE_BIT;
+//
+//	std::array<VkAttachmentDescription, 3> attachments = { colorAttachment, depthAttachment, colorAttachmentResolve };
+//	VkRenderPassCreateInfo renderPassInfo{};
+//	renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
+//	renderPassInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
+//	renderPassInfo.pAttachments = attachments.data();
+//	renderPassInfo.subpassCount = 1;
+//	renderPassInfo.pSubpasses = &subpass;
+//	renderPassInfo.dependencyCount = 1;
+//	renderPassInfo.pDependencies = &dependency;
+//
+//	if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
+//		throw std::runtime_error("failed to create render pass!");
+//	}
+//
+//	swapChainDeletionQueue.push_function([=]() {
+//		vkDestroyRenderPass(device, renderPass, nullptr);
+//		});
+//}
 
 
 void VulkanEngine::parse_material_info() {
@@ -712,10 +714,11 @@ void VulkanEngine::create_descriptor_set_layouts() {
 }
 
 void VulkanEngine::create_descriptor_set_layout(std::span<VkDescriptorSetLayoutBinding>&& descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
-	VkDescriptorSetLayoutCreateInfo layoutInfo{};
-	layoutInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO;
-	layoutInfo.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size());
-	layoutInfo.pBindings = descriptorSetLayoutBindings.data();
+	VkDescriptorSetLayoutCreateInfo layoutInfo{
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
+		.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size()),
+		.pBindings = descriptorSetLayoutBindings.data(),
+	};
 
 	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor set layout!");
@@ -746,7 +749,6 @@ void VulkanEngine::createMeshPipeline() {
 		pipelineBuilder.setShaderStages(material);
 
 		pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
-
 
 		pipelineBuilder.buildPipeline(device, viewport3D.render_pass, meshPipelineLayout, material->pipeline);
 
@@ -1078,12 +1080,13 @@ void VulkanEngine::create_descriptor_pool() {
 		{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptorSize }
 	};
 
-	VkDescriptorPoolCreateInfo poolInfo = {};
-	poolInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-	poolInfo.flags = 0;
-	poolInfo.maxSets = descriptorSize;
-	poolInfo.poolSizeCount = static_cast<uint32_t>(poolSizes.size());
-	poolInfo.pPoolSizes = poolSizes.data();
+	VkDescriptorPoolCreateInfo poolInfo = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+		.flags = 0,
+		.maxSets = descriptorSize,
+		.poolSizeCount = static_cast<uint32_t>(poolSizes.size()),
+		.pPoolSizes = poolSizes.data(),
+	};
 
 	if (vkCreateDescriptorPool(device, &poolInfo, nullptr, &descriptorPool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor pool!");
@@ -1095,11 +1098,13 @@ void VulkanEngine::create_descriptor_pool() {
 }
 
 void VulkanEngine::create_descriptor_sets() {
-	VkDescriptorSetAllocateInfo allocSceneInfo{};
-	allocSceneInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO;
-	allocSceneInfo.descriptorPool = descriptorPool;
-	allocSceneInfo.descriptorSetCount = 1;
-	allocSceneInfo.pSetLayouts = &sceneSetLayout;
+	VkDescriptorSetAllocateInfo allocSceneInfo{
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+		.descriptorPool = descriptorPool,
+		.descriptorSetCount = 1,
+		.pSetLayouts = &sceneSetLayout,
+	};
+
 	sceneDescriptorSets.resize(swapchain_image_count);
 
 	for (size_t i = 0; i < swapchain_image_count; i++) {
@@ -1107,10 +1112,11 @@ void VulkanEngine::create_descriptor_sets() {
 		if (vkAllocateDescriptorSets(device, &allocSceneInfo, &sceneDescriptorSets[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
-		VkDescriptorBufferInfo uniformBufferInfo{};
-		uniformBufferInfo.buffer = pUniformBuffers[i]->buffer;
-		uniformBufferInfo.offset = 0;
-		uniformBufferInfo.range = sizeof(UniformBufferObject);
+		VkDescriptorBufferInfo uniformBufferInfo{
+			.buffer = pUniformBuffers[i]->buffer,
+			.offset = 0,
+			.range = sizeof(UniformBufferObject),
+		};
 
 		std::vector<VkDescriptorImageInfo> textureDescriptors(loadedTexture2Ds.size());
 		for (size_t i = 0; i < loadedTexture2Ds.size(); i++) {
@@ -1189,17 +1195,19 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 
 	vkCmdBeginRenderPass(viewport3D.cmd_buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-	VkViewport viewport = {};
-	viewport.x = 0.0f;
-	viewport.y = viewport3D.height;
-	viewport.width = viewport3D.width;
-	viewport.height = -viewport3D.height;    // flip y axis
-	viewport.minDepth = 0.0f;
-	viewport.maxDepth = 1.0f;
+	VkViewport viewport{
+		.x = 0.0f,
+		.y = viewport3D.height,
+		.width = viewport3D.width,
+		.height = -viewport3D.height,    // flip y axis
+		.minDepth = 0.0f,
+		.maxDepth = 1.0f,
+	};
 
-	VkRect2D scissor{};
-	scissor.extent = viewport_extent;
-	scissor.offset = { 0, 0 };
+	VkRect2D scissor{
+		.offset = { 0, 0 },
+		.extent = viewport_extent,
+	};
 
 	vkCmdSetViewport(viewport3D.cmd_buffers[i], 0, 1, &viewport);
 	vkCmdSetScissor(viewport3D.cmd_buffers[i], 0, 1, &scissor);
@@ -1242,8 +1250,6 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 
 	vkCmdEndRenderPass(viewport3D.cmd_buffers[i]);
 
-
-
 	if (vkEndCommandBuffer(viewport3D.cmd_buffers[i]) != VK_SUCCESS) {
 		throw std::runtime_error("failed to record command buffer!");
 	}
@@ -1283,13 +1289,14 @@ void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
 	auto current_time = std::chrono::high_resolution_clock::now();
 	float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
 
-	UniformBufferObject ubo{};
-	ubo.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f));
 	set_camera();
-	ubo.view = camera.view_matrix();
-	//ubo.view = glm::mat4(glm::mat3(camera.viewMatrix()));
-	ubo.proj = camera.proj_matrix();
-	ubo.pos = camera.get_position();
+	UniformBufferObject ubo{
+		.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
+		.view = camera.view_matrix(),
+		//.view = glm::mat4(glm::mat3(camera.viewMatrix())),
+		.proj = camera.proj_matrix(),
+		.pos = camera.get_position(),
+	};
 
 	pUniformBuffers[currentImage]->copyFromHost(&ubo);
 }
@@ -1432,19 +1439,20 @@ void VulkanEngine::draw_frame() {
 
 	std::array submitCommandBuffers = { viewport3D.cmd_buffers[imageIndex], gui->command_buffers[imageIndex] };
 
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-
 	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	submitInfo.waitSemaphoreCount = 1;
-	submitInfo.pWaitSemaphores = &frameData[currentFrame].imageAvailableSemaphore;
-	submitInfo.pWaitDstStageMask = waitStages;
+	VkSubmitInfo submitInfo{
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 
-	submitInfo.signalSemaphoreCount = 1;
-	submitInfo.pSignalSemaphores = &frameData[currentFrame].renderFinishedSemaphore;
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = &frameData[currentFrame].imageAvailableSemaphore,
+		.pWaitDstStageMask = waitStages,
 
-	submitInfo.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size());
-	submitInfo.pCommandBuffers = submitCommandBuffers.data();
+		.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size()),
+		.pCommandBuffers = submitCommandBuffers.data(),
+
+		.signalSemaphoreCount = 1,
+		.pSignalSemaphores = &frameData[currentFrame].renderFinishedSemaphore,
+	};
 
 	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
 		vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);  //start to render into this image if we've complete the last rendering of this image
@@ -1457,13 +1465,14 @@ void VulkanEngine::draw_frame() {
 		throw std::runtime_error("failed to submit draw command buffer!");
 	}
 
-	VkPresentInfoKHR presentInfo{};
-	presentInfo.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR;
-	presentInfo.waitSemaphoreCount = 1;
-	presentInfo.pWaitSemaphores = &frameData[currentFrame].renderFinishedSemaphore;
-	presentInfo.swapchainCount = 1;
-	presentInfo.pSwapchains = &swapChain;
-	presentInfo.pImageIndices = &imageIndex;
+	VkPresentInfoKHR presentInfo{
+		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
+		.waitSemaphoreCount = 1,
+		.pWaitSemaphores = &frameData[currentFrame].renderFinishedSemaphore,
+		.swapchainCount = 1,
+		.pSwapchains = &swapChain,
+		.pImageIndices = &imageIndex,
+	};
 
 	result = vkQueuePresentKHR(presentQueue, &presentInfo);
 
@@ -1503,7 +1512,6 @@ VkExtent2D VulkanEngine::chooseSwapExtent(const VkSurfaceCapabilitiesKHR& capabi
 		return capabilities.currentExtent;
 	}
 	else {
-
 		glfwGetFramebufferSize(window, &windowWidth, &windowHeight);
 
 		VkExtent2D actualExtent = {
@@ -1657,7 +1665,7 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanEngine::debugCallback(
 	if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
 		std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
 	}
-	
+
 	return VK_FALSE;
 }
 

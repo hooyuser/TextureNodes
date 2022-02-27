@@ -87,7 +87,7 @@ struct ImageData : public NodeData {
 
 		VkDescriptorSetAllocateInfo descriptor_alloc_info{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-			.descriptorPool = engine->descriptorPool,
+			.descriptorPool = engine->node_descriptor_pool,
 			.descriptorSetCount = 1,
 			.pSetLayouts = &descriptor_set_layout,
 		};
@@ -102,17 +102,28 @@ struct ImageData : public NodeData {
 			.range = sizeof(UboType)
 		};
 
-		VkWriteDescriptorSet descriptor_write{
-			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.dstSet = descriptor_set,
-			.dstBinding = 0,
-			.dstArrayElement = 0,
-			.descriptorCount = 1,
-			.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			.pBufferInfo = &uniformBufferInfo,
+		std::array descriptor_writes{
+			VkWriteDescriptorSet {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = descriptor_set,
+				.dstBinding = 0,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.pBufferInfo = &uniformBufferInfo,
+			},
+			//VkWriteDescriptorSet {
+			//	.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			//	.dstSet = engine->node_editor->node_texture_descriptor_set,
+			//	.dstBinding = 0,
+			//	.dstArrayElement = 0,
+			//	.descriptorCount = 1,
+			//	.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+			//	.pBufferInfo = &uniformBufferInfo,
+			//},
 		};
 
-		vkUpdateDescriptorSets(engine->device, 1, &descriptor_write, 0, nullptr);
+		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 
 		//create renderpass
 		if (image_pocessing_render_pass == nullptr) {
