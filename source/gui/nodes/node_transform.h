@@ -4,6 +4,11 @@
 struct NodeTransform : NodeTypeImageBase {
 
 	struct UBO {
+
+		TextureIdData texture{
+			.value = -1
+		};
+
 		NOTE(shift_x, NumberInputWidgetInfo{ .min = 0, .max = 2, .speed = 0.005, .enable_slider = true })
 			FloatData shift_x {
 			.value = 0.75f
@@ -34,6 +39,7 @@ struct NodeTransform : NodeTypeImageBase {
 		};
 
 		REFLECT(UBO,
+			texture,
 			shift_x,
 			shift_y,
 			rotation,

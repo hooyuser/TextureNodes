@@ -38,7 +38,8 @@ using PinVariant = std::variant<
 	FloatData,
 	IntData,
 	BoolData,
-	Color4Data
+	Color4Data,
+	TextureIdData
 >;
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -46,6 +47,7 @@ using PinVariant = std::variant<
 using NodeTypeList = TypeList<
 	NodeUniformColor,
 	NodePolygon,
+	NodeTransform,
 	NodeAdd
 >;
 

@@ -109,7 +109,7 @@ namespace engine {
 
 			const float radius = 5.8f;
 
-
+			//loop over output pins
 			for (auto& pin : node.outputs) {
 				//ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
 				ed::BeginPin(pin.id, ed::PinKind::Output);
@@ -133,8 +133,10 @@ namespace engine {
 				//ed::PopStyleVar(1);
 			}
 
+			//loop over input pins
 			Pin* color_pin = nullptr;
-
+			//std::visit([&](auto&& node_data) {
+				//using NodeT = std::decay_t<decltype(node_data)>;
 			for (std::size_t i = 0; i < node.inputs.size(); ++i) {
 				auto pin = &node.inputs[i];
 				ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
@@ -212,7 +214,33 @@ namespace engine {
 							color_pin = pin;
 						}
 					}
+					else if constexpr (std::is_same_v<PinT, TextureIdData>) {
+						ImGui::Text(pin->name.c_str());
+						rect = imgui_get_item_rect();
+					}
+					else if constexpr (std::is_same_v<PinT, BoolData>) {
+						//static bool check = true;
+						//std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, i, [&](auto& field, auto& value) {
+						//	using FieldT = std::decay_t<decltype(value)>;
+						auto& bool_data = std::get<BoolData>(node.inputs[i].default_value);
+						if (ImGui::Checkbox(pin->name.c_str(), &bool_data.value)) {
+							std::visit([&](auto&& node_data) {
+								using NodeT = std::decay_t<decltype(node_data)>;
+								if constexpr (is_image_data<NodeT>()) {
+									auto& ubo = std::get<NodeT>(node.data)->ubo;
+									std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, i, [&](auto& field, auto& value) {
+										//value = bool_data;
+										//update_from(&node);
+									});
+							//	using FieldT = std::decay_t<decltype(value)>;
+								}
+								}, node.data);
+						}
+						//ImGui::Text(pin->name.c_str());
+						rect = imgui_get_item_rect();
+					}
 					}, pin->default_value);
+
 
 				auto drawList = ImGui::GetWindowDrawList();
 				ImVec2 pin_center = ImVec2(rect.Min.x - 8.0f, rect.GetCenter().y);
@@ -225,6 +253,8 @@ namespace engine {
 				ed::EndPin();
 				ed::PopStyleVar(1);
 			}
+			//}, node.data);
+
 
 			ed::EndNode();
 
@@ -296,9 +326,7 @@ namespace engine {
 								}
 							}
 						}
-						assert(i == 2);
-						auto showLabel = [](const char* label, ImColor color)
-						{
+						auto showLabel = [](const char* label, ImColor color) {
 							ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetTextLineHeight());
 							auto size = ImGui::CalcTextSize(label);
 
@@ -410,7 +438,7 @@ namespace engine {
 	}
 
 	void NodeEditor::create_node_descriptor_pool() {
-		
+
 		constexpr uint32_t descriptor_size = 2000;
 		std::array pool_sizes = {
 			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptor_size },
@@ -425,16 +453,16 @@ namespace engine {
 			.pPoolSizes = pool_sizes.data(),
 		};
 
-		if (vkCreateDescriptorPool(engine->device, &pool_info, nullptr, &engine->node_descriptor_pool) != VK_SUCCESS) {
+		if (vkCreateDescriptorPool(engine->device, &pool_info, nullptr, &engine->node_texture_manager.descriptor_pool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor pool!");
 		}
 
 		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyDescriptorPool(engine->device, engine->node_descriptor_pool, nullptr);
+			vkDestroyDescriptorPool(engine->device, engine->node_texture_manager.descriptor_pool, nullptr);
 			});
 	}
 
-	void NodeEditor::create_node_descriptor_set_layouts() {	
+	void NodeEditor::create_node_descriptor_set_layouts() {
 		std::array node_descriptor_set_layout_bindings{
 			VkDescriptorSetLayoutBinding{
 				.binding = 0,
@@ -448,7 +476,7 @@ namespace engine {
 
 		std::array<VkDescriptorBindingFlags, binding_num> descriptor_binding_flags;
 		descriptor_binding_flags[0] = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
-		
+
 		VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_create_info{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
 			.bindingCount = descriptor_binding_flags.size(),
@@ -463,12 +491,12 @@ namespace engine {
 			.pBindings = node_descriptor_set_layout_bindings.data(),
 		};
 
-		if (vkCreateDescriptorSetLayout(engine->device, &node_descriptor_layout_info, nullptr, &engine->node_descriptor_layout) != VK_SUCCESS) {
+		if (vkCreateDescriptorSetLayout(engine->device, &node_descriptor_layout_info, nullptr, &engine->node_texture_manager.descriptor_layout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor set layout!");
 		}
 
 		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyDescriptorSetLayout(engine->device, engine->node_descriptor_layout, nullptr);
+			vkDestroyDescriptorSetLayout(engine->device, engine->node_texture_manager.descriptor_layout, nullptr);
 			});
 	}
 
@@ -482,12 +510,12 @@ namespace engine {
 		VkDescriptorSetAllocateInfo descriptor_alloc_info{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.pNext = &variabl_descriptor_count_info,
-			.descriptorPool = engine->node_descriptor_pool,
+			.descriptorPool = engine->node_texture_manager.descriptor_pool,
 			.descriptorSetCount = 1,
-			.pSetLayouts = &engine->node_descriptor_layout,
+			.pSetLayouts = &engine->node_texture_manager.descriptor_layout,
 		};
 
-		if (vkAllocateDescriptorSets(engine->device, &descriptor_alloc_info, &engine->node_texture_descriptor_set) != VK_SUCCESS) {
+		if (vkAllocateDescriptorSets(engine->device, &descriptor_alloc_info, &engine->node_texture_manager.descriptor_set) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
 	}
@@ -500,6 +528,10 @@ namespace engine {
 		create_node_descriptor_pool();
 		create_node_descriptor_set_layouts();
 		create_node_texture_descriptor_set();
+
+		for (auto i : std::views::iota(0u, max_bindless_node_textures)) {
+			engine->node_texture_manager.unused_id.emplace(i);
+		}
 
 		engine->main_deletion_queue.push_function([=]() {
 			ed::DestroyEditor(context);

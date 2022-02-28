@@ -13,6 +13,7 @@
 #include <variant>
 #include <span>
 #include <unordered_map>
+#include <unordered_set>
 
 struct FrameData {
 	VkFence inFlightFence;
@@ -35,6 +36,25 @@ struct DeletionQueue
 		}
 
 		deletors.clear();
+	}
+};
+
+struct NodeTextureManager {
+	std::unordered_set<int> used_id;
+	std::unordered_set<int> unused_id;
+	VkDescriptorPool descriptor_pool;
+	VkDescriptorSetLayout descriptor_layout;
+	VkDescriptorSet descriptor_set;
+
+	const auto get_id() {
+		auto id = *unused_id.begin();
+		used_id.emplace(id);
+		return id;
+	}
+
+	void delete_id(int id) {
+		unused_id.emplace(id);
+		used_id.erase(id);
 	}
 };
 
@@ -165,9 +185,7 @@ public:
 
 	uint32_t swapchain_image_count;
 
-	VkDescriptorPool node_descriptor_pool;
-	VkDescriptorSetLayout node_descriptor_layout;
-	VkDescriptorSet node_texture_descriptor_set;
+	NodeTextureManager node_texture_manager;
 
 	void init_window();
 

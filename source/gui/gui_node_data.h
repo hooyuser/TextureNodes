@@ -29,11 +29,12 @@ template<typename UboType, StringLiteral ...Shaders>
 struct ImageData : public NodeData {
 	TexturePtr texture;
 	void* gui_texture;
-	VkDescriptorSet descriptor_set;
+	VkDescriptorSet ubo_descriptor_set;
 	VkFramebuffer image_pocessing_framebuffer;
 	VkCommandBuffer node_cmd_buffer;
 	BufferPtr uniform_buffer;
 	UboType ubo;
+	int node_texture_id = -1;
 	uint32_t width = 1024;
 	uint32_t height = 1024;
 	VkFence fence;
@@ -73,6 +74,8 @@ struct ImageData : public NodeData {
 
 		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		
+		node_texture_id = engine->node_texture_manager.get_id();
+
 		uniform_buffer = engine::Buffer::createBuffer(engine,
 			sizeof(UboType),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
@@ -87,40 +90,46 @@ struct ImageData : public NodeData {
 
 		VkDescriptorSetAllocateInfo descriptor_alloc_info{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-			.descriptorPool = engine->node_descriptor_pool,
+			.descriptorPool = engine->node_texture_manager.descriptor_pool,
 			.descriptorSetCount = 1,
 			.pSetLayouts = &descriptor_set_layout,
 		};
 
-		if (vkAllocateDescriptorSets(engine->device, &descriptor_alloc_info, &descriptor_set) != VK_SUCCESS) {
+		if (vkAllocateDescriptorSets(engine->device, &descriptor_alloc_info, &ubo_descriptor_set) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
 
-		VkDescriptorBufferInfo uniformBufferInfo{
+		VkDescriptorBufferInfo uniform_buffer_info{
 			.buffer = uniform_buffer->buffer,
 			.offset = 0,
 			.range = sizeof(UboType)
 		};
 
+		VkDescriptorImageInfo image_info{
+			.sampler = texture->sampler,
+			.imageView = texture->imageView,
+			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		};
+
 		std::array descriptor_writes{
 			VkWriteDescriptorSet {
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.dstSet = descriptor_set,
+				.dstSet = ubo_descriptor_set,
 				.dstBinding = 0,
 				.dstArrayElement = 0,
 				.descriptorCount = 1,
 				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-				.pBufferInfo = &uniformBufferInfo,
+				.pBufferInfo = &uniform_buffer_info,
 			},
-			//VkWriteDescriptorSet {
-			//	.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			//	.dstSet = engine->node_editor->node_texture_descriptor_set,
-			//	.dstBinding = 0,
-			//	.dstArrayElement = 0,
-			//	.descriptorCount = 1,
-			//	.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-			//	.pBufferInfo = &uniformBufferInfo,
-			//},
+			VkWriteDescriptorSet {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = engine->node_texture_manager.descriptor_set,
+				.dstBinding = 0,
+				.dstArrayElement = static_cast<uint32_t>(node_texture_id),
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				.pImageInfo = &image_info,
+			},
 		};
 
 		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
@@ -289,7 +298,7 @@ struct ImageData : public NodeData {
 
 		vkCmdSetViewport(node_cmd_buffer, 0, 1, &viewport);
 		vkCmdSetScissor(node_cmd_buffer, 0, 1, &scissor);
-		vkCmdBindDescriptorSets(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, 1, &descriptor_set, 0, nullptr);
+		vkCmdBindDescriptorSets(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, 1, &ubo_descriptor_set, 0, nullptr);
 		vkCmdBindPipeline(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline);
 		vkCmdDraw(node_cmd_buffer, 3, 1, 0, 0);
 		vkCmdEndRenderPass(node_cmd_buffer);
@@ -330,5 +339,9 @@ struct Color4Data : public NodeData {
 
 struct BoolData : public NodeData {
 	bool value;
+};
+
+struct TextureIdData : public NodeData {
+	int value = -1;
 };
 
