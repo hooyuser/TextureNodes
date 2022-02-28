@@ -15,3 +15,24 @@ decltype(auto) constexpr_if(Then&& then, OrElse&& or_else) {
         return FWD(or_else);
     }
 }
+
+template <typename T> struct Pointer;
+
+template <typename T> struct Pointer<T*>
+{
+    typedef T Type;
+};
+
+template <typename T> struct Pointer<std::shared_ptr<T>>
+{
+    typedef T Type;
+};
+
+template <typename T> struct Pointer<std::unique_ptr<T>>
+{
+    typedef T Type;
+};
+
+
+template <class T>
+using ref_t = typename Pointer<std::remove_reference_t<T>>::Type;

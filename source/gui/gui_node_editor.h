@@ -34,12 +34,11 @@ enum class PinInOut {
 };
 
 using PinVariant = std::variant<
-	TexturePtr,
+	TextureIdData,
 	FloatData,
 	IntData,
 	BoolData,
-	Color4Data,
-	TextureIdData
+	Color4Data
 >;
 
 ////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,13 +179,17 @@ namespace engine {
 			auto& node = nodes.back();
 
 			if constexpr (std::derived_from<NodeType, NodeTypeImageBase>) {
-				auto& ubo = std::get<NodeType::data_type>(node.data)->ubo;
-				std::decay_t<decltype(ubo)>::Class::ForEachField(ubo, [&](auto& field, auto& value) {
-					using PinType = std::decay_t<decltype(value)>;
-					node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
-					//value = std::get<PinType>(node.inputs.back().default_value);
-					});
-				node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TexturePtr>);
+				using UboT = typename ref_t<NodeType::data_type>::UboType;
+				UboT ubo{};
+				for (size_t index = 0; index < UboT::Class::TotalFields; ++index) {
+					UboT::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
+						using PinType = std::decay_t<decltype(field)>::Type;
+						node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
+						node.inputs[index].default_value = value;
+						});
+				}
+				node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TextureIdData>);
+				std::get<NodeType::data_type>(node.data)->uniform_buffer->copyFromHost(&ubo);
 			}
 			else if constexpr (std::same_as<NodeType, NodeAdd>) {
 				node.inputs.emplace_back(get_next_id(), "Value", FloatData{});

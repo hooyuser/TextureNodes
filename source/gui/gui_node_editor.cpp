@@ -28,10 +28,10 @@ namespace engine {
 
 	void NodeEditor::update_from(Node* node) {
 		std::visit([&](auto&& node_data) {
-			using T = std::decay_t<decltype(node_data)>;
-			if constexpr (is_image_data<T>()) {
+			using NodeDataT = std::decay_t<decltype(node_data)>;
+			if constexpr (is_image_data<NodeDataT>()) {
 				std::vector<VkCommandBuffer> submitCommandBuffers;
-				submitCommandBuffers.emplace_back(node_data->get_node_cmd_buffer());
+				submitCommandBuffers.emplace_back(node_data->node_cmd_buffer);
 
 				vkResetFences(engine->device, 1, &node_data->fence);
 
@@ -44,11 +44,9 @@ namespace engine {
 				auto result = vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, node_data->fence);
 				if (result != VK_SUCCESS) {
 					throw std::runtime_error("failed to submit draw command buffer!");
-				}
-
-				node_data->uniform_buffer->copyFromHost(&node_data->ubo);
+				}				
 			}
-			else if constexpr (std::is_same_v<T, Color4Data>) {
+			else if constexpr (std::is_same_v<NodeDataT, Color4Data>) {
 
 			}
 			}, node->data);
@@ -59,19 +57,6 @@ namespace engine {
 			input.node = node;
 			input.flow_direction = PinInOut::INPUT;
 		}
-
-		std::visit([&](auto&& node_data) {
-			using T = std::decay_t<decltype(node_data)>;
-			//auto s = cpp_type_name<T>();
-			if constexpr (is_image_data<T>()) {
-				auto& ubo = node_data->ubo;
-				for (size_t index = 0; index < node->inputs.size(); ++index) {
-					std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
-						node->inputs[index].default_value = value;
-						});
-				}
-			}
-			}, node->data);
 
 		for (auto&& output : node->outputs) {
 			output.node = node;
@@ -134,9 +119,8 @@ namespace engine {
 			}
 
 			//loop over input pins
-			Pin* color_pin = nullptr;
-			//std::visit([&](auto&& node_data) {
-				//using NodeT = std::decay_t<decltype(node_data)>;
+			std::optional<size_t> color_pin_index;
+
 			for (std::size_t i = 0; i < node.inputs.size(); ++i) {
 				auto pin = &node.inputs[i];
 				ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
@@ -155,40 +139,38 @@ namespace engine {
 							//ImGui::SameLine();
 							bool response_flag = false;
 							std::visit([&](auto&& node_data) {
-								using NodeT = std::decay_t<decltype(node_data)>;
-								if constexpr (is_image_data<NodeT>()) {
-									auto& ubo = std::get<NodeT>(node.data)->ubo;
-									std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, i, [&](auto& field, auto& value) {
-										using FieldT = std::decay_t<decltype(value)>;
-										value = std::get<FieldT>(node.inputs[i].default_value);
+								using NodeDataT = std::remove_reference_t<decltype(node_data)>;
+								if constexpr (is_image_data<NodeDataT>()) {
+									using UboT = typename ref_t<NodeDataT>::UboType;
+									UboT::Class::FieldAt(i, [&](auto& field) {
 										auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
-										if constexpr (std::is_same_v<FieldT, FloatData>) {
+										if constexpr (std::is_same_v<PinT, FloatData>) {			
 											if (widget_info.enable_slider) {
 												response_flag |= ImGui::SliderFloat(("##" + std::to_string(pin->id.Get())).c_str(),
-													&std::get<FieldT>(pin->default_value).value,
+													&std::get<PinT>(pin->default_value).value,
 													widget_info.min,
 													widget_info.max,
 													(pin->name + " : %.3f").c_str());
 											}
 											else {
 												response_flag |= ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(),
-													&std::get<FieldT>(pin->default_value).value,
+													&std::get<PinT>(pin->default_value).value,
 													widget_info.speed,
 													widget_info.min,
 													widget_info.max,
 													(pin->name + " : %.3f").c_str());
 											}
 										}
-										else if constexpr (std::is_same_v<FieldT, IntData>) {
+										else if constexpr (std::is_same_v<PinT, IntData>) {
 											response_flag |= ImGui::DragInt(("##" + std::to_string(pin->id.Get())).c_str(),
-												&std::get<FieldT>(pin->default_value).value,
+												&std::get<PinT>(pin->default_value).value,
 												widget_info.speed,
 												static_cast<int>(widget_info.min),
 												static_cast<int>(widget_info.max),
 												(pin->name + " : %d").c_str());
 										}
 										if (response_flag) {
-											value = std::get<FieldT>(node.inputs[i].default_value);
+											node_data->update_ubo(reinterpret_cast<const char*>(&std::get<PinT>(pin->default_value)), i);
 											update_from(&node);
 										}
 										});
@@ -211,7 +193,7 @@ namespace engine {
 								ImGui::OpenPopup(("ColorPopup##" + std::to_string(pin->id.Get())).c_str());
 								ed::Resume();
 							}
-							color_pin = pin;
+							color_pin_index = i;
 						}
 					}
 					else if constexpr (std::is_same_v<PinT, TextureIdData>) {
@@ -219,16 +201,14 @@ namespace engine {
 						rect = imgui_get_item_rect();
 					}
 					else if constexpr (std::is_same_v<PinT, BoolData>) {
-						//static bool check = true;
-						//std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, i, [&](auto& field, auto& value) {
-						//	using FieldT = std::decay_t<decltype(value)>;
+						
 						auto& bool_data = std::get<BoolData>(node.inputs[i].default_value);
 						if (ImGui::Checkbox(pin->name.c_str(), &bool_data.value)) {
 							std::visit([&](auto&& node_data) {
 								using NodeT = std::decay_t<decltype(node_data)>;
 								if constexpr (is_image_data<NodeT>()) {
-									auto& ubo = std::get<NodeT>(node.data)->ubo;
-									std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, i, [&](auto& field, auto& value) {
+									using UboT = typename ref_t<NodeT>::UboType;
+									UboT::Class::FieldAt(i, [&](auto& field) {
 										//value = bool_data;
 										//update_from(&node);
 									});
@@ -253,8 +233,6 @@ namespace engine {
 				ed::EndPin();
 				ed::PopStyleVar(1);
 			}
-			//}, node.data);
-
 
 			ed::EndNode();
 
@@ -272,28 +250,18 @@ namespace engine {
 				}, node.data);
 
 
-			if (color_pin) {
+			if (color_pin_index) {
+				auto& color_pin = node.inputs[*color_pin_index];
 				ed::Suspend();
-				if (ImGui::BeginPopup(("ColorPopup##" + std::to_string(color_pin->id.Get())).c_str())) {
-					if (ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin->id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Color4Data>(&(color_pin->default_value))), ImGuiColorEditFlags_None, NULL)) {
-						int index = 0;
-						for (const auto& input_pin : node.inputs) {
-							if (input_pin.id == color_pin->id) {
-								std::visit([&](auto&& arg) {
-									using T = std::decay_t<decltype(arg)>;
-									if constexpr (is_image_data<T>()) {
-										auto& ubo = std::get<T>(node.data)->ubo;
-										std::decay_t<decltype(ubo)>::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
-											using TV = std::decay_t<decltype(value)>;
-											value = std::get<TV>(node.inputs[index].default_value);
-											});
-										update_from(&node);
-									}
-									}, node.data);
-								break;
+				if (ImGui::BeginPopup(("ColorPopup##" + std::to_string(color_pin.id.Get())).c_str())) {
+					if (ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin.id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Color4Data>(&(color_pin.default_value))), ImGuiColorEditFlags_None, NULL)) {
+						std::visit([&](auto&& node_data) {
+							using NodeDataT = std::decay_t<decltype(node_data)>;
+							if constexpr (is_image_data<NodeDataT>()) {
+								node_data->update_ubo(&(color_pin.default_value), *color_pin_index);  //unsafe operation for variant!
+								update_from(&node);
 							}
-							index++;
-						}
+							}, node.data);			
 					}
 					ImGui::EndPopup();
 				}

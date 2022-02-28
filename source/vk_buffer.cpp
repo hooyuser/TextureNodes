@@ -68,6 +68,13 @@ namespace engine {
 		vkUnmapMemory(device, memory);
 	}
 
+	void Buffer::copyFromHost(const void* host_data, size_t data_size, size_t offset) {
+		void* data;
+		vkMapMemory(device, memory, offset, data_size, 0, &data);
+		memcpy(data, host_data, data_size);
+		vkUnmapMemory(device, memory);
+	}
+
 	void Buffer::copyFromBuffer(VulkanEngine* engine, VkBuffer srcBuffer) {
 		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
 			VkBufferCopy copyRegion{};

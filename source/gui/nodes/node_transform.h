@@ -11,10 +11,10 @@ struct NodeTransform : NodeTypeImageBase {
 
 		NOTE(shift_x, NumberInputWidgetInfo{ .min = 0, .max = 2, .speed = 0.005, .enable_slider = true })
 			FloatData shift_x {
-			.value = 0.75f
+			.value = 0.0f
 		};
 
-		NOTE(shift_y, NumberInputWidgetInfo{ .min = 0, .max = 360, .speed = 1.0, .enable_slider = true })
+		NOTE(shift_y, NumberInputWidgetInfo{ .min = 0, .max = 2, .speed = 0.005, .enable_slider = true })
 			FloatData shift_y {
 			.value = 0.0f
 		};
@@ -24,14 +24,14 @@ struct NodeTransform : NodeTypeImageBase {
 			.value = 0.0f
 		};
 
-		NOTE(scale_x, NumberInputWidgetInfo{ .min = 0, .max = 2, .speed = 0.005, .enable_slider = true })
+		NOTE(scale_x, NumberInputWidgetInfo{ .min = -10, .max = 10, .speed = 0.005, .enable_slider = true })
 			FloatData scale_x {
-			.value = 0.75f
+			.value = 1.0f
 		};
 
-		NOTE(scale_y, NumberInputWidgetInfo{ .min = 0, .max = 360, .speed = 1.0, .enable_slider = true })
+		NOTE(scale_y, NumberInputWidgetInfo{ .min = -10, .max = 10, .speed = 0.005, .enable_slider = true })
 			FloatData scale_y {
-			.value = 0.0f
+			.value = 1.0f
 		};
 
 		BoolData clamp{

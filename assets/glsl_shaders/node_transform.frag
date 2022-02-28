@@ -1,6 +1,7 @@
 #version 460
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
+    int texture_id;
     float shift_x;
     float shift_y;
     float rotation;
@@ -9,7 +10,7 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
     bool clamp;
 } ubo;
 
-layout(set = 0, binding = 1) uniform sampler2D nodeTextures[];
+layout(set = 1, binding = 0) uniform sampler2D nodeTextures[];
 
 layout(location = 0) in vec2 fragUV;
 layout(location = 0) out vec4 outColor;
@@ -52,10 +53,10 @@ void main()
         transMat(vec2(-0.5, -0.5));
     vec2 uv = (inverse(trans) * vec3(fragUV, 1.0)).xy;
     if (ubo.clamp){
-        outColor = texture(image, clamp(uv,vec2(0.0), vec2(1.0)));
+        outColor = texture(nodeTextures[ubo.texture_id], clamp(uv,vec2(0.0), vec2(1.0)));
     }
     else {
-        outColor = texture(image, uv);
+        outColor = texture(nodeTextures[ubo.texture_id], uv);
     }
     
 }

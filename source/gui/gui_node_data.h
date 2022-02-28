@@ -25,15 +25,16 @@ struct StringLiteral {
 
 struct NodeData {};
 
-template<typename UboType, StringLiteral ...Shaders>
+template<typename UniformBufferType, StringLiteral ...Shaders>
 struct ImageData : public NodeData {
+	using UboType = UniformBufferType;
 	TexturePtr texture;
 	void* gui_texture;
 	VkDescriptorSet ubo_descriptor_set;
 	VkFramebuffer image_pocessing_framebuffer;
 	VkCommandBuffer node_cmd_buffer;
 	BufferPtr uniform_buffer;
-	UboType ubo;
+	//UboType ubo;
 	int node_texture_id = -1;
 	uint32_t width = 1024;
 	uint32_t height = 1024;
@@ -308,10 +309,15 @@ struct ImageData : public NodeData {
 		}	
 	}
 
-	VkCommandBuffer get_node_cmd_buffer() {
-		return node_cmd_buffer;
+	void update_ubo(const void* value, size_t index) {
+		UboType::Class::FieldAt(index, [&](auto& field) {
+			using PinT = std::decay_t<decltype(field)>::Type;
+			uniform_buffer->copyFromHost(reinterpret_cast<const char*>(value), sizeof(PinT), field.getOffset());
+			});
 	}
-
+	//VkCommandBuffer get_node_cmd_buffer() {
+	//	return node_cmd_buffer;
+	//}
 };
 
 template<typename UboType, StringLiteral ...Shaders>

@@ -29,6 +29,7 @@ namespace engine {
 	public:
 		static BufferPtr createBuffer(VulkanEngine* engine, VkDeviceSize size, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, CreateResourceFlagBits bufferDescription = SWAPCHAIN_INDEPENDENT_BIT);
 		void copyFromHost(void* hostData);
+		void copyFromHost(const void* host_data, size_t data_size, size_t offset = 0);
 		void copyFromBuffer(VulkanEngine* engine, VkBuffer srcBuffer);
 	};
 }
