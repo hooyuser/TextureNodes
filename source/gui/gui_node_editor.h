@@ -123,8 +123,7 @@ struct Node {
 	Node(int id, std::string name, const T&, VulkanEngine* engine) :
 		id(id), name(name), type_name(T::name()) {
 		if constexpr (std::derived_from<T, NodeTypeImageBase>) {
-			using ref_type = std::decay_t<decltype(*std::declval<T::data_type>())>;
-			data = std::make_shared<ref_type>(engine);
+			data = std::make_shared<ref_t<T::data_type>>(engine);
 		}
 		else {
 			data = NodeDataVariant(std::in_place_type<T::data_type>);

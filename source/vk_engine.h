@@ -49,6 +49,7 @@ struct NodeTextureManager {
 	const auto get_id() {
 		auto id = *unused_id.begin();
 		used_id.emplace(id);
+		unused_id.erase(id);
 		return id;
 	}
 

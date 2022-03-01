@@ -28,22 +28,26 @@ struct NodeData {};
 template<typename UniformBufferType, StringLiteral ...Shaders>
 struct ImageData : public NodeData {
 	using UboType = UniformBufferType;
+
+	VulkanEngine* engine;
+	BufferPtr uniform_buffer;
 	TexturePtr texture;
 	void* gui_texture;
+
 	VkDescriptorSet ubo_descriptor_set;
 	VkFramebuffer image_pocessing_framebuffer;
 	VkCommandBuffer node_cmd_buffer;
-	BufferPtr uniform_buffer;
-	//UboType ubo;
+	VkFence fence;
+
 	int node_texture_id = -1;
 	uint32_t width = 1024;
 	uint32_t height = 1024;
-	VkFence fence;
+
 	inline static VkDescriptorSetLayout descriptor_set_layout = nullptr;
 	inline static VkPipelineLayout image_pocessing_pipeline_layout = nullptr;
 	inline static VkPipeline image_pocessing_pipeline = nullptr;
 	inline static VkRenderPass image_pocessing_render_pass = nullptr;
-	
+
 	//ImageData(const ImageData& data) {
 	//	texture = data.texture;
 	//	uniform_buffer = data.uniform_buffer;
@@ -56,14 +60,14 @@ struct ImageData : public NodeData {
 	//	return *this;
 	//}
 	//ImageData(){};
-	ImageData(VulkanEngine* engine) {
+	ImageData(VulkanEngine* engine) :engine(engine) {
 		auto fenceInfo = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
 		if (vkCreateFence(engine->device, &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create fence!");
 		}
-		engine->main_deletion_queue.push_function([=]() {
+		/*engine->main_deletion_queue.push_function([=]() {
 			vkDestroyFence(engine->device, fence, nullptr);
-			});
+			});*/
 
 		texture = engine::Texture::create_2D_render_target(engine,
 			1024,
@@ -74,7 +78,7 @@ struct ImageData : public NodeData {
 		texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		
+
 		node_texture_id = engine->node_texture_manager.get_id();
 
 		uniform_buffer = engine::Buffer::createBuffer(engine,
@@ -253,21 +257,21 @@ struct ImageData : public NodeData {
 			throw std::runtime_error("failed to create framebuffer!");
 		}
 
-		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyFramebuffer(engine->device, image_pocessing_framebuffer, nullptr);
-			});
-		
+		//engine->main_deletion_queue.push_function([=]() {
+		//	vkDestroyFramebuffer(engine->device, image_pocessing_framebuffer, nullptr);
+		//	});
+
 		//create command buffer
-		
+
 		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
 
 		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &node_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
 
-		engine->main_deletion_queue.push_function([=]() {
-			vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &node_cmd_buffer);
-			});
+		//engine->main_deletion_queue.push_function([=]() {
+		//	vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &node_cmd_buffer);
+		//	});
 
 		VkCommandBufferBeginInfo beginInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
@@ -306,7 +310,14 @@ struct ImageData : public NodeData {
 
 		if (vkEndCommandBuffer(node_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer!");
-		}	
+		}
+	}
+
+	~ImageData() {
+		vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &node_cmd_buffer);
+		vkDestroyFramebuffer(engine->device, image_pocessing_framebuffer, nullptr);
+		vkFreeDescriptorSets(engine->device, engine->node_texture_manager.descriptor_pool, 1, &ubo_descriptor_set);
+		vkDestroyFence(engine->device, fence, nullptr);
 	}
 
 	void update_ubo(const void* value, size_t index) {

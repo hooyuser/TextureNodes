@@ -44,7 +44,7 @@ namespace engine {
 				auto result = vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, node_data->fence);
 				if (result != VK_SUCCESS) {
 					throw std::runtime_error("failed to submit draw command buffer!");
-				}				
+				}
 			}
 			else if constexpr (std::is_same_v<NodeDataT, Color4Data>) {
 
@@ -144,7 +144,7 @@ namespace engine {
 									using UboT = typename ref_t<NodeDataT>::UboType;
 									UboT::Class::FieldAt(i, [&](auto& field) {
 										auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
-										if constexpr (std::is_same_v<PinT, FloatData>) {			
+										if constexpr (std::is_same_v<PinT, FloatData>) {
 											if (widget_info.enable_slider) {
 												response_flag |= ImGui::SliderFloat(("##" + std::to_string(pin->id.Get())).c_str(),
 													&std::get<PinT>(pin->default_value).value,
@@ -201,7 +201,7 @@ namespace engine {
 						rect = imgui_get_item_rect();
 					}
 					else if constexpr (std::is_same_v<PinT, BoolData>) {
-						
+
 						auto& bool_data = std::get<BoolData>(node.inputs[i].default_value);
 						if (ImGui::Checkbox(pin->name.c_str(), &bool_data.value)) {
 							std::visit([&](auto&& node_data) {
@@ -211,8 +211,8 @@ namespace engine {
 									UboT::Class::FieldAt(i, [&](auto& field) {
 										//value = bool_data;
 										//update_from(&node);
-									});
-							//	using FieldT = std::decay_t<decltype(value)>;
+										});
+									//	using FieldT = std::decay_t<decltype(value)>;
 								}
 								}, node.data);
 						}
@@ -261,144 +261,145 @@ namespace engine {
 								node_data->update_ubo(&(color_pin.default_value), *color_pin_index);  //unsafe operation for variant!
 								update_from(&node);
 							}
-							}, node.data);			
+							}, node.data);
 					}
 					ImGui::EndPopup();
 				}
 				ed::Resume();
 			}
+		}
 
-			for (auto& link : links) {
-				ed::Link(link.id, link.start_pin_id, link.end_pin_id, ImColor(123, 174, 111, 245), 2.5f);
-			}
+		for (auto& link : links) {
+			ed::Link(link.id, link.start_pin_id, link.end_pin_id, ImColor(123, 174, 111, 245), 2.5f);
+		}
 
-			if (ed::BeginCreate()) {
-				ed::PinId start_pin_id, end_pin_id;
-				if (ed::QueryNewLink(&start_pin_id, &end_pin_id)) {
-					if (start_pin_id && end_pin_id) {
-						// ed::AcceptNewItem() return true when user release mouse button.
-						Pin* pins[2];
-						char i = 0;
-						while (i < 2) {
-							for (auto& node : nodes) {
-								for (auto& pin : node.outputs) {
-									if (pin.id == start_pin_id || pin.id == end_pin_id) {
-										pins[i++] = &pin;
+		if (ed::BeginCreate()) {
+			ed::PinId start_pin_id, end_pin_id;
+			if (ed::QueryNewLink(&start_pin_id, &end_pin_id)) {
+				if (start_pin_id && end_pin_id) {
+					// ed::AcceptNewItem() return true when user release mouse button.
+					Pin* pins[2];
+					char i = 0;
+					while (i < 2) {
+						for (auto& node : nodes) {
+							for (auto& pin : node.outputs) {
+								if (pin.id == start_pin_id || pin.id == end_pin_id) {
+									pins[i++] = &pin;
 
-									}
 								}
-								for (auto& pin : node.inputs) {
-									if (pin.id == start_pin_id || pin.id == end_pin_id) {
-										pins[i++] = &pin;
-									}
+							}
+							for (auto& pin : node.inputs) {
+								if (pin.id == start_pin_id || pin.id == end_pin_id) {
+									pins[i++] = &pin;
 								}
 							}
 						}
-						auto showLabel = [](const char* label, ImColor color) {
-							ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetTextLineHeight());
-							auto size = ImGui::CalcTextSize(label);
+					}
+					auto showLabel = [](const char* label, ImColor color) {
+						ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetTextLineHeight());
+						auto size = ImGui::CalcTextSize(label);
 
-							auto padding = ImGui::GetStyle().FramePadding;
-							auto spacing = ImGui::GetStyle().ItemSpacing;
+						auto padding = ImGui::GetStyle().FramePadding;
+						auto spacing = ImGui::GetStyle().ItemSpacing;
 
-							ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(spacing.x, -spacing.y));
+						ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(spacing.x, -spacing.y));
 
-							auto rectMin = ImGui::GetCursorScreenPos() - padding;
-							auto rectMax = ImGui::GetCursorScreenPos() + size + padding;
+						auto rectMin = ImGui::GetCursorScreenPos() - padding;
+						auto rectMax = ImGui::GetCursorScreenPos() + size + padding;
 
-							auto drawList = ImGui::GetWindowDrawList();
-							drawList->AddRectFilled(rectMin, rectMax, color, size.y * 0.15f);
-							ImGui::TextUnformatted(label);
-						};
-						if (pins[0] == pins[1]) {
-							ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
-						}
-						else if (pins[0]->flow_direction == pins[1]->flow_direction) {
-							auto hint = (pins[0]->flow_direction == PinInOut::INPUT) ?
-								"Input Can Only Be Connected To Output" : "Output Can Only Be Connected To Input";
-							showLabel(hint, ImColor(45, 32, 32, 180));
-							ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
-						}
-						else if (pins[0]->default_value.index() != pins[1]->default_value.index()) {
-							showLabel("Incompatible Pin Type", ImColor(45, 32, 32, 180));
-							ed::RejectNewItem(ImColor(255, 128, 128), 1.0f);
-						}
-						else if (ed::AcceptNewItem()) {
-							// Since we accepted new link, lets add one to our list of links.
-							links.emplace(ed::LinkId(get_next_id()), start_pin_id, end_pin_id);
+						auto drawList = ImGui::GetWindowDrawList();
+						drawList->AddRectFilled(rectMin, rectMax, color, size.y * 0.15f);
+						ImGui::TextUnformatted(label);
+					};
+					if (pins[0] == pins[1]) {
+						ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
+					}
+					else if (pins[0]->flow_direction == pins[1]->flow_direction) {
+						auto hint = (pins[0]->flow_direction == PinInOut::INPUT) ?
+							"Input Can Only Be Connected To Output" : "Output Can Only Be Connected To Input";
+						showLabel(hint, ImColor(45, 32, 32, 180));
+						ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
+					}
+					else if (pins[0]->default_value.index() != pins[1]->default_value.index()) {
+						showLabel("Incompatible Pin Type", ImColor(45, 32, 32, 180));
+						ed::RejectNewItem(ImColor(255, 128, 128), 1.0f);
+					}
+					else if (ed::AcceptNewItem()) {
+						// Since we accepted new link, lets add one to our list of links.
+						links.emplace(ed::LinkId(get_next_id()), start_pin_id, end_pin_id);
 
 
-							pins[0]->connected_pins.emplace(pins[1]);
-							pins[1]->connected_pins.emplace(pins[0]);
-						}
+						pins[0]->connected_pins.emplace(pins[1]);
+						pins[1]->connected_pins.emplace(pins[0]);
 					}
 				}
-
 			}
-			ed::EndCreate(); // Wraps up object creation action handling.
 
-			if (ed::BeginDelete()) {
-				// There may be many links marked for deletion, let's loop over them.
-				ed::LinkId deleted_link_id;
-				while (ed::QueryDeletedLink(&deleted_link_id)) {
-					// If you agree that link can be deleted, accept deletion.
-					if (ed::AcceptDeletedItem()) {
-						// Then remove link from your data.
-						auto deleted_link = std::find_if(links.begin(), links.end(), [=](auto& link) {
-							return link.id == deleted_link_id;
-							});
+		}
+		ed::EndCreate(); // Wraps up object creation action handling.
 
-						auto x = deleted_link != links.end();
-						//connect_nodes
-						if (deleted_link != links.end()) {
-							auto start_pin_id = deleted_link->start_pin_id;
-							auto end_pin_id = deleted_link->end_pin_id;
-							std::invoke([&] {
-								for (auto& node : nodes) {
-									for (auto& pin : node.outputs) {
-										if (pin.id == start_pin_id) {
-											for (auto connected_pin : pin.connected_pins) {
-												if (connected_pin->id == end_pin_id) {
-													pin.connected_pins.erase(connected_pin);
-													connected_pin->connected_pins.erase(&pin);
-													return;
-												}
+		if (ed::BeginDelete()) {
+			// There may be many links marked for deletion, let's loop over them.
+			ed::LinkId deleted_link_id;
+			while (ed::QueryDeletedLink(&deleted_link_id)) {
+				// If you agree that link can be deleted, accept deletion.
+				if (ed::AcceptDeletedItem()) {
+					// Then remove link from your data.
+					auto deleted_link = std::find_if(links.begin(), links.end(), [=](auto& link) {
+						return link.id == deleted_link_id;
+						});
+
+					auto x = deleted_link != links.end();
+					//connect_nodes
+					if (deleted_link != links.end()) {
+						auto start_pin_id = deleted_link->start_pin_id;
+						auto end_pin_id = deleted_link->end_pin_id;
+						std::invoke([&] {
+							for (auto& node : nodes) {
+								for (auto& pin : node.outputs) {
+									if (pin.id == start_pin_id) {
+										for (auto connected_pin : pin.connected_pins) {
+											if (connected_pin->id == end_pin_id) {
+												pin.connected_pins.erase(connected_pin);
+												connected_pin->connected_pins.erase(&pin);
+												return;
 											}
 										}
 									}
 								}
-								});
-							links.erase(deleted_link);
-						}
-					}
-				}
-
-				ed::NodeId deleted_node_id;
-				while (ed::QueryDeletedNode(&deleted_node_id))
-				{
-					if (ed::AcceptDeletedItem())
-					{
-						auto deleted_node = std::find_if(nodes.begin(), nodes.end(), [=](auto& node) {
-							return node.id == deleted_node_id;
+							}
 							});
-						//for (auto& pin : node.outputs) {
-						//	for (auto connected_pin : pin.connected_pins) {
-						//		connected_pin->connected_pins.erase(&pin);
-						//	}
-						//}
-						//for (auto& pin : node.inputs) {
-						//	for (auto connected_pin : pin.connected_pins) {
-						//		connected_pin->connected_pins.erase(&pin);
-						//	}
-						//}
-						if (deleted_node != nodes.end()) {
-							nodes.erase(deleted_node);
-						}
+						links.erase(deleted_link);
 					}
 				}
 			}
-			ed::EndDelete(); // Wrap up deletion action
+
+			ed::NodeId deleted_node_id;
+			while (ed::QueryDeletedNode(&deleted_node_id))
+			{
+				if (ed::AcceptDeletedItem())
+				{
+					auto deleted_node = std::find_if(nodes.begin(), nodes.end(), [=](auto& node) {
+						return node.id == deleted_node_id;
+						});
+					//for (auto& pin : node.outputs) {
+					//	for (auto connected_pin : pin.connected_pins) {
+					//		connected_pin->connected_pins.erase(&pin);
+					//	}
+					//}
+					//for (auto& pin : node.inputs) {
+					//	for (auto connected_pin : pin.connected_pins) {
+					//		connected_pin->connected_pins.erase(&pin);
+					//	}
+					//}
+					if (deleted_node != nodes.end()) {
+						nodes.erase(deleted_node);
+					}
+				}
+			}
 		}
+		ed::EndDelete(); // Wrap up deletion action
+
 
 		ed::End();
 		ed::SetCurrentEditor(nullptr);
@@ -415,7 +416,7 @@ namespace engine {
 
 		VkDescriptorPoolCreateInfo pool_info = {
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT,
+			.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
 			.maxSets = descriptor_size * 2,
 			.poolSizeCount = static_cast<uint32_t>(pool_sizes.size()),
 			.pPoolSizes = pool_sizes.data(),
@@ -502,6 +503,7 @@ namespace engine {
 		}
 
 		engine->main_deletion_queue.push_function([=]() {
+			nodes.clear();
 			ed::DestroyEditor(context);
 			});
 	}
