@@ -1,4 +1,5 @@
 #version 460
+#extension GL_EXT_nonuniform_qualifier : enable
 
 layout(set = 0, binding = 0) uniform UniformBufferObject {
     int texture_id;
@@ -58,6 +59,8 @@ void main()
     else {
         outColor = texture(nodeTextures[ubo.texture_id], uv);
     }
+    //outColor = texture(nodeTextures[ubo.texture_id], fragUV);
+    //outColor = vec4(fragUV, 0.0, 1.0);
     
 }
 

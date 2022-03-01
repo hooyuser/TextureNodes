@@ -23,6 +23,26 @@ struct StringLiteral {
 	char value[N];
 };
 
+template <typename T, typename FieldType>
+struct has_field_type {
+	static constexpr bool value = []() {
+		bool hadField = false;
+		for (size_t i = 0; i < Reflect::class_t<T>::TotalFields; i++) {
+			Reflect::class_t<T>::FieldAt(i, [&](auto& field) {
+				using CurrFieldType = typename std::remove_reference_t<decltype(field)>::Type;
+				if constexpr (std::is_same_v<FieldType, CurrFieldType>) {
+					hadField = true;
+				}
+				});
+		}
+		return hadField;
+	}();
+};
+template <typename T, typename FieldType>
+static constexpr bool has_field_type_v = has_field_type<T, FieldType>::value;
+
+struct TextureIdData;
+
 struct NodeData {};
 
 template<typename UniformBufferType, StringLiteral ...Shaders>
@@ -65,9 +85,6 @@ struct ImageData : public NodeData {
 		if (vkCreateFence(engine->device, &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create fence!");
 		}
-		/*engine->main_deletion_queue.push_function([=]() {
-			vkDestroyFence(engine->device, fence, nullptr);
-			});*/
 
 		texture = engine::Texture::create_2D_render_target(engine,
 			1024,
@@ -209,7 +226,11 @@ struct ImageData : public NodeData {
 		}
 
 		if (image_pocessing_pipeline_layout == nullptr) {
-			std::array descriptor_set_layouts = { descriptor_set_layout };
+
+			auto descriptor_set_layouts = constexpr_if<has_field_type_v<UboType, TextureIdData>>(
+				std::array{ descriptor_set_layout, engine->node_texture_manager.descriptor_set_layout },
+				std::array{ descriptor_set_layout }
+			);
 
 			VkPipelineLayoutCreateInfo image_pocessing_pipeline_info = vkinit::pipelineLayoutCreateInfo(descriptor_set_layouts);
 
@@ -257,10 +278,6 @@ struct ImageData : public NodeData {
 			throw std::runtime_error("failed to create framebuffer!");
 		}
 
-		//engine->main_deletion_queue.push_function([=]() {
-		//	vkDestroyFramebuffer(engine->device, image_pocessing_framebuffer, nullptr);
-		//	});
-
 		//create command buffer
 
 		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
@@ -268,10 +285,6 @@ struct ImageData : public NodeData {
 		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &node_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
-
-		//engine->main_deletion_queue.push_function([=]() {
-		//	vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &node_cmd_buffer);
-		//	});
 
 		VkCommandBufferBeginInfo beginInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
@@ -301,9 +314,14 @@ struct ImageData : public NodeData {
 			.extent = image_extent,
 		};
 
+		auto descriptor_sets = constexpr_if<has_field_type_v<UboType, TextureIdData>>(
+			std::array{ ubo_descriptor_set, engine->node_texture_manager.descriptor_set },
+			std::array{ ubo_descriptor_set }
+		);
+
 		vkCmdSetViewport(node_cmd_buffer, 0, 1, &viewport);
 		vkCmdSetScissor(node_cmd_buffer, 0, 1, &scissor);
-		vkCmdBindDescriptorSets(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, 1, &ubo_descriptor_set, 0, nullptr);
+		vkCmdBindDescriptorSets(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
 		vkCmdBindPipeline(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline);
 		vkCmdDraw(node_cmd_buffer, 3, 1, 0, 0);
 		vkCmdEndRenderPass(node_cmd_buffer);
@@ -314,16 +332,18 @@ struct ImageData : public NodeData {
 	}
 
 	~ImageData() {
+		engine->node_texture_manager.delete_id(node_texture_id);
 		vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &node_cmd_buffer);
 		vkDestroyFramebuffer(engine->device, image_pocessing_framebuffer, nullptr);
 		vkFreeDescriptorSets(engine->device, engine->node_texture_manager.descriptor_pool, 1, &ubo_descriptor_set);
 		vkDestroyFence(engine->device, fence, nullptr);
 	}
 
-	void update_ubo(const void* value, size_t index) {
+	template<typename T>
+	void update_ubo(const T& value, size_t index) {
 		UboType::Class::FieldAt(index, [&](auto& field) {
 			using PinT = std::decay_t<decltype(field)>::Type;
-			uniform_buffer->copyFromHost(reinterpret_cast<const char*>(value), sizeof(PinT), field.getOffset());
+			uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
 			});
 	}
 	//VkCommandBuffer get_node_cmd_buffer() {

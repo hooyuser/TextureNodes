@@ -170,7 +170,7 @@ namespace engine {
 												(pin->name + " : %d").c_str());
 										}
 										if (response_flag) {
-											node_data->update_ubo(reinterpret_cast<const char*>(&std::get<PinT>(pin->default_value)), i);
+											node_data->update_ubo(pin->default_value, i);
 											update_from(&node);
 										}
 										});
@@ -207,12 +207,8 @@ namespace engine {
 							std::visit([&](auto&& node_data) {
 								using NodeT = std::decay_t<decltype(node_data)>;
 								if constexpr (is_image_data<NodeT>()) {
-									using UboT = typename ref_t<NodeT>::UboType;
-									UboT::Class::FieldAt(i, [&](auto& field) {
-										//value = bool_data;
-										//update_from(&node);
-										});
-									//	using FieldT = std::decay_t<decltype(value)>;
+									node_data->update_ubo(pin->default_value, i);
+									update_from(&node);
 								}
 								}, node.data);
 						}
@@ -258,7 +254,7 @@ namespace engine {
 						std::visit([&](auto&& node_data) {
 							using NodeDataT = std::decay_t<decltype(node_data)>;
 							if constexpr (is_image_data<NodeDataT>()) {
-								node_data->update_ubo(&(color_pin.default_value), *color_pin_index);  //unsafe operation for variant!
+								node_data->update_ubo(color_pin.default_value, *color_pin_index);  
 								update_from(&node);
 							}
 							}, node.data);
@@ -278,19 +274,29 @@ namespace engine {
 			if (ed::QueryNewLink(&start_pin_id, &end_pin_id)) {
 				if (start_pin_id && end_pin_id) {
 					// ed::AcceptNewItem() return true when user release mouse button.
-					Pin* pins[2];
-					char i = 0;
-					while (i < 2) {
+					Pin* start_pin;
+					Pin* end_pin;
+					int start_pin_index = -1;
+					int end_pin_index = -1;
+					while (start_pin_index < 0 || end_pin_index<0) {
 						for (auto& node : nodes) {
-							for (auto& pin : node.outputs) {
-								if (pin.id == start_pin_id || pin.id == end_pin_id) {
-									pins[i++] = &pin;
-
+							for (size_t i = 0; i < node.outputs.size(); ++i) {
+								if (node.outputs[i].id == start_pin_id) {
+									start_pin = &node.outputs[i];
+									start_pin_index = i;
+								} else if(node.outputs[i].id == end_pin_id) {
+									end_pin = &node.outputs[i];
+									end_pin_index = i;
 								}
 							}
-							for (auto& pin : node.inputs) {
-								if (pin.id == start_pin_id || pin.id == end_pin_id) {
-									pins[i++] = &pin;
+							for (size_t i = 0; i < node.inputs.size(); ++i) {
+								if (node.inputs[i].id == start_pin_id) {
+									start_pin = &node.inputs[i];
+									start_pin_index = i;
+								}
+								else if (node.inputs[i].id == end_pin_id) {
+									end_pin = &node.inputs[i];
+									end_pin_index = i;
 								}
 							}
 						}
@@ -311,26 +317,38 @@ namespace engine {
 						drawList->AddRectFilled(rectMin, rectMax, color, size.y * 0.15f);
 						ImGui::TextUnformatted(label);
 					};
-					if (pins[0] == pins[1]) {
+					if (start_pin == end_pin) {
 						ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
 					}
-					else if (pins[0]->flow_direction == pins[1]->flow_direction) {
-						auto hint = (pins[0]->flow_direction == PinInOut::INPUT) ?
+					else if (start_pin->flow_direction == end_pin->flow_direction) {
+						auto hint = (start_pin->flow_direction == PinInOut::INPUT) ?
 							"Input Can Only Be Connected To Output" : "Output Can Only Be Connected To Input";
 						showLabel(hint, ImColor(45, 32, 32, 180));
 						ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
 					}
-					else if (pins[0]->default_value.index() != pins[1]->default_value.index()) {
+					else if (start_pin->default_value.index() != end_pin->default_value.index()) {
 						showLabel("Incompatible Pin Type", ImColor(45, 32, 32, 180));
 						ed::RejectNewItem(ImColor(255, 128, 128), 1.0f);
 					}
 					else if (ed::AcceptNewItem()) {
 						// Since we accepted new link, lets add one to our list of links.
+						
+						if (start_pin->flow_direction == PinInOut::INPUT) {
+							std::swap(start_pin, end_pin);
+							std::swap(start_pin_index, end_pin_index);
+						}
 						links.emplace(ed::LinkId(get_next_id()), start_pin_id, end_pin_id);
+						start_pin->connected_pins.emplace(end_pin);
+						end_pin->connected_pins.emplace(start_pin);
 
-
-						pins[0]->connected_pins.emplace(pins[1]);
-						pins[1]->connected_pins.emplace(pins[0]);
+						std::visit([&](auto&& node_data) {
+							using NodeT = std::decay_t<decltype(node_data)>;
+							if constexpr (is_image_data<NodeT>()) {
+								node_data->update_ubo(start_pin->default_value, end_pin_index); 
+							}
+							}, end_pin->node->data);
+						
+						update_from(end_pin->node);
 					}
 				}
 			}
@@ -460,12 +478,12 @@ namespace engine {
 			.pBindings = node_descriptor_set_layout_bindings.data(),
 		};
 
-		if (vkCreateDescriptorSetLayout(engine->device, &node_descriptor_layout_info, nullptr, &engine->node_texture_manager.descriptor_layout) != VK_SUCCESS) {
+		if (vkCreateDescriptorSetLayout(engine->device, &node_descriptor_layout_info, nullptr, &engine->node_texture_manager.descriptor_set_layout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor set layout!");
 		}
 
 		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyDescriptorSetLayout(engine->device, engine->node_texture_manager.descriptor_layout, nullptr);
+			vkDestroyDescriptorSetLayout(engine->device, engine->node_texture_manager.descriptor_set_layout, nullptr);
 			});
 	}
 
@@ -481,7 +499,7 @@ namespace engine {
 			.pNext = &variabl_descriptor_count_info,
 			.descriptorPool = engine->node_texture_manager.descriptor_pool,
 			.descriptorSetCount = 1,
-			.pSetLayouts = &engine->node_texture_manager.descriptor_layout,
+			.pSetLayouts = &engine->node_texture_manager.descriptor_set_layout,
 		};
 
 		if (vkAllocateDescriptorSets(engine->device, &descriptor_alloc_info, &engine->node_texture_manager.descriptor_set) != VK_SUCCESS) {

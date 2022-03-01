@@ -178,7 +178,8 @@ namespace engine {
 			auto& node = nodes.back();
 
 			if constexpr (std::derived_from<NodeType, NodeTypeImageBase>) {
-				using UboT = typename ref_t<NodeType::data_type>::UboType;
+				using NodeDataType = NodeType::data_type;
+				using UboT = typename ref_t<NodeDataType>::UboType;
 				UboT ubo{};
 				for (size_t index = 0; index < UboT::Class::TotalFields; ++index) {
 					UboT::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
@@ -188,7 +189,9 @@ namespace engine {
 						});
 				}
 				node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TextureIdData>);
-				std::get<NodeType::data_type>(node.data)->uniform_buffer->copyFromHost(&ubo);
+				auto& node_data = std::get<NodeDataType>(node.data);
+				node.outputs[0].default_value = TextureIdData{.value = node_data->node_texture_id };
+				node_data->uniform_buffer->copyFromHost(&ubo);
 			}
 			else if constexpr (std::same_as<NodeType, NodeAdd>) {
 				node.inputs.emplace_back(get_next_id(), "Value", FloatData{});

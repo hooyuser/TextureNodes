@@ -43,7 +43,7 @@ struct NodeTextureManager {
 	std::unordered_set<int> used_id;
 	std::unordered_set<int> unused_id;
 	VkDescriptorPool descriptor_pool;
-	VkDescriptorSetLayout descriptor_layout;
+	VkDescriptorSetLayout descriptor_set_layout;
 	VkDescriptorSet descriptor_set;
 
 	const auto get_id() {
