@@ -25,7 +25,7 @@ struct StringLiteral {
 
 template <typename T, typename FieldType>
 struct has_field_type {
-	static constexpr bool value = []() {
+	static inline constexpr bool value = []() {
 		bool hadField = false;
 		for (size_t i = 0; i < Reflect::class_t<T>::TotalFields; i++) {
 			Reflect::class_t<T>::FieldAt(i, [&](auto& field) {

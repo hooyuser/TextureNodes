@@ -75,13 +75,6 @@ static constexpr bool any_of_tuple_v = any_of_tuple<T, Tuple>::value;
 template <typename T>
 static constexpr bool is_image_data = any_of_tuple_v<T, ImageNodeDataTypeTuple>;
 
-//template <typename T>
-//consteval bool is_image_data() {
-//	using tuple_type = ImageNodeDataTypeTuple;
-//	return std::invoke([] <std::size_t... I> (std::index_sequence<I...>) {
-//		return any_of<T, std::tuple_element_t<I, tuple_type>...>;
-//	}, std::make_index_sequence<std::tuple_size<tuple_type>::value>{});
-//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -136,14 +129,15 @@ struct Node {
 
 struct Link {
 	ed::LinkId id;
-
-	ed::PinId start_pin_id;
-	ed::PinId end_pin_id;
+	Pin* start_pin;
+	Pin* end_pin;
+	//ed::PinId start_pin_id;
+	//ed::PinId end_pin_id;
 
 	//ImColor Color;
 
-	Link(ed::LinkId id, ed::PinId startPinId, ed::PinId endPinId) :
-		id(id), start_pin_id(startPinId), end_pin_id(endPinId) {}
+	Link(ed::LinkId id, Pin* start_pin, Pin* end_pin) :
+		id(id), start_pin(start_pin), end_pin(end_pin) {}
 
 	bool operator==(const Link& link) const {
 		return (this->id == link.id);
@@ -157,6 +151,8 @@ namespace std {
 		}
 	};
 }
+
+//using NodePtr = std::unique_ptr<Node>;
 
 namespace engine {
 	class NodeEditor {

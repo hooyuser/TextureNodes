@@ -266,7 +266,7 @@ namespace engine {
 		}
 
 		for (auto& link : links) {
-			ed::Link(link.id, link.start_pin_id, link.end_pin_id, ImColor(123, 174, 111, 245), 2.5f);
+			ed::Link(link.id, link.start_pin->id, link.end_pin->id, ImColor(123, 174, 111, 245), 2.5f);
 		}
 
 		if (ed::BeginCreate()) {
@@ -278,29 +278,33 @@ namespace engine {
 					Pin* end_pin;
 					int start_pin_index = -1;
 					int end_pin_index = -1;
-					while (start_pin_index < 0 || end_pin_index<0) {
-						for (auto& node : nodes) {
-							for (size_t i = 0; i < node.outputs.size(); ++i) {
-								if (node.outputs[i].id == start_pin_id) {
-									start_pin = &node.outputs[i];
-									start_pin_index = i;
-								} else if(node.outputs[i].id == end_pin_id) {
-									end_pin = &node.outputs[i];
-									end_pin_index = i;
-								}
+					
+					for (auto& node : nodes) {
+						for (size_t i = 0; i < node.outputs.size(); ++i) {
+							if (node.outputs[i].id == start_pin_id) {
+								start_pin = &node.outputs[i];
+								start_pin_index = i;
 							}
-							for (size_t i = 0; i < node.inputs.size(); ++i) {
-								if (node.inputs[i].id == start_pin_id) {
-									start_pin = &node.inputs[i];
-									start_pin_index = i;
-								}
-								else if (node.inputs[i].id == end_pin_id) {
-									end_pin = &node.inputs[i];
-									end_pin_index = i;
-								}
+							if(node.outputs[i].id == end_pin_id) {
+								end_pin = &node.outputs[i];
+								end_pin_index = i;
 							}
 						}
+						for (size_t i = 0; i < node.inputs.size(); ++i) {
+							if (node.inputs[i].id == start_pin_id) {
+								start_pin = &node.inputs[i];
+								start_pin_index = i;
+							}
+							if (node.inputs[i].id == end_pin_id) {
+								end_pin = &node.inputs[i];
+								end_pin_index = i;
+							}
+						}
+						if (start_pin_index >= 0 && end_pin_index >= 0) {
+							break;
+						}
 					}
+					
 					auto showLabel = [](const char* label, ImColor color) {
 						ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetTextLineHeight());
 						auto size = ImGui::CalcTextSize(label);
@@ -317,7 +321,7 @@ namespace engine {
 						drawList->AddRectFilled(rectMin, rectMax, color, size.y * 0.15f);
 						ImGui::TextUnformatted(label);
 					};
-					if (start_pin == end_pin) {
+					if (start_pin->id == end_pin->id) {
 						ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
 					}
 					else if (start_pin->flow_direction == end_pin->flow_direction) {
@@ -337,9 +341,23 @@ namespace engine {
 							std::swap(start_pin, end_pin);
 							std::swap(start_pin_index, end_pin_index);
 						}
-						links.emplace(ed::LinkId(get_next_id()), start_pin_id, end_pin_id);
+						
 						start_pin->connected_pins.emplace(end_pin);
+						if (!end_pin->connected_pins.empty()) {
+							auto deleted_link = std::find_if(links.begin(), links.end(), [=](auto& link) {
+								return link.end_pin->id == end_pin->id;
+								});
+							if (deleted_link != links.end()) {
+								links.erase(deleted_link);
+							}
+							for (Pin* pin : end_pin->connected_pins) {
+								pin->connected_pins.erase(end_pin);
+							}
+							end_pin->connected_pins.clear();
+						}
 						end_pin->connected_pins.emplace(start_pin);
+
+						links.emplace(ed::LinkId(get_next_id()), start_pin, end_pin);
 
 						std::visit([&](auto&& node_data) {
 							using NodeT = std::decay_t<decltype(node_data)>;
@@ -367,26 +385,13 @@ namespace engine {
 						return link.id == deleted_link_id;
 						});
 
-					auto x = deleted_link != links.end();
-					//connect_nodes
 					if (deleted_link != links.end()) {
-						auto start_pin_id = deleted_link->start_pin_id;
-						auto end_pin_id = deleted_link->end_pin_id;
-						std::invoke([&] {
-							for (auto& node : nodes) {
-								for (auto& pin : node.outputs) {
-									if (pin.id == start_pin_id) {
-										for (auto connected_pin : pin.connected_pins) {
-											if (connected_pin->id == end_pin_id) {
-												pin.connected_pins.erase(connected_pin);
-												connected_pin->connected_pins.erase(&pin);
-												return;
-											}
-										}
-									}
-								}
-							}
-							});
+						auto link_start_pin = deleted_link->start_pin;
+						auto link_end_pin = deleted_link->end_pin;
+
+						link_start_pin->connected_pins.erase(link_end_pin);
+						link_end_pin->connected_pins.erase(link_start_pin);
+			
 						links.erase(deleted_link);
 					}
 				}
