@@ -26,7 +26,7 @@ namespace engine {
 		return next_id++;
 	}
 
-	void NodeEditor::update_from(Node* node) {
+	void NodeEditor::update_from(uint32_t node_index) {
 		std::visit([&](auto&& node_data) {
 			using NodeDataT = std::decay_t<decltype(node_data)>;
 			if constexpr (is_image_data<NodeDataT>) {
@@ -49,17 +49,17 @@ namespace engine {
 			else if constexpr (std::is_same_v<NodeDataT, Color4Data>) {
 
 			}
-			}, node->data);
+			}, nodes[node_index].data);
 	}
 
-	void NodeEditor::build_node(Node* node) {
-		for (auto&& input : node->inputs) {
-			input.node = node;
+	void NodeEditor::build_node(uint32_t node_index) {
+		for (auto&& input : nodes[node_index].inputs) {
+			input.node_index = node_index;
 			input.flow_direction = PinInOut::INPUT;
 		}
 
-		for (auto&& output : node->outputs) {
-			output.node = node;
+		for (auto&& output : nodes[node_index].outputs) {
+			output.node_index = node_index;
 			output.flow_direction = PinInOut::OUTPUT;
 		}
 	}
@@ -82,8 +82,8 @@ namespace engine {
 		ed::Begin("My Editor", ImVec2(0.0f, 0.0f));
 
 		// Start drawing nodes.
-		for (auto& node : nodes) {
-
+		for (std::size_t node_index = 0; node_index < nodes.size(); ++node_index) {
+			auto& node = nodes[node_index];
 			ed::BeginNode(node.id);
 			auto yy = ImGui::GetCursorPosY();
 			ImGui::Text(node.type_name.c_str());
@@ -171,7 +171,7 @@ namespace engine {
 										}
 										if (response_flag) {
 											node_data->update_ubo(pin->default_value, i);
-											update_from(&node);
+											update_from(node_index);
 										}
 										});
 								}
@@ -208,7 +208,7 @@ namespace engine {
 								using NodeT = std::decay_t<decltype(node_data)>;
 								if constexpr (is_image_data<NodeT>) {
 									node_data->update_ubo(pin->default_value, i);
-									update_from(&node);
+									update_from(node_index);
 								}
 								}, node.data);
 						}
@@ -255,7 +255,7 @@ namespace engine {
 							using NodeDataT = std::decay_t<decltype(node_data)>;
 							if constexpr (is_image_data<NodeDataT>) {
 								node_data->update_ubo(color_pin.default_value, *color_pin_index);  
-								update_from(&node);
+								update_from(node_index);
 							}
 							}, node.data);
 					}
@@ -364,9 +364,9 @@ namespace engine {
 							if constexpr (is_image_data<NodeT>) {
 								node_data->update_ubo(start_pin->default_value, end_pin_index); 
 							}
-							}, end_pin->node->data);
+							}, nodes[end_pin->node_index].data);
 						
-						update_from(end_pin->node);
+						update_from(end_pin->node_index);
 					}
 				}
 			}

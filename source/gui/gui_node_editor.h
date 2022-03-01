@@ -81,7 +81,7 @@ static constexpr bool is_image_data = any_of_tuple_v<T, ImageNodeDataTypeTuple>;
 struct Node;
 struct Pin {
 	ed::PinId id;
-	::Node* node = nullptr;
+	uint32_t node_index;
 	std::unordered_set<Pin*> connected_pins;
 	std::string name;
 	PinInOut flow_direction = PinInOut::INPUT;
@@ -167,12 +167,12 @@ namespace engine {
 
 		constexpr int get_next_id();
 
-		void update_from(Node* node);
+		void update_from(uint32_t node_index);
 
-		void build_node(Node* node);
+		void build_node(uint32_t node_index);
 
 		template<typename NodeType>
-		Node* create_node() {
+		uint32_t create_node() {
 			nodes.emplace_back(get_next_id(), NodeType::name(), NodeType{}, engine);
 			auto& node = nodes.back();
 
@@ -183,6 +183,7 @@ namespace engine {
 				for (size_t index = 0; index < UboT::Class::TotalFields; ++index) {
 					UboT::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
 						using PinType = std::decay_t<decltype(field)>::Type;
+						node.inputs.reserve(UboT::Class::TotalFields);
 						node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
 						node.inputs[index].default_value = value;
 						});
@@ -193,14 +194,17 @@ namespace engine {
 				node_data->uniform_buffer->copyFromHost(&ubo);
 			}
 			else if constexpr (std::same_as<NodeType, NodeAdd>) {
+				node.inputs.reserve(2);
 				node.inputs.emplace_back(get_next_id(), "Value", FloatData{});
 				node.inputs.emplace_back(get_next_id(), "Value", FloatData{});
 				node.outputs.emplace_back(get_next_id(), "Result", FloatData{});
 			}
 
-			build_node(&node);
+			uint32_t node_index = nodes.size() - 1;
 
-			return &node;
+			build_node(node_index);
+
+			return node_index;
 		}
 
 		void create_node_descriptor_pool();
