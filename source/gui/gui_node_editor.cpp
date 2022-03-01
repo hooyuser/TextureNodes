@@ -29,7 +29,7 @@ namespace engine {
 	void NodeEditor::update_from(Node* node) {
 		std::visit([&](auto&& node_data) {
 			using NodeDataT = std::decay_t<decltype(node_data)>;
-			if constexpr (is_image_data<NodeDataT>()) {
+			if constexpr (is_image_data<NodeDataT>) {
 				std::vector<VkCommandBuffer> submitCommandBuffers;
 				submitCommandBuffers.emplace_back(node_data->node_cmd_buffer);
 
@@ -140,7 +140,7 @@ namespace engine {
 							bool response_flag = false;
 							std::visit([&](auto&& node_data) {
 								using NodeDataT = std::remove_reference_t<decltype(node_data)>;
-								if constexpr (is_image_data<NodeDataT>()) {
+								if constexpr (is_image_data<NodeDataT>) {
 									using UboT = typename ref_t<NodeDataT>::UboType;
 									UboT::Class::FieldAt(i, [&](auto& field) {
 										auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
@@ -206,7 +206,7 @@ namespace engine {
 						if (ImGui::Checkbox(pin->name.c_str(), &bool_data.value)) {
 							std::visit([&](auto&& node_data) {
 								using NodeT = std::decay_t<decltype(node_data)>;
-								if constexpr (is_image_data<NodeT>()) {
+								if constexpr (is_image_data<NodeT>) {
 									node_data->update_ubo(pin->default_value, i);
 									update_from(&node);
 								}
@@ -234,7 +234,7 @@ namespace engine {
 
 			std::visit([&](auto&& arg) {
 				using T = std::decay_t<decltype(arg)>;
-				if constexpr (is_image_data<T>()) {
+				if constexpr (is_image_data<T>) {
 					ImGui::SetCursorPosX(node_rect.GetCenter().x - image_size * 0.5);
 					ImGui::SetCursorPosY(yy - image_size - 15);
 					vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);
@@ -253,7 +253,7 @@ namespace engine {
 					if (ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin.id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Color4Data>(&(color_pin.default_value))), ImGuiColorEditFlags_None, NULL)) {
 						std::visit([&](auto&& node_data) {
 							using NodeDataT = std::decay_t<decltype(node_data)>;
-							if constexpr (is_image_data<NodeDataT>()) {
+							if constexpr (is_image_data<NodeDataT>) {
 								node_data->update_ubo(color_pin.default_value, *color_pin_index);  
 								update_from(&node);
 							}
@@ -343,7 +343,7 @@ namespace engine {
 
 						std::visit([&](auto&& node_data) {
 							using NodeT = std::decay_t<decltype(node_data)>;
-							if constexpr (is_image_data<NodeT>()) {
+							if constexpr (is_image_data<NodeT>) {
 								node_data->update_ubo(start_pin->default_value, end_pin_index); 
 							}
 							}, end_pin->node->data);

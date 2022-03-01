@@ -24,12 +24,12 @@ struct NodeTransform : NodeTypeImageBase {
 			.value = 0.0f
 		};
 
-		NOTE(scale_x, NumberInputWidgetInfo{ .min = -10, .max = 10, .speed = 0.005, .enable_slider = true })
+		NOTE(scale_x, NumberInputWidgetInfo{ .min = -10, .max = 10, .speed = 0.005, .enable_slider = false })
 			FloatData scale_x {
 			.value = 1.0f
 		};
 
-		NOTE(scale_y, NumberInputWidgetInfo{ .min = -10, .max = 10, .speed = 0.005, .enable_slider = true })
+		NOTE(scale_y, NumberInputWidgetInfo{ .min = -10, .max = 10, .speed = 0.005, .enable_slider = false })
 			FloatData scale_y {
 			.value = 1.0f
 		};

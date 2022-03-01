@@ -33,14 +33,6 @@ enum class PinInOut {
 	OUTPUT
 };
 
-using PinVariant = std::variant<
-	TextureIdData,
-	FloatData,
-	IntData,
-	BoolData,
-	Color4Data
->;
-
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 using NodeTypeList = TypeList<
@@ -70,13 +62,26 @@ using ImageNodeDataTypeTuple = decltype(make_unique_typeset(to_data_type(std::de
 //	}(ImageNodeDataTypeTuple{});
 //}
 
+
+template <typename T, typename Tuple>
+struct any_of_tuple {
+	static constexpr bool value = std::invoke([] <std::size_t... I> (std::index_sequence<I...>) {
+		return any_of<T, std::tuple_element_t<I, Tuple>...>;
+	}, std::make_index_sequence<std::tuple_size<Tuple>::value>{});
+};
+template <typename T, typename Tuple>
+static constexpr bool any_of_tuple_v = any_of_tuple<T, Tuple>::value;
+
 template <typename T>
-consteval bool is_image_data() {
-	using tuple_type = ImageNodeDataTypeTuple;
-	return std::invoke([] <std::size_t... I> (std::index_sequence<I...>) {
-		return any_of<T, std::tuple_element_t<I, tuple_type>...>;
-	}, std::make_index_sequence<std::tuple_size<tuple_type>::value>{});
-}
+static constexpr bool is_image_data = any_of_tuple_v<T, ImageNodeDataTypeTuple>;
+
+//template <typename T>
+//consteval bool is_image_data() {
+//	using tuple_type = ImageNodeDataTypeTuple;
+//	return std::invoke([] <std::size_t... I> (std::index_sequence<I...>) {
+//		return any_of<T, std::tuple_element_t<I, tuple_type>...>;
+//	}, std::make_index_sequence<std::tuple_size<tuple_type>::value>{});
+//}
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -98,8 +103,6 @@ struct Pin {
 	bool operator==(const Pin& pin) const {
 		return (this->id == pin.id);
 	}
-
-	ImRect display();
 };
 
 //enum class NodeState {

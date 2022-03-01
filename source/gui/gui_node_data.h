@@ -41,9 +41,43 @@ struct has_field_type {
 template <typename T, typename FieldType>
 static constexpr bool has_field_type_v = has_field_type<T, FieldType>::value;
 
-struct TextureIdData;
-
 struct NodeData {};
+
+struct IntData : public NodeData {
+	int32_t value = 0;
+	//IntData(VulkanEngine* engine = nullptr) {};
+};
+
+struct FloatData : public NodeData {
+	float value = 0.0f;
+	//FloatData(VulkanEngine* engine = nullptr) {};
+};
+
+struct Float4Data : public NodeData {
+	float value[4] = { 0.0f };
+	//Float4Data(VulkanEngine* engine = nullptr) {};
+};
+
+struct Color4Data : public NodeData {
+	float value[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	//Color4Data(VulkanEngine* engine = nullptr) {};
+};
+
+struct BoolData : public NodeData {
+	bool value;
+};
+
+struct TextureIdData : public NodeData {
+	int value = -1;
+};
+
+using PinVariant = std::variant<
+	TextureIdData,
+	FloatData,
+	IntData,
+	BoolData,
+	Color4Data
+>;
 
 template<typename UniformBufferType, StringLiteral ...Shaders>
 struct ImageData : public NodeData {
@@ -339,8 +373,8 @@ struct ImageData : public NodeData {
 		vkDestroyFence(engine->device, fence, nullptr);
 	}
 
-	template<typename T>
-	void update_ubo(const T& value, size_t index) {
+	//template<typename T>
+	void update_ubo(const PinVariant& value, size_t index) {
 		UboType::Class::FieldAt(index, [&](auto& field) {
 			using PinT = std::decay_t<decltype(field)>::Type;
 			uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
@@ -354,31 +388,5 @@ struct ImageData : public NodeData {
 template<typename UboType, StringLiteral ...Shaders>
 using ImageDataPtr = std::shared_ptr<ImageData<UboType, Shaders...>>;
 
-struct IntData : public NodeData {
-	int32_t value = 0;
-	//IntData(VulkanEngine* engine = nullptr) {};
-};
 
-struct FloatData : public NodeData {
-	float value = 0.0f;
-	//FloatData(VulkanEngine* engine = nullptr) {};
-};
-
-struct Float4Data : public NodeData {
-	float value[4] = { 0.0f };
-	//Float4Data(VulkanEngine* engine = nullptr) {};
-};
-
-struct Color4Data : public NodeData {
-	float value[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	//Color4Data(VulkanEngine* engine = nullptr) {};
-};
-
-struct BoolData : public NodeData {
-	bool value;
-};
-
-struct TextureIdData : public NodeData {
-	int value = -1;
-};
 
