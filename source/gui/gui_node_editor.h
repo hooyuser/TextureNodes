@@ -166,6 +166,10 @@ namespace engine {
 
 		std::vector<VkSubmitInfo2> submits;
 		std::vector<char> visited_nodes;
+		VkSemaphoreWaitInfo preview_semaphore_wait_info{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
+			.semaphoreCount = 1,
+		};
 		
 		constexpr static inline uint32_t preview_image_size = 128;
 		constexpr static inline uint32_t max_bindless_node_textures = 300;
