@@ -8,6 +8,8 @@
 
 class VulkanEngine;
 
+constexpr static inline uint32_t preview_image_size = 128;
+
 namespace engine {
 	class Shader;
 }
@@ -24,22 +26,26 @@ struct StringLiteral {
 };
 
 template <typename T, typename FieldType>
-struct has_field_type {
-	static inline constexpr bool value = []() {
-		bool hadField = false;
+struct count_field_type {
+	static inline constexpr size_t value = []() {
+		size_t field_count = 0;
 		for (size_t i = 0; i < Reflect::class_t<T>::TotalFields; i++) {
 			Reflect::class_t<T>::FieldAt(i, [&](auto& field) {
 				using CurrFieldType = typename std::remove_reference_t<decltype(field)>::Type;
 				if constexpr (std::is_same_v<FieldType, CurrFieldType>) {
-					hadField = true;
+					++field_count;
 				}
 				});
 		}
-		return hadField;
+		return field_count;
 	}();
 };
 template <typename T, typename FieldType>
-static constexpr bool has_field_type_v = has_field_type<T, FieldType>::value;
+static constexpr size_t count_field_type_v = count_field_type<T, FieldType>::value;
+
+
+template <typename T, typename FieldType>
+static constexpr bool has_field_type_v = (count_field_type_v<T, FieldType>) > 0;
 
 struct NodeData {};
 
@@ -76,8 +82,7 @@ using PinVariant = std::variant<
 	FloatData,
 	IntData,
 	BoolData,
-	Color4Data
->;
+	Color4Data>;
 
 template<typename UniformBufferType, StringLiteral ...Shaders>
 struct ImageData : public NodeData {
@@ -86,14 +91,33 @@ struct ImageData : public NodeData {
 	VulkanEngine* engine;
 	BufferPtr uniform_buffer;
 	TexturePtr texture;
+	TexturePtr preview_texture;
 	void* gui_texture;
 
 	VkDescriptorSet ubo_descriptor_set;
 	VkFramebuffer image_pocessing_framebuffer;
-	VkCommandBuffer node_cmd_buffer;
-	VkFence fence;
+	VkCommandBuffer image_pocessing_cmd_buffer;
+	VkCommandBuffer generate_preview_cmd_buffer;
+
+	VkSemaphore semaphore;
+	//VkFence fence;
+	//VkEvent event;
+
+	std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
+	VkCommandBufferSubmitInfo cmd_buffer_submit_info1;
+	VkSemaphoreSubmitInfo signal_semaphore_submit_info1;
+
+	VkSemaphoreSubmitInfo wait_semaphore_submit_info2;
+	VkCommandBufferSubmitInfo cmd_buffer_submit_info2;
+	VkSemaphoreSubmitInfo signal_semaphore_submit_info2;
+
+	std::array<VkSubmitInfo2, 2> submit_info;
+
+	VkImageMemoryBarrier2 image_memory_barrier;
+	VkDependencyInfo dependency_info;
 
 	int node_texture_id = -1;
+
 	uint32_t width = 1024;
 	uint32_t height = 1024;
 
@@ -115,7 +139,18 @@ struct ImageData : public NodeData {
 	//}
 	//ImageData(){};
 	ImageData(VulkanEngine* engine) :engine(engine) {
-		create_fence();
+		/*	VkEventCreateInfo event_create_info{
+				.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO,
+				.pNext = nullptr,
+			};
+
+			if (vkCreateEvent(engine->device, &event_create_info, nullptr, &event) != VK_SUCCESS) {
+				throw std::runtime_error("failed to create event!");
+			}*/
+
+			//wait_events.reserve(count_field_type_v<UboType, TextureIdData>);
+
+		create_semaphore();
 
 		create_texture();
 
@@ -141,34 +176,59 @@ struct ImageData : public NodeData {
 
 		create_framebuffer();
 
-		create_command_buffer();
+		create_image_pocessing_command_buffer();
+
+		create_preview_command_buffer();
+
+		create_cmd_buffer_submit_info();
 	}
 
 	~ImageData() {
 		engine->node_texture_manager.delete_id(node_texture_id);
-		vkFreeCommandBuffers(engine->device, engine->commandPool, 1, &node_cmd_buffer);
+		std::array cmd_buffers{ image_pocessing_cmd_buffer, generate_preview_cmd_buffer };
+		vkFreeCommandBuffers(engine->device, engine->commandPool, cmd_buffers.size(), cmd_buffers.data());
 		vkDestroyFramebuffer(engine->device, image_pocessing_framebuffer, nullptr);
 		vkFreeDescriptorSets(engine->device, engine->node_texture_manager.descriptor_pool, 1, &ubo_descriptor_set);
-		vkDestroyFence(engine->device, fence, nullptr);
+		vkDestroySemaphore(engine->device, semaphore, nullptr);
 	}
 
-	void create_fence() {
-		auto fenceInfo = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-		if (vkCreateFence(engine->device, &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create fence!");
-		}
+	void create_semaphore() {
+		VkSemaphoreTypeCreateInfo timeline_semaphore_create_info{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+			.pNext = NULL,
+			.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+			.initialValue = 0,
+		};
+
+		VkSemaphoreCreateInfo semaphore_create_info{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			.pNext = &timeline_semaphore_create_info,
+			.flags = 0,
+		};
+
+		vkCreateSemaphore(engine->device, &semaphore_create_info, NULL, &semaphore);
 	}
 
 	void create_texture() {
-		texture = engine::Texture::create_2D_render_target(engine,
-			1024,
-			1024,
+		texture = engine::Texture::create_device_texture(engine,
+			width,
+			height,
 			VK_FORMAT_R8G8B8A8_UNORM,
-			VK_IMAGE_ASPECT_COLOR_BIT);
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
 
 		texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		preview_texture = engine::Texture::create_device_texture(engine,
+			preview_image_size,
+			preview_image_size,
+			VK_FORMAT_R8G8B8A8_UNORM,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+		preview_texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		gui_texture = ImGui_ImplVulkan_AddTexture(preview_texture->sampler, preview_texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		node_texture_id = engine->node_texture_manager.get_id();
 	}
@@ -232,14 +292,14 @@ struct ImageData : public NodeData {
 
 	void create_image_pocessing_render_pass() {
 		VkAttachmentDescription colorAttachment{
-				.format = VK_FORMAT_R8G8B8A8_UNORM,
-				.samples = VK_SAMPLE_COUNT_1_BIT,
-				.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
-				.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
-				.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
-				.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
-				.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			.format = VK_FORMAT_R8G8B8A8_UNORM,
+			.samples = VK_SAMPLE_COUNT_1_BIT,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.initialLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			.finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 		};
 
 		VkAttachmentReference colorAttachmentRef{
@@ -257,21 +317,19 @@ struct ImageData : public NodeData {
 			VkSubpassDependency {
 				.srcSubpass = VK_SUBPASS_EXTERNAL,
 				.dstSubpass = 0,
-				.srcStageMask = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT,
-				.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT |
-								VK_PIPELINE_STAGE_EARLY_FRAGMENT_TESTS_BIT,
+				.srcStageMask = 0,
+				.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
 				.srcAccessMask = 0,
-				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_READ_BIT |
-								 VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 				.dependencyFlags = 0,
 			},
 			VkSubpassDependency {
 				.srcSubpass = 0,
 				.dstSubpass = VK_SUBPASS_EXTERNAL,
 				.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				.dstStageMask = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT,
+				.dstStageMask = 0,
 				.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-				.dstAccessMask = VK_ACCESS_UNIFORM_READ_BIT,
+				.dstAccessMask = 0,
 				.dependencyFlags = 0,
 			}
 		};
@@ -350,10 +408,10 @@ struct ImageData : public NodeData {
 		}
 	}
 
-	void create_command_buffer() {
+	void create_image_pocessing_command_buffer() {
 		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
 
-		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &node_cmd_buffer) != VK_SUCCESS) {
+		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &image_pocessing_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
 
@@ -361,7 +419,7 @@ struct ImageData : public NodeData {
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
 		};
 
-		if (vkBeginCommandBuffer(node_cmd_buffer, &beginInfo) != VK_SUCCESS) {
+		if (vkBeginCommandBuffer(image_pocessing_cmd_buffer, &beginInfo) != VK_SUCCESS) {
 			throw std::runtime_error("failed to begin recording command buffer!");
 		}
 
@@ -369,7 +427,7 @@ struct ImageData : public NodeData {
 
 		VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(image_pocessing_render_pass, image_extent, image_pocessing_framebuffer);
 
-		vkCmdBeginRenderPass(node_cmd_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRenderPass(image_pocessing_cmd_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 		VkViewport viewport{
 			.x = 0.0f,
@@ -390,16 +448,229 @@ struct ImageData : public NodeData {
 			std::array{ ubo_descriptor_set }
 		);
 
-		vkCmdSetViewport(node_cmd_buffer, 0, 1, &viewport);
-		vkCmdSetScissor(node_cmd_buffer, 0, 1, &scissor);
-		vkCmdBindDescriptorSets(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
-		vkCmdBindPipeline(node_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline);
-		vkCmdDraw(node_cmd_buffer, 3, 1, 0, 0);
-		vkCmdEndRenderPass(node_cmd_buffer);
+		vkCmdSetViewport(image_pocessing_cmd_buffer, 0, 1, &viewport);
+		vkCmdSetScissor(image_pocessing_cmd_buffer, 0, 1, &scissor);
+		vkCmdBindDescriptorSets(image_pocessing_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
+		vkCmdBindPipeline(image_pocessing_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline);
+		vkCmdDraw(image_pocessing_cmd_buffer, 3, 1, 0, 0);
+		vkCmdEndRenderPass(image_pocessing_cmd_buffer);
 
-		if (vkEndCommandBuffer(node_cmd_buffer) != VK_SUCCESS) {
+		if (vkEndCommandBuffer(image_pocessing_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer!");
 		}
+	}
+
+	void create_preview_command_buffer() {
+		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
+
+		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &generate_preview_cmd_buffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate command buffers!");
+		}
+
+		VkCommandBufferBeginInfo beginInfo{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		};
+
+		if (vkBeginCommandBuffer(generate_preview_cmd_buffer, &beginInfo) != VK_SUCCESS) {
+			throw std::runtime_error("failed to begin recording command buffer!");
+		}
+		{
+			auto image_memory_barrier = VkImageMemoryBarrier2{
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+				.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+				.srcAccessMask = VK_ACCESS_2_NONE,
+				.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+				.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+				.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+				.image = preview_texture->image,
+				.subresourceRange = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.levelCount = 1,
+					.layerCount = 1,
+				},
+			};
+
+			auto dependency_info = VkDependencyInfo{
+				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+				.imageMemoryBarrierCount = 1,
+				.pImageMemoryBarriers = &image_memory_barrier,
+			};
+
+			vkCmdPipelineBarrier2(generate_preview_cmd_buffer, &dependency_info);
+		}
+
+		VkImageBlit image_blit{
+			.srcSubresource = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.mipLevel = 0,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+			.srcOffsets = {
+				{0, 0, 0},
+				{static_cast<int32_t>(texture->width), static_cast<int32_t>(texture->height), 1},
+			},
+			.dstSubresource = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.mipLevel = 0,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+			.dstOffsets = {
+				{0, 0, 0},
+				{static_cast<int32_t>(preview_texture->width), static_cast<int32_t>(preview_texture->height), 1},
+			},
+		};
+
+		vkCmdBlitImage(generate_preview_cmd_buffer,
+			texture->image,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			preview_texture->image,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1,
+			&image_blit,
+			VK_FILTER_LINEAR);
+
+		{
+			auto image_memory_barrier = VkImageMemoryBarrier2{
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+				.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+				.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+				.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+				.dstAccessMask = VK_ACCESS_2_NONE,
+				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+				.image = preview_texture->image,
+				.subresourceRange = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.levelCount = 1,
+					.layerCount = 1,
+				},
+			};
+
+			auto dependency_info = VkDependencyInfo{
+				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+				.imageMemoryBarrierCount = 1,
+				.pImageMemoryBarriers = &image_memory_barrier,
+			};
+		
+
+			vkCmdPipelineBarrier2(generate_preview_cmd_buffer, &dependency_info);
+		}
+
+		{
+			auto image_memory_barrier = VkImageMemoryBarrier2{
+				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+				.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+				.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+				.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+				.dstAccessMask = VK_ACCESS_2_NONE,
+				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+				.image = texture->image,
+				.subresourceRange = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.levelCount = 1,
+					.layerCount = 1,
+				},
+			};
+
+			auto dependency_info = VkDependencyInfo{
+				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+				.imageMemoryBarrierCount = 1,
+				.pImageMemoryBarriers = &image_memory_barrier,
+			};
+
+			vkCmdPipelineBarrier2(generate_preview_cmd_buffer, &dependency_info);
+		}
+
+		if (vkEndCommandBuffer(generate_preview_cmd_buffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to record command buffer!");
+		}
+
+	}
+
+	//void record_wait_event_cmd_buffer() {
+	//	VkCommandBufferBeginInfo beginInfo{
+	//		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+	//	};
+
+	//	if (vkBeginCommandBuffer(node_wait_event_cmd_buffer, &beginInfo) != VK_SUCCESS) {
+	//		throw std::runtime_error("failed to begin recording command buffer!");
+	//	}
+
+	//	vkCmdWaitEvents2(node_wait_event_cmd_buffer, wait_events.size(), wait_events.data(), &dependency_info);
+
+	//	if (vkEndCommandBuffer(node_wait_event_cmd_buffer) != VK_SUCCESS) {
+	//		throw std::runtime_error("failed to record command buffer!");
+	//	}
+
+	//	wait_events.clear();
+	//}
+
+	void create_cmd_buffer_submit_info() {
+		std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
+		wait_semaphore_submit_info1.reserve(count_field_type_v<UboType, TextureIdData>);
+
+		cmd_buffer_submit_info1 = VkCommandBufferSubmitInfo{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+			.commandBuffer = image_pocessing_cmd_buffer,
+		};
+
+		signal_semaphore_submit_info1 = VkSemaphoreSubmitInfo{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.semaphore = semaphore,
+			.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+		};
+
+		submit_info[0] = VkSubmitInfo2{
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+			.pNext = nullptr,
+			.waitSemaphoreInfoCount = static_cast<uint32_t>(wait_semaphore_submit_info1.size()),
+			.pWaitSemaphoreInfos = wait_semaphore_submit_info1.data(),
+			.commandBufferInfoCount = 1,
+			.pCommandBufferInfos = &cmd_buffer_submit_info1,
+			.signalSemaphoreInfoCount = 1,
+			.pSignalSemaphoreInfos = &signal_semaphore_submit_info1,
+		};
+
+		wait_semaphore_submit_info2 = VkSemaphoreSubmitInfo{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.semaphore = semaphore,
+			.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+		};
+
+		cmd_buffer_submit_info2 = VkCommandBufferSubmitInfo{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+			.commandBuffer = generate_preview_cmd_buffer,
+		};
+
+		signal_semaphore_submit_info2 = VkSemaphoreSubmitInfo{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.semaphore = semaphore,
+			.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+		};
+
+		submit_info[1] = VkSubmitInfo2{
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+			.pNext = nullptr,
+			.waitSemaphoreInfoCount = 1,
+			.pWaitSemaphoreInfos = &wait_semaphore_submit_info2,
+			.commandBufferInfoCount = 1,
+			.pCommandBufferInfos = &cmd_buffer_submit_info2,
+			.signalSemaphoreInfoCount = 1,
+			.pSignalSemaphoreInfos = &signal_semaphore_submit_info2,
+		};
 	}
 
 	void update_ubo(const PinVariant& value, size_t index) {
@@ -408,9 +679,6 @@ struct ImageData : public NodeData {
 			uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
 			});
 	}
-	//VkCommandBuffer get_node_cmd_buffer() {
-	//	return node_cmd_buffer;
-	//}
 };
 
 template<typename UboType, StringLiteral ...Shaders>

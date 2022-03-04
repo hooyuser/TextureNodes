@@ -157,12 +157,12 @@ VkPipelineColorBlendAttachmentState vkinit::colorBlendAttachmentState() {
 	return colorBlendAttachment;
 }
 
-VkPipelineColorBlendStateCreateInfo vkinit::colorBlendAttachmentCreateInfo(VkPipelineColorBlendAttachmentState& colorBlendAttachment) {
+VkPipelineColorBlendStateCreateInfo vkinit::colorBlendAttachmentCreateInfo(VkPipelineColorBlendAttachmentState& colorBlendAttachment, uint32_t attachment_count) {
 	VkPipelineColorBlendStateCreateInfo colorBlending{
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 		.logicOpEnable = VK_FALSE,
 		.logicOp = VK_LOGIC_OP_COPY,
-		.attachmentCount = 1,
+		.attachmentCount = attachment_count,
 		.pAttachments = &colorBlendAttachment,
 		.blendConstants{ 0.0f, 0.0f, 0.0f, 0.0f },
 	};
@@ -184,7 +184,7 @@ VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo(std::span<VkDescript
 	return pipelineLayoutInfo;
 }
 
-VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent, const std::span<VkImageView>& attachments) {
+VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent, std::span<VkImageView> attachments) {
 	VkFramebufferCreateInfo framebufferInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
 
 	framebufferInfo.pNext = nullptr;

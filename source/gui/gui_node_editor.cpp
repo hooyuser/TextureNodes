@@ -26,30 +26,136 @@ namespace engine {
 		return next_id++;
 	}
 
-	void NodeEditor::update_from(uint32_t node_index) {
-		std::visit([&](auto&& node_data) {
-			using NodeDataT = std::decay_t<decltype(node_data)>;
-			if constexpr (is_image_data<NodeDataT>) {
-				std::vector<VkCommandBuffer> submitCommandBuffers;
-				submitCommandBuffers.emplace_back(node_data->node_cmd_buffer);
+	void NodeEditor::update_from(uint32_t updated_node_index) {
+		if (vkGetFenceStatus(engine->device, fence) != VK_SUCCESS) {
+			return;
+		}
 
-				vkResetFences(engine->device, 1, &node_data->fence);
+		std::queue<uint32_t> bfs_queue;
+		visited_nodes.resize(nodes.size(), 0);
+		submits.clear();
 
-				VkSubmitInfo submitInfo{
-					.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-					.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size()),
-					.pCommandBuffers = submitCommandBuffers.data(),
-				};
+		visited_nodes[updated_node_index] = 1;
+		bfs_queue.push(updated_node_index);
 
-				auto result = vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, node_data->fence);
-				if (result != VK_SUCCESS) {
-					throw std::runtime_error("failed to submit draw command buffer!");
+		while (!bfs_queue.empty()) {
+
+			uint32_t idx = bfs_queue.front();
+			bfs_queue.pop();
+
+			std::visit([&](auto&& node_data) {
+				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
+				if constexpr (is_image_data<NodeDataT>) {
+					//vkResetEvent(engine->device, node_data->event);
+					//submit_command_buffers.emplace_back(updated_node_data->node_cmd_buffer);
+					uint64_t counter;
+					vkGetSemaphoreCounterValue(engine->device, node_data->semaphore, &counter);
+					node_data->signal_semaphore_submit_info1.value = counter + 1;
+					node_data->wait_semaphore_submit_info2.value = counter + 1;
+					node_data->signal_semaphore_submit_info2.value = counter + 2;
+					for (auto& pin : nodes[idx].outputs) {
+						for (auto connected_pin : pin.connected_pins) {
+							uint32_t connected_node_idx = connected_pin->node_index;
+							if (visited_nodes[updated_node_index] != 0) {
+								std::visit([&](auto&& connected_node_data) {
+									if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
+										visited_nodes[updated_node_index] = 1;
+										bfs_queue.push(connected_pin->node_index);
+										connected_node_data->wait_semaphore_submit_info1.emplace_back(VkSemaphoreSubmitInfo{
+											.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+											.pNext = nullptr,
+											.semaphore = node_data->semaphore,
+											.value = counter + 2,
+											.stageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+											});
+									}
+									}, nodes[connected_pin->node_index].data);
+							}
+						}
+					}
+
+					submits.emplace_back(node_data->submit_info[0]);
+					submits.emplace_back(node_data->submit_info[1]);
+
+				}
+				}, nodes[idx].data);
+
+		}
+
+		vkResetFences(engine->device, 1, &fence);
+
+		if (vkQueueSubmit2(engine->graphicsQueue, submits.size(), submits.data(), fence) != VK_SUCCESS) {
+			throw std::runtime_error("failed to submit draw command buffer!");
+		}
+
+		//vkWaitForFences(engine->device, 1, &fence, VK_TRUE, UINT64_MAX);
+
+		//auto& node = nodes[node_index];
+		/*std::vector<VkCommandBuffer> submit_command_buffers;
+		std::unordered_set<uint32_t> current_nodes;
+		std::unordered_set<uint32_t> current_nodes_backup;
+
+		std::visit([&](auto&& updated_node_data) {
+			using UpdatedNodeDataT = std::remove_reference_t<decltype(updated_node_data)>;
+			if constexpr (is_image_data<UpdatedNodeDataT>) {
+				vkResetEvent(engine->device, updated_node_data->event);
+				submit_command_buffers.emplace_back(updated_node_data->node_cmd_buffer);
+				for (auto& pin : nodes[updated_node_index].outputs) {
+					for (auto connected_pin : pin.connected_pins) {
+						std::visit([&](auto&& connected_node_data) {
+							if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
+								current_nodes.emplace(connected_pin->node_index);
+								connected_node_data->wait_events.emplace_back(updated_node_data->event);
+							}
+							}, nodes[connected_pin->node_index].data);
+					}
 				}
 			}
-			else if constexpr (std::is_same_v<NodeDataT, Color4Data>) {
+			}, nodes[updated_node_index].data);
 
+		while (!current_nodes.empty()) {
+			current_nodes_backup.clear();
+			swap(current_nodes, current_nodes_backup);
+			for (auto node_idx : current_nodes_backup) {
+				std::visit([&](auto&& node_data) {
+					using NodeDataT = std::decay_t<decltype(node_data)>;
+					if constexpr (is_image_data<NodeDataT>) {
+						vkResetEvent(engine->device, node_data->event);
+						node_data->record_wait_event_cmd_buffer();
+						submit_command_buffers.emplace_back(node_data->node_wait_event_cmd_buffer);
+						submit_command_buffers.emplace_back(node_data->node_cmd_buffer);
+
+						for (auto& pin : nodes[node_idx].outputs) {
+							for (auto connected_pin : pin.connected_pins) {
+								std::visit([&](auto&& connected_node_data) {
+									if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
+										current_nodes.emplace(connected_pin->node_index);
+										connected_node_data->wait_events.emplace_back(node_data->event);
+									}
+									}, nodes[node_idx].data);
+							}
+						}
+					}
+					}, nodes[node_idx].data);
 			}
-			}, nodes[node_index].data);
+		}
+
+
+
+		VkSubmitInfo submitInfo{
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+			.commandBufferCount = static_cast<uint32_t>(submit_command_buffers.size()),
+			.pCommandBuffers = submit_command_buffers.data(),
+		};*/
+		/*if (vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence) != VK_SUCCESS) {
+			throw std::runtime_error("failed to submit draw command buffer!");
+		}*/
+
+		//auto result = vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, node_data->fence);
+		//if (result != VK_SUCCESS) {
+		//	throw std::runtime_error("failed to submit draw command buffer!");
+		//}
+
 	}
 
 	void NodeEditor::build_node(uint32_t node_index) {
@@ -235,10 +341,16 @@ namespace engine {
 			std::visit([&](auto&& arg) {
 				using T = std::decay_t<decltype(arg)>;
 				if constexpr (is_image_data<T>) {
-					ImGui::SetCursorPosX(node_rect.GetCenter().x - image_size * 0.5);
-					ImGui::SetCursorPosY(yy - image_size - 15);
-					vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);
-					ImGui::Image(static_cast<ImTextureID>(arg->gui_texture), ImVec2{ image_size, image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
+					ImGui::SetCursorPosX(node_rect.GetCenter().x - preview_image_size * 0.5);
+					ImGui::SetCursorPosY(yy - preview_image_size - 15);
+					//vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);
+					static uint64_t counter;
+					vkGetSemaphoreCounterValue(engine->device, arg->semaphore, &counter);
+					if (counter & 1) {
+					}
+					else {
+						ImGui::Image(static_cast<ImTextureID>(arg->gui_texture), ImVec2{ preview_image_size, preview_image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
+					}
 				}
 				else if constexpr (std::is_same_v<T, NodeAdd::data_type>) {
 
@@ -254,7 +366,7 @@ namespace engine {
 						std::visit([&](auto&& node_data) {
 							using NodeDataT = std::decay_t<decltype(node_data)>;
 							if constexpr (is_image_data<NodeDataT>) {
-								node_data->update_ubo(color_pin.default_value, *color_pin_index);  
+								node_data->update_ubo(color_pin.default_value, *color_pin_index);
 								update_from(node_index);
 							}
 							}, node.data);
@@ -278,14 +390,14 @@ namespace engine {
 					Pin* end_pin;
 					int start_pin_index = -1;
 					int end_pin_index = -1;
-					
+
 					for (auto& node : nodes) {
 						for (size_t i = 0; i < node.outputs.size(); ++i) {
 							if (node.outputs[i].id == start_pin_id) {
 								start_pin = &node.outputs[i];
 								start_pin_index = i;
 							}
-							if(node.outputs[i].id == end_pin_id) {
+							if (node.outputs[i].id == end_pin_id) {
 								end_pin = &node.outputs[i];
 								end_pin_index = i;
 							}
@@ -304,7 +416,7 @@ namespace engine {
 							break;
 						}
 					}
-					
+
 					auto showLabel = [](const char* label, ImColor color) {
 						ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetTextLineHeight());
 						auto size = ImGui::CalcTextSize(label);
@@ -336,12 +448,12 @@ namespace engine {
 					}
 					else if (ed::AcceptNewItem()) {
 						// Since we accepted new link, lets add one to our list of links.
-						
+
 						if (start_pin->flow_direction == PinInOut::INPUT) {
 							std::swap(start_pin, end_pin);
 							std::swap(start_pin_index, end_pin_index);
 						}
-						
+
 						start_pin->connected_pins.emplace(end_pin);
 						if (!end_pin->connected_pins.empty()) {
 							auto deleted_link = std::find_if(links.begin(), links.end(), [=](auto& link) {
@@ -362,10 +474,10 @@ namespace engine {
 						std::visit([&](auto&& node_data) {
 							using NodeT = std::decay_t<decltype(node_data)>;
 							if constexpr (is_image_data<NodeT>) {
-								node_data->update_ubo(start_pin->default_value, end_pin_index); 
+								node_data->update_ubo(start_pin->default_value, end_pin_index);
 							}
 							}, nodes[end_pin->node_index].data);
-						
+
 						update_from(end_pin->node_index);
 					}
 				}
@@ -391,7 +503,7 @@ namespace engine {
 
 						link_start_pin->connected_pins.erase(link_end_pin);
 						link_end_pin->connected_pins.erase(link_start_pin);
-			
+
 						links.erase(deleted_link);
 					}
 				}
@@ -427,6 +539,13 @@ namespace engine {
 		ed::End();
 		ed::SetCurrentEditor(nullptr);
 
+	}
+
+	void NodeEditor::create_fence() {
+		auto fenceInfo = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+		if (vkCreateFence(engine->device, &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create fence!");
+		}
 	}
 
 	void NodeEditor::create_node_descriptor_pool() {
@@ -517,6 +636,7 @@ namespace engine {
 		config.SettingsFile = "Simple.json";
 		context = ed::CreateEditor(&config);
 
+		create_fence();
 		create_node_descriptor_pool();
 		create_node_descriptor_set_layouts();
 		create_node_texture_descriptor_set();
@@ -527,6 +647,7 @@ namespace engine {
 
 		engine->main_deletion_queue.push_function([=]() {
 			nodes.clear();
+			vkDestroyFence(engine->device, fence, nullptr);
 			ed::DestroyEditor(context);
 			});
 	}

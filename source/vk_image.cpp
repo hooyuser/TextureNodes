@@ -402,7 +402,7 @@ namespace engine {
 		auto pTexture = std::make_shared<Texture>(engine->device,
 			engine->physicalDevice,
 			width,
-			width,
+			height,
 			mipLevels,
 			VK_SAMPLE_COUNT_1_BIT,
 			format,
@@ -430,7 +430,7 @@ namespace engine {
 		auto pTexture = std::make_shared<Texture>(engine->device,
 			engine->physicalDevice,
 			width,
-			width,
+			height,
 			mipLevels,
 			VK_SAMPLE_COUNT_1_BIT,
 			format,
@@ -460,12 +460,40 @@ namespace engine {
 		auto pTexture = std::make_shared<Texture>(engine->device,
 			engine->physicalDevice,
 			width,
-			width,
+			height,
 			1,
 			VK_SAMPLE_COUNT_1_BIT,
 			format,
 			VK_IMAGE_TILING_OPTIMAL,
 			usage_flag | VK_IMAGE_USAGE_SAMPLED_BIT,
+			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			aspectFlags,
+			VK_FILTER_LINEAR);
+		if (imageDescription & 0x00000001) {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
+				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
+				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
+				vkDestroyImage(engine->device, pTexture->image, nullptr);
+				vkFreeMemory(engine->device, pTexture->memory, nullptr);
+				pTexture->image = VK_NULL_HANDLE;
+				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->memory = VK_NULL_HANDLE;
+				pTexture->sampler = VK_NULL_HANDLE;
+				});
+		}
+		return pTexture;
+	}
+
+	TexturePtr Texture::create_device_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspectFlags, VkImageUsageFlags usage_flag, CreateResourceFlagBits imageDescription) {
+		auto pTexture = std::make_shared<Texture>(engine->device,
+			engine->physicalDevice,
+			width,
+			height,
+			1,
+			VK_SAMPLE_COUNT_1_BIT,
+			format,
+			VK_IMAGE_TILING_OPTIMAL,
+			usage_flag,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			aspectFlags,
 			VK_FILTER_LINEAR);

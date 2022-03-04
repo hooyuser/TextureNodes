@@ -340,14 +340,21 @@ void VulkanEngine::create_logical_device() {
 			});
 	}
 
-	VkPhysicalDeviceDescriptorIndexingFeatures descriptorIndexingFeatures{
-		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_INDEXING_FEATURES,
+	VkPhysicalDeviceVulkan13Features vk13_features{
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_3_FEATURES,
 		.pNext = nullptr,
+		.synchronization2 = VK_TRUE,
+	};
+
+	VkPhysicalDeviceVulkan12Features vk12_features{
+		.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_FEATURES,
+		.pNext = &vk13_features,
 		.shaderSampledImageArrayNonUniformIndexing = VK_TRUE,
 		.descriptorBindingSampledImageUpdateAfterBind = VK_TRUE,
 		.descriptorBindingPartiallyBound = VK_TRUE,
 		.descriptorBindingVariableDescriptorCount = VK_TRUE,
 		.runtimeDescriptorArray = VK_TRUE,
+		.timelineSemaphore = VK_TRUE,
 	};
 
 	VkPhysicalDeviceFeatures deviceFeatures{
@@ -356,7 +363,7 @@ void VulkanEngine::create_logical_device() {
 
 	VkDeviceCreateInfo createInfo{
 		.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO,
-		.pNext = &descriptorIndexingFeatures,
+		.pNext = &vk12_features,
 		.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
 		.pQueueCreateInfos = queueCreateInfos.data(),
 		.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
@@ -713,7 +720,7 @@ void VulkanEngine::create_descriptor_set_layouts() {
 	create_descriptor_set_layout(scenebindings, sceneSetLayout);
 }
 
-void VulkanEngine::create_descriptor_set_layout(std::span<VkDescriptorSetLayoutBinding>&& descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
+void VulkanEngine::create_descriptor_set_layout(std::span<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
 	VkDescriptorSetLayoutCreateInfo layoutInfo{
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 		.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size()),

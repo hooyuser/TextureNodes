@@ -75,7 +75,6 @@ static constexpr bool any_of_tuple_v = any_of_tuple<T, Tuple>::value;
 template <typename T>
 static constexpr bool is_image_data = any_of_tuple_v<T, ImageNodeDataTypeTuple>;
 
-
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 struct Node;
@@ -161,8 +160,14 @@ namespace engine {
 		ed::EditorContext* context = nullptr;
 		std::vector<Node> nodes;
 		std::unordered_set<Link> links;
+		VkFence fence;
 		int next_id = 1;
-		constexpr static inline int image_size = 128;
+		//uint64_t semophore_counter = 0;
+
+		std::vector<VkSubmitInfo2> submits;
+		std::vector<char> visited_nodes;
+		
+		constexpr static inline uint32_t preview_image_size = 128;
 		constexpr static inline uint32_t max_bindless_node_textures = 300;
 
 		constexpr int get_next_id();
@@ -190,7 +195,7 @@ namespace engine {
 				}
 				node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TextureIdData>);
 				auto& node_data = std::get<NodeDataType>(node.data);
-				node.outputs[0].default_value = TextureIdData{.value = node_data->node_texture_id };
+				node.outputs[0].default_value = TextureIdData{ .value = node_data->node_texture_id };
 				node_data->uniform_buffer->copyFromHost(&ubo);
 			}
 			else if constexpr (std::same_as<NodeType, NodeAdd>) {
@@ -206,6 +211,7 @@ namespace engine {
 
 			return node_index;
 		}
+		void create_fence();
 
 		void create_node_descriptor_pool();
 
@@ -217,6 +223,20 @@ namespace engine {
 		NodeEditor(VulkanEngine* engine);
 
 		void draw();
+
+		template<std::invocable<uint32_t> Func>
+		void for_each_connected_image_node(Func&& func, uint32_t node_index) {  //node_index is the index of current node
+			for (auto& pin : nodes[node_index].outputs) {
+				for (auto connected_pin : pin.connected_pins) {
+					std::visit([&](auto&& connected_node_data) {
+						using NodeDataT = std::decay_t<decltype(connected_node_data)>;
+						if constexpr (is_image_data<NodeDataT>) {
+							std::invoke(FWD(func), (connected_pin->node_index));
+						}
+						}, nodes[connected_pin->node_index].data);
+				}
+			}
+		}
 	};
 };
 
