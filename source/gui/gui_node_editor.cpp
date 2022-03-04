@@ -46,8 +46,6 @@ namespace engine {
 			std::visit([&](auto&& node_data) {
 				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
 				if constexpr (is_image_data<NodeDataT>) {
-					//vkResetEvent(engine->device, node_data->event);
-					//submit_command_buffers.emplace_back(updated_node_data->node_cmd_buffer);
 					uint64_t counter;
 					vkGetSemaphoreCounterValue(engine->device, node_data->semaphore, &counter);
 					node_data->signal_semaphore_submit_info1.value = counter + 1;
@@ -73,13 +71,10 @@ namespace engine {
 							}
 						}
 					}
-
 					submits.emplace_back(node_data->submit_info[0]);
 					submits.emplace_back(node_data->submit_info[1]);
-
 				}
 				}, nodes[idx].data);
-
 		}
 
 		vkResetFences(engine->device, 1, &fence);
@@ -87,75 +82,6 @@ namespace engine {
 		if (vkQueueSubmit2(engine->graphicsQueue, submits.size(), submits.data(), fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
-
-		//vkWaitForFences(engine->device, 1, &fence, VK_TRUE, UINT64_MAX);
-
-		//auto& node = nodes[node_index];
-		/*std::vector<VkCommandBuffer> submit_command_buffers;
-		std::unordered_set<uint32_t> current_nodes;
-		std::unordered_set<uint32_t> current_nodes_backup;
-
-		std::visit([&](auto&& updated_node_data) {
-			using UpdatedNodeDataT = std::remove_reference_t<decltype(updated_node_data)>;
-			if constexpr (is_image_data<UpdatedNodeDataT>) {
-				vkResetEvent(engine->device, updated_node_data->event);
-				submit_command_buffers.emplace_back(updated_node_data->node_cmd_buffer);
-				for (auto& pin : nodes[updated_node_index].outputs) {
-					for (auto connected_pin : pin.connected_pins) {
-						std::visit([&](auto&& connected_node_data) {
-							if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
-								current_nodes.emplace(connected_pin->node_index);
-								connected_node_data->wait_events.emplace_back(updated_node_data->event);
-							}
-							}, nodes[connected_pin->node_index].data);
-					}
-				}
-			}
-			}, nodes[updated_node_index].data);
-
-		while (!current_nodes.empty()) {
-			current_nodes_backup.clear();
-			swap(current_nodes, current_nodes_backup);
-			for (auto node_idx : current_nodes_backup) {
-				std::visit([&](auto&& node_data) {
-					using NodeDataT = std::decay_t<decltype(node_data)>;
-					if constexpr (is_image_data<NodeDataT>) {
-						vkResetEvent(engine->device, node_data->event);
-						node_data->record_wait_event_cmd_buffer();
-						submit_command_buffers.emplace_back(node_data->node_wait_event_cmd_buffer);
-						submit_command_buffers.emplace_back(node_data->node_cmd_buffer);
-
-						for (auto& pin : nodes[node_idx].outputs) {
-							for (auto connected_pin : pin.connected_pins) {
-								std::visit([&](auto&& connected_node_data) {
-									if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
-										current_nodes.emplace(connected_pin->node_index);
-										connected_node_data->wait_events.emplace_back(node_data->event);
-									}
-									}, nodes[node_idx].data);
-							}
-						}
-					}
-					}, nodes[node_idx].data);
-			}
-		}
-
-
-
-		VkSubmitInfo submitInfo{
-			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-			.commandBufferCount = static_cast<uint32_t>(submit_command_buffers.size()),
-			.pCommandBuffers = submit_command_buffers.data(),
-		};*/
-		/*if (vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence) != VK_SUCCESS) {
-			throw std::runtime_error("failed to submit draw command buffer!");
-		}*/
-
-		//auto result = vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, node_data->fence);
-		//if (result != VK_SUCCESS) {
-		//	throw std::runtime_error("failed to submit draw command buffer!");
-		//}
-
 	}
 
 	void NodeEditor::build_node(uint32_t node_index) {

@@ -100,8 +100,6 @@ struct ImageData : public NodeData {
 	VkCommandBuffer generate_preview_cmd_buffer;
 
 	VkSemaphore semaphore;
-	//VkFence fence;
-	//VkEvent event;
 
 	std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
 	VkCommandBufferSubmitInfo cmd_buffer_submit_info1;
@@ -126,30 +124,8 @@ struct ImageData : public NodeData {
 	inline static VkPipeline image_pocessing_pipeline = nullptr;
 	inline static VkRenderPass image_pocessing_render_pass = nullptr;
 
-	//ImageData(const ImageData& data) {
-	//	texture = data.texture;
-	//	uniform_buffer = data.uniform_buffer;
-	//	descriptor_set = data.descriptor_set;
-	//}
-	//ImageData& operator=(const ImageData& data){
-	//	texture = data.texture;
-	//	uniform_buffer = data.uniform_buffer;
-	//	descriptor_set = data.descriptor_set;
-	//	return *this;
-	//}
-	//ImageData(){};
 	ImageData(VulkanEngine* engine) :engine(engine) {
-		/*	VkEventCreateInfo event_create_info{
-				.sType = VK_STRUCTURE_TYPE_EVENT_CREATE_INFO,
-				.pNext = nullptr,
-			};
-
-			if (vkCreateEvent(engine->device, &event_create_info, nullptr, &event) != VK_SUCCESS) {
-				throw std::runtime_error("failed to create event!");
-			}*/
-
-			//wait_events.reserve(count_field_type_v<UboType, TextureIdData>);
-
+		
 		create_semaphore();
 
 		create_texture();
@@ -429,11 +405,20 @@ struct ImageData : public NodeData {
 
 		vkCmdBeginRenderPass(image_pocessing_cmd_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
+		//VkViewport viewport{
+		//	.x = 0.0f,
+		//	.y = static_cast<float>(height),
+		//	.width = static_cast<float>(width),
+		//	.height = -static_cast<float>(height),    // flip y axis
+		//	.minDepth = 0.0f,
+		//	.maxDepth = 1.0f,
+		//};
+
 		VkViewport viewport{
 			.x = 0.0f,
-			.y = static_cast<float>(height),
+			.y = 0.0f,
 			.width = static_cast<float>(width),
-			.height = -static_cast<float>(height),    // flip y axis
+			.height = static_cast<float>(height),   
 			.minDepth = 0.0f,
 			.maxDepth = 1.0f,
 		};
@@ -559,7 +544,6 @@ struct ImageData : public NodeData {
 				.pImageMemoryBarriers = &image_memory_barrier,
 			};
 		
-
 			vkCmdPipelineBarrier2(generate_preview_cmd_buffer, &dependency_info);
 		}
 
@@ -596,24 +580,6 @@ struct ImageData : public NodeData {
 		}
 
 	}
-
-	//void record_wait_event_cmd_buffer() {
-	//	VkCommandBufferBeginInfo beginInfo{
-	//		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
-	//	};
-
-	//	if (vkBeginCommandBuffer(node_wait_event_cmd_buffer, &beginInfo) != VK_SUCCESS) {
-	//		throw std::runtime_error("failed to begin recording command buffer!");
-	//	}
-
-	//	vkCmdWaitEvents2(node_wait_event_cmd_buffer, wait_events.size(), wait_events.data(), &dependency_info);
-
-	//	if (vkEndCommandBuffer(node_wait_event_cmd_buffer) != VK_SUCCESS) {
-	//		throw std::runtime_error("failed to record command buffer!");
-	//	}
-
-	//	wait_events.clear();
-	//}
 
 	void create_cmd_buffer_submit_info() {
 		std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
