@@ -217,24 +217,29 @@ namespace engine {
 	{
 		ImGui::Render();
 
-		VkCommandBufferBeginInfo commandBufferBeginInfo = {};
-		commandBufferBeginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-		commandBufferBeginInfo.flags |= VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+		VkCommandBufferBeginInfo commandBufferBeginInfo = {
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+		};
 		vkBeginCommandBuffer(command_buffers[imageIndex], &commandBufferBeginInfo);
 
-		VkRenderPassBeginInfo renderPassBeginInfo{};
-		renderPassBeginInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO;
-		renderPassBeginInfo.renderPass = renderPass;
-		renderPassBeginInfo.framebuffer = framebuffers[imageIndex];
-		renderPassBeginInfo.renderArea.offset = { 0, 0 };
-		renderPassBeginInfo.renderArea.extent = engine->swapChainExtent;
+		VkClearValue clearValues{
+			.color = { 1.0f, 0.0f, 0.0f, 1.0f }
+		};
 
-		VkClearValue clearValues{};
-		clearValues.color = { 1.0f, 0.0f, 0.0f, 1.0f };
+		VkRenderPassBeginInfo renderPassBeginInfo{
+			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
+			.renderPass = renderPass,
+			.framebuffer = framebuffers[imageIndex],
+			.renderArea = {
+				.offset = {0, 0},
+				.extent = engine->swapChainExtent,
+			},
+			.clearValueCount = 1,
+			.pClearValues = &clearValues,
 
-		renderPassBeginInfo.clearValueCount = 1;
-		renderPassBeginInfo.pClearValues = &clearValues;
-
+		};
+		
 		vkCmdBeginRenderPass(command_buffers[imageIndex], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
 		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffers[imageIndex]);
 		vkCmdEndRenderPass(command_buffers[imageIndex]);
