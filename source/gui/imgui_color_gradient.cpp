@@ -345,7 +345,7 @@ namespace ImGui
             draggingMark = nullptr;
         }
         
-        if(ImGui::IsMouseDragging(0) && draggingMark)
+        if (ImGui::IsMouseDragging(0) && draggingMark)
         {
             float increment = ImGui::GetIO().MouseDelta.x / maxWidth;
             bool insideZone = (ImGui::GetIO().MousePos.x > bar_pos.x) &&

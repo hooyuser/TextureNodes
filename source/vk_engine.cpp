@@ -11,6 +11,8 @@
 #include "vk_material.h"
 #include "vk_gui.h"
 
+#include "gui/imgui_color_gradient.h"
+
 #include <cstring>
 #include <array>
 #include <set>
@@ -1411,6 +1413,24 @@ void VulkanEngine::draw_frame() {
 		ImGui::Begin("Texture Viewer");
 		ImGui::PopStyleColor();
 		{
+			//ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
+			//ImVec2 viewer_size = ImGui::GetContentRegionAvail();
+			//ImGui::SetCursorPos(ImVec2{ 0, window_size.y - viewer_size.y + 10 });
+
+			//static ImGradient gradient;
+			//if (ImGui::GradientButton(&gradient)) {
+			//	ImGui::OpenPopup("Gradient##1");
+			//}
+			//if (ImGui::BeginPopup("Gradient##1")) {
+
+			//	//set show editor flag to true/false
+			//	static ImGradientMark* draggingMark = nullptr;
+			//	static ImGradientMark* selectedMark = nullptr;
+
+			//	bool updated = ImGui::GradientEditor(&gradient, draggingMark, selectedMark);
+			//	ImGui::EndPopup();
+			//}
+		
 			if (auto handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
 				ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
 				ImVec2 viewer_size = ImGui::GetContentRegionAvail();
