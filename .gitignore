@@ -13,6 +13,7 @@ build[0-9]*/*
 *.ini
 *.json
 *.exe
+*.ttf
 
 # User-specific files
 *.rsuser

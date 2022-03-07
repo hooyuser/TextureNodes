@@ -1394,26 +1394,36 @@ void VulkanEngine::draw_frame() {
 
 			// we now dock our windows into the docking node we made above
 			ImGui::DockBuilderDockWindow("Node Editor", dock_id_down);
-			ImGui::DockBuilderDockWindow("Left", dock_id_left);
+			ImGui::DockBuilderDockWindow("Texture Viewer", dock_id_left);
 			ImGui::DockBuilderDockWindow("3D Viewport", dock_id_right);
 			ImGui::DockBuilderFinish(dockspace_id);
 		}
 		ImGui::End();
 
-		ImGui::Begin("Left");
-		{
-			ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
-			ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
-			ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
-			ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);
-		}
-		ImGui::End();
-
-
 		ImGui::Begin("Node Editor", nullptr, ImGuiWindowFlags_MenuBar);
 		//ImGui::Begin("Node Editor");
 		{
 			node_editor->draw();
+		}
+		ImGui::End();
+
+		ImGui::PushStyleColor(ImGuiCol_ChildBg, ImVec4(0.227115f, 0.227115f, 0.227115f, 1.0f));
+		ImGui::Begin("Texture Viewer");
+		ImGui::PopStyleColor();
+		{
+			if (auto handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
+				ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
+				ImVec2 viewer_size = ImGui::GetContentRegionAvail();
+				constexpr static float scale_factor = 0.96;
+				float image_width = std::min(viewer_size.x, viewer_size.y) * scale_factor;
+				ImVec2 image_size = ImVec2{ image_width, image_width };
+				ImGui::SetCursorPos((viewer_size - image_size) * 0.5f + ImVec2{ 0, window_size.y - viewer_size.y });
+				ImGui::Image(handle, image_size, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
+			}
+			
+			//ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
+			//ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
+			//ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);
 		}
 		ImGui::End();
 
@@ -1431,7 +1441,7 @@ void VulkanEngine::draw_frame() {
 		viewport3D.width = viewportPanelSize.x;
 		viewport3D.height = viewportPanelSize.y;
 		update_uniform_buffer(imageIndex);
-		ImVec2 uv{ viewportPanelSize.x / screen_width , viewportPanelSize.y / screen_width };
+		ImVec2 uv{ viewportPanelSize.x / screen_width , viewportPanelSize.y / screen_height };
 
 		ImGui::Image(static_cast<ImTextureID>(viewport3D.gui_textures[imageIndex]), viewportPanelSize, ImVec2{ 0, 0 }, uv);
 		mouse_hover_viewport = ImGui::IsItemHovered() ? true : false;

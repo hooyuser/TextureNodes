@@ -5,6 +5,7 @@
 #include "imgui_impl_glfw.h"
 #include "vk_util.h"
 #include "vk_image.h"
+#include <IconsFontAwesome5.h>
 
 #include <filesystem>
 #include <array>
@@ -169,12 +170,20 @@ namespace engine {
 			0,
 		};
 
-		ImFontConfig config;
+		ImFontConfig config{};
 		config.OversampleH = 7;
 		config.OversampleV = 4;
 		config.PixelSnapH = false;
 		ImFont* font = io.Fonts->AddFontFromFileTTF((std::filesystem::path(std::getenv("WINDIR")) / "Fonts" / "segoeui.ttf").string().c_str(), 22.0f, &config, ranges);
 		assert(font != NULL);
+
+		static const ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
+		ImFontConfig icons_config{};
+		icons_config.OversampleH = 8;
+		icons_config.OversampleV = 4;
+		icons_config.MergeMode = true;
+		icons_config.PixelSnapH = true;
+		io.Fonts->AddFontFromFileTTF((std::filesystem::path("assets") / "fonts" / FONT_ICON_FILE_NAME_FAS).string().c_str(), 22.0f, &icons_config, icons_ranges);
 
 		immediate_submit(engine, [&](VkCommandBuffer cmd) {
 			ImGui_ImplVulkan_CreateFontsTexture(cmd);

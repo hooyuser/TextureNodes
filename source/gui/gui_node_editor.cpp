@@ -1,7 +1,9 @@
 #include "gui_node_editor.h"
+
 #include "../vk_engine.h"
 #include "../vk_initializers.h"
 #include "../vk_shader.h"
+#include <IconsFontAwesome5.h>
 #include <ranges>
 
 template <typename T, typename ArrayElementT>
@@ -102,6 +104,7 @@ namespace engine {
 	}
 
 	void NodeEditor::draw() {
+		
 		if (ImGui::BeginMenuBar()) {
 			if (ImGui::BeginMenu("Add")) {
 				NodeTypeList::for_each([&]<typename T> () {
@@ -112,11 +115,16 @@ namespace engine {
 				ImGui::EndMenu();
 			}
 			ImGui::EndMenuBar();
-		}
+		} 
 
 		ImGui::ShowDemoWindow();
 		ed::SetCurrentEditor(context);
 		ed::Begin("My Editor", ImVec2(0.0f, 0.0f));
+
+		//Set display node
+		if (auto node_id = ed::GetDoubleClickedNode(); node_id != ed::NodeId::Invalid) {
+			display_node_id = node_id;
+		}
 
 		static std::optional<size_t> color_node_index;  //implies whether colorpicker should be open
 		static std::optional<size_t> color_pin_index;
@@ -298,6 +306,21 @@ namespace engine {
 
 			ed::EndNode();
 
+			//Draw display icon
+			if (node.id == display_node_id) {
+				ImGui::SetCursorPosX(node_rect.GetTR().x + 10);
+				ImGui::SetCursorPosY(yy);
+				ImGui::TextColored(ImVec4(1.0f, 0.324f, 0.0f, 1.0f), "  " ICON_FA_EYE);
+				std::visit([&](auto&& node_data) {
+					using T = std::decay_t<decltype(node_data)>;
+					if constexpr (is_image_data<T>) {
+						gui_display_texture_handle = node_data->gui_texture;
+					}
+					else {
+						gui_display_texture_handle = nullptr;
+					}
+					}, node.data);
+			}
 
 			//Draw preview image
 			std::visit([&](auto&& arg) {
@@ -308,7 +331,7 @@ namespace engine {
 					//vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);
 					static uint64_t counter;
 					vkGetSemaphoreCounterValue(engine->device, arg->semaphore, &counter);
-					if (counter & 1) {
+					if (counter & 1) { //counter is odd implies the preview texture is being written
 						const uint64_t wait_value = counter + 1;
 						preview_semaphore_wait_info.pSemaphores = &arg->semaphore;
 						preview_semaphore_wait_info.pValues = &wait_value;

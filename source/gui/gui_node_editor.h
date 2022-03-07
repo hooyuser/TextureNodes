@@ -165,6 +165,9 @@ namespace engine {
 		std::unordered_set<Link> links;
 		VkFence fence;
 		int next_id = 1;
+
+		ed::NodeId display_node_id = ed::NodeId::Invalid;
+		void* gui_display_texture_handle = nullptr;
 		//uint64_t semophore_counter = 0;
 
 		std::vector<VkSubmitInfo2> submits;
@@ -228,6 +231,10 @@ namespace engine {
 
 	public:
 		NodeEditor(VulkanEngine* engine);
+
+		void* get_gui_display_texture_handle() {
+			return gui_display_texture_handle;
+		}
 
 		void draw();
 

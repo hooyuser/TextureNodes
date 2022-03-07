@@ -98,6 +98,7 @@ struct ImageData : public NodeData {
 	TexturePtr texture;
 	TexturePtr preview_texture;
 	void* gui_texture;
+	void* gui_preview_texture;
 
 	VkDescriptorSet ubo_descriptor_set;
 	VkFramebuffer image_pocessing_framebuffer;
@@ -209,7 +210,9 @@ struct ImageData : public NodeData {
 
 		preview_texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		gui_texture = ImGui_ImplVulkan_AddTexture(preview_texture->sampler, preview_texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		gui_preview_texture = ImGui_ImplVulkan_AddTexture(preview_texture->sampler, preview_texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		node_texture_id = engine->node_texture_manager.get_id();
 	}

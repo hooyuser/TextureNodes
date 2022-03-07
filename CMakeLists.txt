@@ -55,6 +55,7 @@ target_include_directories(${PROJECT_NAME}
         ${EXTERN_DIR}/imgui/backends
         ${EXTERN_DIR}/imgui-node-editor
         ${EXTERN_DIR}/magic_enum/include
+        ${EXTERN_DIR}/IconsFont
 )
 
 target_link_libraries(${PROJECT_NAME}
@@ -65,5 +66,7 @@ target_link_libraries(${PROJECT_NAME}
         imgui-node-editor
 )
 
-set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+if (MSVC)
+    set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+endif()
 
