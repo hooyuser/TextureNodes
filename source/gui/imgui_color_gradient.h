@@ -53,7 +53,7 @@
 
 struct ImGradientMark
 {
-    float color[4];
+    float color[3];
     float position; //0 to 1
 };
 

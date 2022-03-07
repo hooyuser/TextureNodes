@@ -1413,33 +1413,31 @@ void VulkanEngine::draw_frame() {
 		ImGui::Begin("Texture Viewer");
 		ImGui::PopStyleColor();
 		{
-			//ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
-			//ImVec2 viewer_size = ImGui::GetContentRegionAvail();
-			//ImGui::SetCursorPos(ImVec2{ 0, window_size.y - viewer_size.y + 10 });
+			ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
+			ImVec2 viewer_size = ImGui::GetContentRegionAvail();
+			ImGui::SetCursorPos(ImVec2{ 0, window_size.y - viewer_size.y + 10 });
 
-			//static ImGradient gradient;
-			//if (ImGui::GradientButton(&gradient)) {
-			//	ImGui::OpenPopup("Gradient##1");
-			//}
-			//if (ImGui::BeginPopup("Gradient##1")) {
-
-			//	//set show editor flag to true/false
-			//	static ImGradientMark* draggingMark = nullptr;
-			//	static ImGradientMark* selectedMark = nullptr;
-
-			//	bool updated = ImGui::GradientEditor(&gradient, draggingMark, selectedMark);
-			//	ImGui::EndPopup();
-			//}
-		
-			if (auto handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
-				ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
-				ImVec2 viewer_size = ImGui::GetContentRegionAvail();
-				constexpr static float scale_factor = 0.96;
-				float image_width = std::min(viewer_size.x, viewer_size.y) * scale_factor;
-				ImVec2 image_size = ImVec2{ image_width, image_width };
-				ImGui::SetCursorPos((viewer_size - image_size) * 0.5f + ImVec2{ 0, window_size.y - viewer_size.y });
-				ImGui::Image(handle, image_size, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
+			static ImGradient gradient;
+			if (ImGui::GradientButton(&gradient)) {
+				ImGui::OpenPopup("Gradient##1");
 			}
+			if (ImGui::BeginPopup("Gradient##1")) {
+				//set show editor flag to true/false
+				static ImGradientMark* draggingMark = nullptr;
+				static ImGradientMark* selectedMark = nullptr;
+				bool updated = ImGui::GradientEditor(&gradient, draggingMark, selectedMark);
+				ImGui::EndPopup();
+			}
+		
+			//if (auto handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
+			//	ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
+			//	ImVec2 viewer_size = ImGui::GetContentRegionAvail();
+			//	constexpr static float scale_factor = 0.96;
+			//	float image_width = std::min(viewer_size.x, viewer_size.y) * scale_factor;
+			//	ImVec2 image_size = ImVec2{ image_width, image_width };
+			//	ImGui::SetCursorPos((viewer_size - image_size) * 0.5f + ImVec2{ 0, window_size.y - viewer_size.y });
+			//	ImGui::Image(handle, image_size, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
+			//}
 			
 			//ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
 			//ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
