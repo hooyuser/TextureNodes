@@ -49,12 +49,20 @@
 
 #include "imgui.h"
 
-#include <list>
+#include <vector>
 
 struct ImGradientMark
 {
     float color[3];
     float position; //0 to 1
+
+    inline bool operator<(ImGradientMark& mark) const {
+        return this->position < mark.position;
+    }
+
+    inline bool operator==(ImGradientMark& mark) const {
+        return this->position == mark.position;
+    }
 };
 
 class ImGradient
@@ -65,12 +73,14 @@ public:
     
     void getColorAt(float position, float* color) const;
     void addMark(float position, ImColor const color);
-    void removeMark(ImGradientMark* mark);
+    void removeMark(ImGradientMark& mark);
     void refreshCache();
-    std::list<ImGradientMark*> & getMarks(){ return m_marks; }
+    std::vector<ImGradientMark> & getMarks(){ return m_marks; }
 private:
-    void computeColorAt(float position, float* color) const;
-    std::list<ImGradientMark*> m_marks;
+    constexpr inline const static size_t max_size = 16;
+
+    void computeColorAt(float position, float* color);
+    std::vector<ImGradientMark> m_marks;
     float m_cachedValues[256 * 3];
 };
 
