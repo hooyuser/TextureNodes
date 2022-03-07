@@ -73,6 +73,10 @@ struct BoolData : public NodeData {
 	bool value;
 };
 
+struct EnumData : public NodeData {
+	uint32_t value;
+};
+
 struct TextureIdData : public NodeData {
 	int value = -1;
 };
@@ -82,7 +86,8 @@ using PinVariant = std::variant<
 	FloatData,
 	IntData,
 	BoolData,
-	Color4Data>;
+	Color4Data,
+	EnumData>;
 
 template<typename UniformBufferType, StringLiteral ...Shaders>
 struct ImageData : public NodeData {

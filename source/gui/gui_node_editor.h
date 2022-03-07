@@ -39,6 +39,7 @@ using NodeTypeList = TypeList<
 	NodeUniformColor,
 	NodePolygon,
 	NodeTransform,
+	NodeBlend,
 	NodeAdd
 >;
 
@@ -70,7 +71,9 @@ struct any_of_tuple {
 	}, std::make_index_sequence<std::tuple_size<Tuple>::value>{});
 };
 template <typename T, typename Tuple>
-static constexpr bool any_of_tuple_v = any_of_tuple<T, Tuple>::value;
+static constexpr bool any_of_tuple_v = any_of_tuple<T, Tuple>::value; //chech if T is a subtype of Tuple, Tuple is std::tuple
+
+
 
 template <typename T>
 static constexpr bool is_image_data = any_of_tuple_v<T, ImageNodeDataTypeTuple>;

@@ -4,6 +4,11 @@
 #include "../vk_shader.h"
 #include <ranges>
 
+template <typename T, typename ArrayElementT>
+concept std_array = requires (T t) {
+	[] <size_t I> (std::array<ArrayElementT, I>) {}(t);
+};
+
 static ImRect imgui_get_item_rect() {
 	return ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
 }
@@ -113,6 +118,14 @@ namespace engine {
 		ed::SetCurrentEditor(context);
 		ed::Begin("My Editor", ImVec2(0.0f, 0.0f));
 
+		static std::optional<size_t> color_node_index;  //implies whether colorpicker should be open
+		static std::optional<size_t> color_pin_index;
+		bool hit_color_pin = false;  //implies whether enum pin has been hit
+
+		static std::optional<size_t> enum_node_index;  //implies whether enum menu should be open
+		static std::optional<size_t> enum_pin_index;
+		bool hit_enum_pin = false;  //implies whether enum pin has been hit
+
 		// Start drawing nodes.
 		for (std::size_t node_index = 0; node_index < nodes.size(); ++node_index) {
 			auto& node = nodes[node_index];
@@ -150,9 +163,7 @@ namespace engine {
 				//ed::PopStyleVar(1);
 			}
 
-			//loop over input pins
-			std::optional<size_t> color_pin_index;
-
+			//Loop over input pins
 			for (std::size_t i = 0; i < node.inputs.size(); ++i) {
 				auto pin = &node.inputs[i];
 				ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
@@ -221,16 +232,39 @@ namespace engine {
 							ImGui::SameLine();
 							ImGui::PopItemWidth();
 							if (ImGui::ColorButton(("ColorButton##" + std::to_string(pin->id.Get())).c_str(), std::bit_cast<ImVec4>(default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 40, 20 })) {
-								ed::Suspend();
-								ImGui::OpenPopup(("ColorPopup##" + std::to_string(pin->id.Get())).c_str());
-								ed::Resume();
+								color_node_index = node_index;
+								color_pin_index = i;
+								hit_color_pin = true;
 							}
-							color_pin_index = i;
 						}
 					}
 					else if constexpr (std::is_same_v<PinT, TextureIdData>) {
 						ImGui::Text(pin->name.c_str());
 						rect = imgui_get_item_rect();
+					}
+					else if constexpr (std::is_same_v<PinT, EnumData>) {
+
+						std::visit([&](auto&& node_data) {
+							using NodeDataT = std::decay_t<decltype(node_data)>;
+							if constexpr (is_image_data<NodeDataT>) {
+								using UboT = typename ref_t<NodeDataT>::UboType;
+								UboT::Class::FieldAt(i, [&](auto& field) {
+									field.forEachAnnotation([&](auto& items) {
+										using T = typename std::remove_cvref_t<decltype(items)>;
+										if constexpr (std_array<T, const char*>) {
+											ImGui::PushItemWidth(50.f);
+											if (ImGui::Button((items[default_value.value] + std::string("##") + std::to_string(pin->id.Get())).c_str())) {
+												enum_node_index = node_index;
+												enum_pin_index = i;
+												hit_enum_pin = true;
+											}
+											ImGui::PopItemWidth();
+											rect = imgui_get_item_rect();
+										}
+										});
+									});
+							}
+							}, node.data);						
 					}
 					else if constexpr (std::is_same_v<PinT, BoolData>) {
 
@@ -264,6 +298,8 @@ namespace engine {
 
 			ed::EndNode();
 
+
+			//Draw preview image
 			std::visit([&](auto&& arg) {
 				using T = std::decay_t<decltype(arg)>;
 				if constexpr (is_image_data<T>) {
@@ -284,29 +320,75 @@ namespace engine {
 
 				}
 				}, node.data);
-
-
-			if (color_pin_index) {
-				auto& color_pin = node.inputs[*color_pin_index];
-				ed::Suspend();
-				if (ImGui::BeginPopup(("ColorPopup##" + std::to_string(color_pin.id.Get())).c_str())) {
-					if (ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin.id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Color4Data>(&(color_pin.default_value))), ImGuiColorEditFlags_None, NULL)) {
-						std::visit([&](auto&& node_data) {
-							using NodeDataT = std::decay_t<decltype(node_data)>;
-							if constexpr (is_image_data<NodeDataT>) {
-								node_data->update_ubo(color_pin.default_value, *color_pin_index);
-								update_from(node_index);
-							}
-							}, node.data);
-					}
-					ImGui::EndPopup();
-				}
-				ed::Resume();
-			}
 		}
 
 		for (auto& link : links) {
 			ed::Link(link.id, link.start_pin->id, link.end_pin->id, ImColor(123, 174, 111, 245), 2.5f);
+		}
+
+		//Processing color pin popup
+		if (color_pin_index.has_value()) {
+			ed::Suspend();
+			auto& color_node = nodes[*color_node_index];
+			auto& color_pin = color_node.inputs[*color_pin_index];
+			if (hit_color_pin) {
+				ImGui::OpenPopup(("ColorPopup##" + std::to_string(color_pin.id.Get())).c_str());
+			}
+
+			if (ImGui::BeginPopup(("ColorPopup##" + std::to_string(color_pin.id.Get())).c_str())) {
+				if (ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin.id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Color4Data>(&(color_pin.default_value))), ImGuiColorEditFlags_None, NULL)) {
+					std::visit([&](auto&& node_data) {
+						using NodeDataT = std::decay_t<decltype(node_data)>;
+						if constexpr (is_image_data<NodeDataT>) {
+							node_data->update_ubo(color_pin.default_value, *color_pin_index);
+							update_from(*color_node_index);
+						}
+						}, color_node.data);
+				}
+				ImGui::EndPopup();
+			}
+			ed::Resume();
+		}
+
+		//Processing enum pin popup
+		if (enum_node_index.has_value()) {
+			ed::Suspend();
+			auto& enum_node = nodes[*enum_node_index];
+			auto& enum_pin = enum_node.inputs[*enum_pin_index];
+
+			if (hit_enum_pin) {
+				ImGui::OpenPopup(("EnumPopup##" + std::to_string(enum_pin.id.Get())).c_str());
+			}
+
+			if (ImGui::BeginPopup(("EnumPopup##" + std::to_string(enum_pin.id.Get())).c_str())) {
+				std::visit([&](auto&& node_data) {
+					using NodeDataT = std::decay_t<decltype(node_data)>;
+					if constexpr (is_image_data<NodeDataT>) {
+						using UboT = typename ref_t<NodeDataT>::UboType;
+						UboT::Class::FieldAt(*enum_pin_index, [&](auto& field) {
+							field.forEachAnnotation([&](auto& items) {
+								using T = typename std::remove_cvref_t<decltype(items)>;
+								if constexpr (std_array<T, const char*>) {
+									for (size_t i = 0; i < items.size(); ++i) {
+										if (ImGui::MenuItem(items[i])) {
+											std::get<EnumData>(enum_pin.default_value).value = i;
+											if constexpr (is_image_data<NodeDataT>) {
+												node_data->update_ubo(enum_pin.default_value, *enum_pin_index);
+											}
+											update_from(*enum_node_index);
+											ImGui::CloseCurrentPopup();
+											enum_node_index.reset();
+											enum_pin_index.reset();
+										}
+									}
+								}
+								});
+							});
+					}
+					}, enum_node.data);
+				ImGui::EndPopup();
+			}
+			ed::Resume();
 		}
 
 		if (ed::BeginCreate()) {
