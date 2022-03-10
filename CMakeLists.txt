@@ -26,11 +26,22 @@ add_executable(${PROJECT_NAME}
     ${SHADERS}
 )
 
-add_custom_command(TARGET ${PROJECT_NAME}
-                   PRE_BUILD
-                   COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR}
-                   COMMAND compile_spirv.bat
-)
+find_package(Git)
+if (WIN32)
+    if(Git_FOUND)
+        add_custom_command(TARGET ${PROJECT_NAME}
+            PRE_BUILD
+            COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMAND compile_modified_spirv.bat
+        )
+    else() 
+        add_custom_command(TARGET ${PROJECT_NAME}
+            PRE_BUILD
+            COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR}
+            COMMAND compile_spirv.bat
+        )
+    endif()
+endif()
 
 source_group("Source Files"            FILES ${SRC})
 source_group("Header Files"            FILES ${HEADER})

@@ -730,8 +730,5 @@ struct ImageData : public NodeData {
 	}
 };
 
-
-
-
 template<typename UboType, StringLiteral ...Shaders>
 using ImageDataPtr = std::shared_ptr<ImageData<UboType, Shaders...>>;
