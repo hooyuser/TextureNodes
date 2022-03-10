@@ -11,7 +11,7 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
     bool clamp;
 } ubo;
 
-layout(set = 1, binding = 0) uniform sampler2D nodeTextures[];
+layout(set = 1, binding = 0) uniform sampler2D node2dTextures[];
 
 layout(location = 0) in vec2 fragUV;
 layout(location = 0) out vec4 outColor;
@@ -54,10 +54,10 @@ void main()
         transMat(vec2(-0.5, -0.5));
     vec2 uv = (inverse(trans) * vec3(fragUV, 1.0)).xy;
     if (ubo.clamp){
-        outColor = texture(nodeTextures[ubo.texture_id], clamp(uv,vec2(0.0), vec2(1.0)));
+        outColor = texture(node2dTextures[ubo.texture_id], clamp(uv,vec2(0.0), vec2(1.0)));
     }
     else {
-        outColor = texture(nodeTextures[ubo.texture_id], uv);
+        outColor = texture(node2dTextures[ubo.texture_id], uv);
     }
     //outColor = texture(nodeTextures[ubo.texture_id], fragUV);
     //outColor = vec4(fragUV, 0.0, 1.0);

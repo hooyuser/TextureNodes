@@ -9,8 +9,11 @@ struct NodeColorRamp : NodeTypeImageBase {
 			.value = -1
 		};
 
+		ColorRampData color_ramp;
+
 		REFLECT(UBO,
-			texture
+			texture,
+			color_ramp
 		)
 	};
 

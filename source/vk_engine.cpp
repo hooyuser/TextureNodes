@@ -1104,6 +1104,28 @@ void VulkanEngine::create_descriptor_pool() {
 	main_deletion_queue.push_function([=]() {
 		vkDestroyDescriptorPool(device, descriptorPool, nullptr);
 		});
+
+	constexpr uint32_t descriptor_size = 2000;
+	std::array pool_sizes = {
+		VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptor_size },
+		VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, max_bindless_node_2d_textures + max_bindless_node_1d_textures },
+	};
+
+	VkDescriptorPoolCreateInfo pool_info = {
+		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
+		.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
+		.maxSets = descriptor_size + max_bindless_node_2d_textures + max_bindless_node_1d_textures,
+		.poolSizeCount = static_cast<uint32_t>(pool_sizes.size()),
+		.pPoolSizes = pool_sizes.data(),
+	};
+
+	if (vkCreateDescriptorPool(device, &pool_info, nullptr, &node_descriptor_pool) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create descriptor pool!");
+	}
+
+	main_deletion_queue.push_function([=]() {
+		vkDestroyDescriptorPool(device, node_descriptor_pool, nullptr);
+		});
 }
 
 void VulkanEngine::create_descriptor_sets() {
@@ -1289,6 +1311,8 @@ void VulkanEngine::create_sync_objects() {
 void VulkanEngine::init_imgui() {
 	gui = std::make_shared<engine::GUI>();
 	gui->init(this);
+	node_texture_1d_manager = std::make_shared<NodeTextureManager>(this);
+	node_texture_2d_manager = std::make_shared<NodeTextureManager>(this);
 	node_editor = std::make_shared<engine::NodeEditor>(this);
 }
 
@@ -1413,11 +1437,12 @@ void VulkanEngine::draw_frame() {
 		ImGui::Begin("Texture Viewer");
 		ImGui::PopStyleColor();
 		{
+#ifdef GRADIENT_DEBUG
 			ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
 			ImVec2 viewer_size = ImGui::GetContentRegionAvail();
 			ImGui::SetCursorPos(ImVec2{ 0, window_size.y - viewer_size.y + 10 });
 
-			static ImGradient gradient;
+			static ImGradient gradient = ImGradient();
 			if (ImGui::GradientButton(&gradient)) {
 				ImGui::OpenPopup("Gradient##1");
 			}
@@ -1428,20 +1453,22 @@ void VulkanEngine::draw_frame() {
 				bool updated = ImGui::GradientEditor(&gradient, draggingMark, selectedMark);
 				ImGui::EndPopup();
 			}
-		
-			//if (auto handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
-			//	ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
-			//	ImVec2 viewer_size = ImGui::GetContentRegionAvail();
-			//	constexpr static float scale_factor = 0.96;
-			//	float image_width = std::min(viewer_size.x, viewer_size.y) * scale_factor;
-			//	ImVec2 image_size = ImVec2{ image_width, image_width };
-			//	ImGui::SetCursorPos((viewer_size - image_size) * 0.5f + ImVec2{ 0, window_size.y - viewer_size.y });
-			//	ImGui::Image(handle, image_size, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
-			//}
+#endif
+#ifndef GRADIENT_DEBUG
+			if (auto handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
+				ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
+				ImVec2 viewer_size = ImGui::GetContentRegionAvail();
+				constexpr static float scale_factor = 0.96;
+				float image_width = std::min(viewer_size.x, viewer_size.y) * scale_factor;
+				ImVec2 image_size = ImVec2{ image_width, image_width };
+				ImGui::SetCursorPos((viewer_size - image_size) * 0.5f + ImVec2{ 0, window_size.y - viewer_size.y });
+				ImGui::Image(handle, image_size, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
+			}
+#endif
 			
-			//ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
-			//ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
-			//ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);
+			/*ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
+			ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
+			ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);*/
 		}
 		ImGui::End();
 

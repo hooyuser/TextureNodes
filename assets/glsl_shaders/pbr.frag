@@ -1,7 +1,7 @@
 #version 450
 
 #define PI 3.14159265359
-#define MAX_REFLECTION_LOD 5
+#define MAX_REFLECTION_LOD 4
 
 layout (constant_id = 0) const int textureCubemapArraySize = 1;                                               
 layout (constant_id = 1) const int irradianceMapId = 0;  

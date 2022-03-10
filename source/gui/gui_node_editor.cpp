@@ -28,6 +28,36 @@ std::string first_letter_to_upper(std::string_view str) {
 	return upper_str;
 }
 
+template<typename T>
+class VectorBuffer {
+public:
+	VectorBuffer() :_data(nullptr), _capacity(0) {}
+
+	~VectorBuffer() {
+		if (_data) {
+			delete[] _data;
+		}
+	}
+
+	T* data() const {
+		return _data;
+	}
+
+	void reserve(size_t reserve_capacity) {
+		if (_capacity < reserve_capacity) {
+			if (_data) {
+				delete[] _data;
+			}
+			_data = new T[_capacity = std::bit_ceil(reserve_capacity)];
+		}
+	}
+
+private:
+	T* _data;
+	size_t _capacity;
+};
+
+
 namespace engine {
 	constexpr int NodeEditor::get_next_id() {
 		return next_id++;
@@ -38,55 +68,78 @@ namespace engine {
 			return;
 		}
 
-		std::queue<uint32_t> bfs_queue;
-		visited_nodes.resize(nodes.size(), 0);
-		submits.clear();
+		static std::stack<uint32_t> dfs_stack;
+		std::vector<uint32_t> dfs_path;
 
-		visited_nodes[updated_node_index] = 1;
-		bfs_queue.push(updated_node_index);
+		static std::vector<char> visited_nodes;
+		visited_nodes.resize(nodes.size());
+		visited_nodes.assign(visited_nodes.size(), 0);
 
-		while (!bfs_queue.empty()) {
+		dfs_stack.push(updated_node_index);
 
-			uint32_t idx = bfs_queue.front();
-			bfs_queue.pop();
+		while (!dfs_stack.empty()) {
+
+			auto idx = dfs_stack.top();
+			dfs_stack.pop();
 
 			std::visit([&](auto&& node_data) {
 				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
 				if constexpr (is_image_data<NodeDataT>) {
 					uint64_t counter;
 					vkGetSemaphoreCounterValue(engine->device, node_data->semaphore, &counter);
-					node_data->signal_semaphore_submit_info1.value = counter + 1;
-					node_data->wait_semaphore_submit_info2.value = counter + 1;
-					node_data->signal_semaphore_submit_info2.value = counter + 2;
+
+					if (visited_nodes[idx] == 0) {
+						visited_nodes[idx] = 1;
+						dfs_path.emplace_back(idx);
+						node_data->signal_semaphore_submit_info1.value = counter + 1;
+						node_data->wait_semaphore_submit_info2.value = counter + 1;
+						node_data->signal_semaphore_submit_info2.value = counter + 2;
+					}
+
 					for (auto& pin : nodes[idx].outputs) {
 						for (auto connected_pin : pin.connected_pins) {
-							uint32_t connected_node_idx = connected_pin->node_index;
-							if (visited_nodes[updated_node_index] != 0) {
-								std::visit([&](auto&& connected_node_data) {
-									if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
-										visited_nodes[updated_node_index] = 1;
-										bfs_queue.push(connected_pin->node_index);
-										connected_node_data->wait_semaphore_submit_info1.emplace_back(VkSemaphoreSubmitInfo{
-											.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-											.pNext = nullptr,
-											.semaphore = node_data->semaphore,
-											.value = counter + 2,
-											.stageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-											});
-									}
-									}, nodes[connected_pin->node_index].data);
+							auto connected_node_idx = connected_pin->node_index;
+
+							std::visit([&](auto&& connected_node_data) {
+								if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
+									connected_node_data->wait_semaphore_submit_info1.emplace_back(VkSemaphoreSubmitInfo{
+										.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+										.pNext = nullptr,
+										.semaphore = node_data->semaphore,
+										.value = counter + 2,
+										.stageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+										});
+								}
+								}, nodes[connected_pin->node_index].data);
+
+							if (visited_nodes[connected_node_idx] == 0) {
+								dfs_stack.push(connected_pin->node_index);
 							}
 						}
 					}
-					submits.emplace_back(node_data->submit_info[0]);
-					submits.emplace_back(node_data->submit_info[1]);
 				}
 				}, nodes[idx].data);
 		}
 
+		static VectorBuffer<VkSubmitInfo2> submits;
+		auto const submit_size = dfs_path.size() * 2;
+		submits.reserve(submit_size);
+		auto iter = submits.data();
+		for (auto i : dfs_path) {
+			std::visit([&](auto&& node_data) {
+				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
+				if constexpr (is_image_data<NodeDataT>) {
+					node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info1.size());
+					node_data->submit_info[0].pWaitSemaphoreInfos = node_data->wait_semaphore_submit_info1.data(),
+					memcpy(iter, node_data->submit_info.data(), sizeof(VkSubmitInfo2) * 2);
+				}
+				}, nodes[i].data);
+			iter += 2;
+		}
+
 		vkResetFences(engine->device, 1, &fence);
 
-		if (vkQueueSubmit2(engine->graphicsQueue, submits.size(), submits.data(), fence) != VK_SUCCESS) {
+		if (vkQueueSubmit2(engine->graphicsQueue, submit_size, submits.data(), fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
 	}
@@ -104,7 +157,7 @@ namespace engine {
 	}
 
 	void NodeEditor::draw() {
-		
+
 		if (ImGui::BeginMenuBar()) {
 			if (ImGui::BeginMenu("Add")) {
 				NodeTypeList::for_each([&]<typename T> () {
@@ -115,7 +168,7 @@ namespace engine {
 				ImGui::EndMenu();
 			}
 			ImGui::EndMenuBar();
-		} 
+		}
 
 		ImGui::ShowDemoWindow();
 		ed::SetCurrentEditor(context);
@@ -272,7 +325,7 @@ namespace engine {
 										});
 									});
 							}
-							}, node.data);						
+							}, node.data);
 					}
 					else if constexpr (std::is_same_v<PinT, BoolData>) {
 
@@ -581,88 +634,7 @@ namespace engine {
 		}
 	}
 
-	void NodeEditor::create_node_descriptor_pool() {
 
-		constexpr uint32_t descriptor_size = 2000;
-		std::array pool_sizes = {
-			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, descriptor_size },
-			VkDescriptorPoolSize{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptor_size }
-		};
-
-		VkDescriptorPoolCreateInfo pool_info = {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
-			.flags = VK_DESCRIPTOR_POOL_CREATE_UPDATE_AFTER_BIND_BIT | VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
-			.maxSets = descriptor_size * 2,
-			.poolSizeCount = static_cast<uint32_t>(pool_sizes.size()),
-			.pPoolSizes = pool_sizes.data(),
-		};
-
-		if (vkCreateDescriptorPool(engine->device, &pool_info, nullptr, &engine->node_texture_manager.descriptor_pool) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create descriptor pool!");
-		}
-
-		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyDescriptorPool(engine->device, engine->node_texture_manager.descriptor_pool, nullptr);
-			});
-	}
-
-	void NodeEditor::create_node_descriptor_set_layouts() {
-		std::array node_descriptor_set_layout_bindings{
-			VkDescriptorSetLayoutBinding{
-				.binding = 0,
-				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-				.descriptorCount = max_bindless_node_textures,
-				.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
-			}
-		};
-
-		constexpr auto binding_num = node_descriptor_set_layout_bindings.size();
-
-		std::array<VkDescriptorBindingFlags, binding_num> descriptor_binding_flags;
-		descriptor_binding_flags[0] = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
-
-		VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_create_info{
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
-			.bindingCount = descriptor_binding_flags.size(),
-			.pBindingFlags = descriptor_binding_flags.data(),
-		};
-
-		VkDescriptorSetLayoutCreateInfo node_descriptor_layout_info = {
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-			.pNext = &binding_flags_create_info,
-			.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
-			.bindingCount = node_descriptor_set_layout_bindings.size(),
-			.pBindings = node_descriptor_set_layout_bindings.data(),
-		};
-
-		if (vkCreateDescriptorSetLayout(engine->device, &node_descriptor_layout_info, nullptr, &engine->node_texture_manager.descriptor_set_layout) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create descriptor set layout!");
-		}
-
-		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyDescriptorSetLayout(engine->device, engine->node_texture_manager.descriptor_set_layout, nullptr);
-			});
-	}
-
-	void NodeEditor::create_node_texture_descriptor_set() {
-		VkDescriptorSetVariableDescriptorCountAllocateInfo variabl_descriptor_count_info{
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO,
-			.descriptorSetCount = 1,
-			.pDescriptorCounts = &max_bindless_node_textures,
-		};
-
-		VkDescriptorSetAllocateInfo descriptor_alloc_info{
-			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-			.pNext = &variabl_descriptor_count_info,
-			.descriptorPool = engine->node_texture_manager.descriptor_pool,
-			.descriptorSetCount = 1,
-			.pSetLayouts = &engine->node_texture_manager.descriptor_set_layout,
-		};
-
-		if (vkAllocateDescriptorSets(engine->device, &descriptor_alloc_info, &engine->node_texture_manager.descriptor_set) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate descriptor sets!");
-		}
-	}
 
 	NodeEditor::NodeEditor(VulkanEngine* engine) :engine(engine) {
 		ed::Config config;
@@ -670,13 +642,13 @@ namespace engine {
 		context = ed::CreateEditor(&config);
 
 		create_fence();
-		create_node_descriptor_pool();
+		/*create_node_descriptor_pool();
 		create_node_descriptor_set_layouts();
-		create_node_texture_descriptor_set();
+		create_node_texture_descriptor_set();*/
 
-		for (auto i : std::views::iota(0u, max_bindless_node_textures)) {
+		/*for (auto i : std::views::iota(0u, max_bindless_node_2d_textures)) {
 			engine->node_texture_manager.unused_id.emplace(i);
-		}
+		}*/
 
 		engine->main_deletion_queue.push_function([=]() {
 			nodes.clear();

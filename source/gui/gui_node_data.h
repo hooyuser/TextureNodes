@@ -5,16 +5,17 @@
 #include "../vk_pipeline.h"
 #include "../vk_initializers.h"
 #include "../vk_engine.h"
+#include "gui_node_texture_manager.h"
 
-class VulkanEngine;
+#include "imgui_color_gradient.h"
+#include <imgui_impl_vulkan.h>
+
 
 constexpr static inline uint32_t preview_image_size = 128;
 
 namespace engine {
 	class Shader;
 }
-
-namespace ed = ax::NodeEditor;
 
 template<size_t N>
 struct StringLiteral {
@@ -43,30 +44,26 @@ struct count_field_type {
 template <typename T, typename FieldType>
 static constexpr size_t count_field_type_v = count_field_type<T, FieldType>::value;
 
-
 template <typename T, typename FieldType>
 static constexpr bool has_field_type_v = (count_field_type_v<T, FieldType>) > 0;
 
+//Define all kinds of NodeData, which serves as UBO member type or subtype of PinVaraint 
 struct NodeData {};
 
 struct IntData : public NodeData {
 	int32_t value = 0;
-	//IntData(VulkanEngine* engine = nullptr) {};
 };
 
 struct FloatData : public NodeData {
 	float value = 0.0f;
-	//FloatData(VulkanEngine* engine = nullptr) {};
 };
 
 struct Float4Data : public NodeData {
 	float value[4] = { 0.0f };
-	//Float4Data(VulkanEngine* engine = nullptr) {};
 };
 
 struct Color4Data : public NodeData {
 	float value[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-	//Color4Data(VulkanEngine* engine = nullptr) {};
 };
 
 struct BoolData : public NodeData {
@@ -81,13 +78,40 @@ struct TextureIdData : public NodeData {
 	int value = -1;
 };
 
+struct RampTexture {
+	VulkanEngine* engine;
+	VkImage image;
+	VkDeviceMemory memory;
+
+	RampTexture(VulkanEngine* engine);
+};
+
+struct ColorRampData : public NodeData {
+	std::unique_ptr<ImGradient> ui_value;
+	std::unique_ptr<RampTexture> ubo_value;
+
+	inline ColorRampData(){}
+	inline ColorRampData(VulkanEngine* engine) {
+		ui_value = std::make_unique<ImGradient>();
+		ubo_value = std::make_unique<RampTexture>(engine);
+	}
+	//inline ColorRampData(ColorRampData&&ramp_data) noexcept :ui_value(std::move(ramp_data.ui_value)), ubo_value(std::move(ramp_data.ubo_value)){}
+	//inline ColorRampData& operator=(ColorRampData&& ramp_data) noexcept {
+	//	ui_value = std::move(ramp_data.ui_value);
+	//	ubo_value = std::move(ramp_data.ubo_value);
+	//	return *this;
+	//}
+};
+
+
 using PinVariant = std::variant<
 	TextureIdData,
 	FloatData,
 	IntData,
 	BoolData,
 	Color4Data,
-	EnumData>;
+	EnumData,
+	ColorRampData>;
 
 template<typename UniformBufferType, StringLiteral ...Shaders>
 struct ImageData : public NodeData {
@@ -131,7 +155,7 @@ struct ImageData : public NodeData {
 	inline static VkRenderPass image_pocessing_render_pass = nullptr;
 
 	ImageData(VulkanEngine* engine) :engine(engine) {
-		
+
 		create_semaphore();
 
 		create_texture();
@@ -166,11 +190,11 @@ struct ImageData : public NodeData {
 	}
 
 	~ImageData() {
-		engine->node_texture_manager.delete_id(node_texture_id);
+		engine->node_texture_2d_manager->delete_id(node_texture_id);
 		std::array cmd_buffers{ image_pocessing_cmd_buffer, generate_preview_cmd_buffer };
 		vkFreeCommandBuffers(engine->device, engine->commandPool, cmd_buffers.size(), cmd_buffers.data());
 		vkDestroyFramebuffer(engine->device, image_pocessing_framebuffer, nullptr);
-		vkFreeDescriptorSets(engine->device, engine->node_texture_manager.descriptor_pool, 1, &ubo_descriptor_set);
+		vkFreeDescriptorSets(engine->device, engine->node_descriptor_pool, 1, &ubo_descriptor_set);
 		vkDestroySemaphore(engine->device, semaphore, nullptr);
 	}
 
@@ -214,7 +238,7 @@ struct ImageData : public NodeData {
 		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		gui_preview_texture = ImGui_ImplVulkan_AddTexture(preview_texture->sampler, preview_texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		node_texture_id = engine->node_texture_manager.get_id();
+		node_texture_id = engine->node_texture_2d_manager->get_id();
 	}
 
 	void create_ubo_descriptor_set_layout() {
@@ -226,7 +250,7 @@ struct ImageData : public NodeData {
 	void create_ubo_descriptor_set() {
 		VkDescriptorSetAllocateInfo ubo_descriptor_alloc_info{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-			.descriptorPool = engine->node_texture_manager.descriptor_pool,
+			.descriptorPool = engine->node_descriptor_pool,
 			.descriptorSetCount = 1,
 			.pSetLayouts = &ubo_descriptor_set_layout,
 		};
@@ -261,7 +285,7 @@ struct ImageData : public NodeData {
 			},
 			VkWriteDescriptorSet {
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.dstSet = engine->node_texture_manager.descriptor_set,
+				.dstSet = engine->node_texture_2d_manager->descriptor_set,
 				.dstBinding = 0,
 				.dstArrayElement = static_cast<uint32_t>(node_texture_id),
 				.descriptorCount = 1,
@@ -342,7 +366,7 @@ struct ImageData : public NodeData {
 
 	void create_image_pocessing_pipeline_layout() {
 		auto descriptor_set_layouts = constexpr_if<has_field_type_v<UboType, TextureIdData>>(
-			std::array{ ubo_descriptor_set_layout, engine->node_texture_manager.descriptor_set_layout },
+			std::array{ ubo_descriptor_set_layout, engine->node_texture_2d_manager->descriptor_set_layout },
 			std::array{ ubo_descriptor_set_layout }
 		);
 
@@ -426,7 +450,7 @@ struct ImageData : public NodeData {
 			.x = 0.0f,
 			.y = 0.0f,
 			.width = static_cast<float>(width),
-			.height = static_cast<float>(height),   
+			.height = static_cast<float>(height),
 			.minDepth = 0.0f,
 			.maxDepth = 1.0f,
 		};
@@ -437,7 +461,7 @@ struct ImageData : public NodeData {
 		};
 
 		auto descriptor_sets = constexpr_if<has_field_type_v<UboType, TextureIdData>>(
-			std::array{ ubo_descriptor_set, engine->node_texture_manager.descriptor_set },
+			std::array{ ubo_descriptor_set, engine->node_texture_2d_manager->descriptor_set },
 			std::array{ ubo_descriptor_set }
 		);
 
@@ -551,7 +575,7 @@ struct ImageData : public NodeData {
 				.imageMemoryBarrierCount = 1,
 				.pImageMemoryBarriers = &image_memory_barrier,
 			};
-		
+
 			vkCmdPipelineBarrier2(generate_preview_cmd_buffer, &dependency_info);
 		}
 
@@ -608,8 +632,8 @@ struct ImageData : public NodeData {
 		submit_info[0] = VkSubmitInfo2{
 			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
 			.pNext = nullptr,
-			.waitSemaphoreInfoCount = static_cast<uint32_t>(wait_semaphore_submit_info1.size()),
-			.pWaitSemaphoreInfos = wait_semaphore_submit_info1.data(),
+			//.waitSemaphoreInfoCount = static_cast<uint32_t>(wait_semaphore_submit_info1.size()),
+			//.pWaitSemaphoreInfos = wait_semaphore_submit_info1.data(),
 			.commandBufferInfoCount = 1,
 			.pCommandBufferInfos = &cmd_buffer_submit_info1,
 			.signalSemaphoreInfoCount = 1,
@@ -654,6 +678,9 @@ struct ImageData : public NodeData {
 			});
 	}
 };
+
+
+
 
 template<typename UboType, StringLiteral ...Shaders>
 using ImageDataPtr = std::shared_ptr<ImageData<UboType, Shaders...>>;

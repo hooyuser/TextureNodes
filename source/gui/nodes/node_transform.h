@@ -50,7 +50,7 @@ struct NodeTransform : NodeTypeImageBase {
 	};
 
 	using data_type = std::shared_ptr<ImageData<UBO,
-		"assets/shaders/node_transform.vert.spv",
+		"assets/shaders/node_shared_out_uv.vert.spv",
 		"assets/shaders/node_transform.frag.spv"
 		>>;
 

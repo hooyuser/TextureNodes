@@ -1,6 +1,6 @@
 #pragma once
-
 #include "vk_types.h"
+//#include "gui/gui_node_texture_manager.h"
 
 // #define GLFW_INCLUDE_VULKAN
 
@@ -25,11 +25,11 @@ struct DeletionQueue
 {
 	std::deque<std::function<void()>> deletors;
 
-	void push_function(std::function<void()>&& function) {
+	inline void push_function(std::function<void()>&& function) {
 		deletors.emplace_back(function);
 	}
 
-	void flush() {
+	inline void flush() {
 		// reverse iterate the deletion queue to execute all the functions
 		for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
 			(*it)(); //call the function
@@ -39,31 +39,12 @@ struct DeletionQueue
 	}
 };
 
-struct NodeTextureManager {
-	std::unordered_set<int> used_id;
-	std::unordered_set<int> unused_id;
-	VkDescriptorPool descriptor_pool;
-	VkDescriptorSetLayout descriptor_set_layout;
-	VkDescriptorSet descriptor_set;
-
-	const auto get_id() {
-		auto id = *unused_id.begin();
-		used_id.emplace(id);
-		unused_id.erase(id);
-		return id;
-	}
-
-	void delete_id(int id) {
-		unused_id.emplace(id);
-		used_id.erase(id);
-	}
-};
-
 //Forward Declaration
 struct SwapChainSupportDetails;
 class Camera;
-class Pbr;
-class HDRi;
+struct Pbr;
+struct HDRi;
+struct NodeTextureManager;
 
 namespace engine {
 	class Mesh;
@@ -186,7 +167,11 @@ public:
 
 	uint32_t swapchain_image_count;
 
-	NodeTextureManager node_texture_manager;
+	constexpr static inline uint32_t max_bindless_node_2d_textures = 300;
+	constexpr static inline uint32_t max_bindless_node_1d_textures = 50;
+	VkDescriptorPool node_descriptor_pool;
+	std::shared_ptr<NodeTextureManager> node_texture_2d_manager;
+	std::shared_ptr<NodeTextureManager> node_texture_1d_manager;
 
 	void init_window();
 

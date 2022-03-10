@@ -40,6 +40,7 @@ using NodeTypeList = TypeList<
 	NodePolygon,
 	NodeTransform,
 	NodeBlend,
+	NodeColorRamp,
 	NodeAdd
 >;
 
@@ -170,15 +171,15 @@ namespace engine {
 		void* gui_display_texture_handle = nullptr;
 		//uint64_t semophore_counter = 0;
 
-		std::vector<VkSubmitInfo2> submits;
-		std::vector<char> visited_nodes;
+		//std::vector<VkSubmitInfo2> submits;
+		
 		VkSemaphoreWaitInfo preview_semaphore_wait_info{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
 			.semaphoreCount = 1,
 		};
 		
 		constexpr static inline uint32_t preview_image_size = 128;
-		constexpr static inline uint32_t max_bindless_node_textures = 300;
+		//constexpr static inline uint32_t max_bindless_node_2d_textures = 300;
 
 		constexpr int get_next_id();
 
@@ -195,12 +196,19 @@ namespace engine {
 				using NodeDataType = NodeType::data_type;
 				using UboT = typename ref_t<NodeDataType>::UboType;
 				UboT ubo{};
+				node.inputs.reserve(UboT::Class::TotalFields);
 				for (size_t index = 0; index < UboT::Class::TotalFields; ++index) {
 					UboT::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
 						using PinType = std::decay_t<decltype(field)>::Type;
-						node.inputs.reserve(UboT::Class::TotalFields);
+						
 						node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
-						node.inputs[index].default_value = value;
+						if constexpr (std::same_as<PinType, ColorRampData>) {
+							node.inputs[index].default_value = std::move(ColorRampData(engine));
+						}
+						else {
+							node.inputs[index].default_value = value;
+						}
+						
 						});
 				}
 				node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TextureIdData>);
@@ -222,12 +230,6 @@ namespace engine {
 			return node_index;
 		}
 		void create_fence();
-
-		void create_node_descriptor_pool();
-
-		void create_node_descriptor_set_layouts();
-
-		void create_node_texture_descriptor_set();
 
 	public:
 		NodeEditor(VulkanEngine* engine);
