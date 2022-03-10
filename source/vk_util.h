@@ -8,7 +8,7 @@ class VulkanEngine;
 
 uint32_t find_memory_type(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-void immediate_submit(VkDevice device, VkCommandPool commandPool, VkQueue queue, std::invocable<VkCommandBuffer> auto&& function) {
+void immediate_submit(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkFence fence, std::invocable<VkCommandBuffer> auto&& function) {
 	VkCommandBufferAllocateInfo allocInfo{};
 	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
 	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
@@ -31,14 +31,15 @@ void immediate_submit(VkDevice device, VkCommandPool commandPool, VkQueue queue,
 	submitInfo.commandBufferCount = 1;
 	submitInfo.pCommandBuffers = &commandBuffer;
 
-	vkQueueSubmit(queue, 1, &submitInfo, VK_NULL_HANDLE);
-	vkQueueWaitIdle(queue);
+	vkResetFences(device, 1, &fence);
+	vkQueueSubmit(queue, 1, &submitInfo, fence);
+	vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
 
 	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }
 
 namespace engine {
 	void immediate_submit(VulkanEngine* engine, std::invocable<VkCommandBuffer> auto&& function) {
-		::immediate_submit(engine->device, engine->commandPool, engine->graphicsQueue, FWD(function));
+		::immediate_submit(engine->device, engine->commandPool, engine->graphicsQueue, engine->immediate_submit_fence, FWD(function));
 	}
 }

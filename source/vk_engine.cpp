@@ -138,10 +138,11 @@ void VulkanEngine::init_vulkan() {
 	create_swap_chain();//recreateSwapChain
 	create_swap_chain_image_views();//recreateSwapChain
 
+	create_sync_objects();
+
 	create_command_pool();
 	parse_material_info();
 	create_descriptor_set_layouts();
-
 
 	create_viewport_attachments();
 	create_viewport_render_pass();
@@ -152,8 +153,6 @@ void VulkanEngine::init_vulkan() {
 	create_descriptor_pool();
 	create_descriptor_sets();
 	create_graphics_pipeline();
-
-	create_sync_objects();
 
 	set_camera();
 
@@ -1306,6 +1305,13 @@ void VulkanEngine::create_sync_objects() {
 			vkDestroySemaphore(device, frameData[i].imageAvailableSemaphore, nullptr);
 			});
 	}
+
+	if (vkCreateFence(device, &fenceInfo, nullptr, &immediate_submit_fence) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create synchronization objects for a frame!");
+	}
+	main_deletion_queue.push_function([=]() {
+		vkDestroyFence(device, immediate_submit_fence, nullptr);
+		});
 }
 
 void VulkanEngine::init_imgui() {
@@ -1437,7 +1443,6 @@ void VulkanEngine::draw_frame() {
 		ImGui::Begin("Texture Viewer");
 		ImGui::PopStyleColor();
 		{
-//#define GRADIENT_DEBUG
 #ifdef GRADIENT_DEBUG
 			ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
 			ImVec2 viewer_size = ImGui::GetContentRegionAvail();

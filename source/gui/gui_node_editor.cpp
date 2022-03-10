@@ -397,7 +397,6 @@ namespace engine {
 				if constexpr (is_image_data<T>) {
 					ImGui::SetCursorPosX(node_rect.GetCenter().x - preview_image_size * 0.5);
 					ImGui::SetCursorPosY(yy - preview_image_size - 15);
-					//vkWaitForFences(engine->device, 1, &arg->fence, VK_TRUE, UINT64_MAX);
 					static uint64_t counter;
 					vkGetSemaphoreCounterValue(engine->device, arg->semaphore, &counter);
 					if (counter & 1) { //counter is odd implies the preview texture is being written

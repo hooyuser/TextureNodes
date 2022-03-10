@@ -81,19 +81,30 @@ struct TextureIdData : public NodeData {
 struct RampTexture {
 	VulkanEngine* engine;
 	VkImage image;
+	VkImageView image_view;
+	VkSampler sampler;
 	VkDeviceMemory memory;
+	engine::Buffer staging_buffer;
+	VkCommandBuffer command_buffer;
+	uint32_t color_ramp_texture_id;
 
 	RampTexture(VulkanEngine* engine);
+	~RampTexture();
+	void create_command_buffer();
+
 };
 
 struct ColorRampData : public NodeData {
+	int value = -1;
 	std::unique_ptr<ImGradient> ui_value;
 	std::unique_ptr<RampTexture> ubo_value;
 
-	inline ColorRampData(){}
+	inline ColorRampData() {}
 	inline ColorRampData(VulkanEngine* engine) {
-		ui_value = std::make_unique<ImGradient>();
 		ubo_value = std::make_unique<RampTexture>(engine);
+		void* data;
+		vkMapMemory(engine->device, ubo_value->staging_buffer.memory, 0, ubo_value->staging_buffer.size, 0, &data);
+		ui_value = std::make_unique<ImGradient>(static_cast<float*>(data));
 	}
 	//inline ColorRampData(ColorRampData&&ramp_data) noexcept :ui_value(std::move(ramp_data.ui_value)), ubo_value(std::move(ramp_data.ubo_value)){}
 	//inline ColorRampData& operator=(ColorRampData&& ramp_data) noexcept {
@@ -365,10 +376,25 @@ struct ImageData : public NodeData {
 	}
 
 	void create_image_pocessing_pipeline_layout() {
-		auto descriptor_set_layouts = constexpr_if<has_field_type_v<UboType, TextureIdData>>(
-			std::array{ ubo_descriptor_set_layout, engine->node_texture_2d_manager->descriptor_set_layout },
-			std::array{ ubo_descriptor_set_layout }
-		);
+
+		auto descriptor_set_layouts = [&]() {
+			if constexpr (has_field_type_v<UboType, ColorRampData>) {
+				return std::array{
+					ubo_descriptor_set_layout,
+					engine->node_texture_2d_manager->descriptor_set_layout,
+					engine->node_texture_1d_manager->descriptor_set_layout
+				};
+			}
+			else if constexpr (has_field_type_v<UboType, TextureIdData>) {
+				return std::array{
+					ubo_descriptor_set_layout,
+					engine->node_texture_2d_manager->descriptor_set_layout
+				};
+			}
+			else {
+				return std::array{ ubo_descriptor_set_layout };
+			}
+		}();
 
 		VkPipelineLayoutCreateInfo image_pocessing_pipeline_info = vkinit::pipelineLayoutCreateInfo(descriptor_set_layouts);
 
@@ -437,15 +463,6 @@ struct ImageData : public NodeData {
 
 		vkCmdBeginRenderPass(image_pocessing_cmd_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
-		//VkViewport viewport{
-		//	.x = 0.0f,
-		//	.y = static_cast<float>(height),
-		//	.width = static_cast<float>(width),
-		//	.height = -static_cast<float>(height),    // flip y axis
-		//	.minDepth = 0.0f,
-		//	.maxDepth = 1.0f,
-		//};
-
 		VkViewport viewport{
 			.x = 0.0f,
 			.y = 0.0f,
@@ -460,10 +477,24 @@ struct ImageData : public NodeData {
 			.extent = image_extent,
 		};
 
-		auto descriptor_sets = constexpr_if<has_field_type_v<UboType, TextureIdData>>(
-			std::array{ ubo_descriptor_set, engine->node_texture_2d_manager->descriptor_set },
-			std::array{ ubo_descriptor_set }
-		);
+		auto descriptor_sets = [&]() {
+			if constexpr (has_field_type_v<UboType, ColorRampData>) {
+				return std::array{
+					ubo_descriptor_set,
+					engine->node_texture_2d_manager->descriptor_set,
+					engine->node_texture_1d_manager->descriptor_set,
+				};
+			}
+			else if constexpr (has_field_type_v<UboType, TextureIdData>) {
+				return std::array{
+					ubo_descriptor_set,
+					engine->node_texture_2d_manager->descriptor_set 
+				};
+			}
+			else {
+				return std::array{ ubo_descriptor_set };
+			}
+		}();
 
 		vkCmdSetViewport(image_pocessing_cmd_buffer, 0, 1, &viewport);
 		vkCmdSetScissor(image_pocessing_cmd_buffer, 0, 1, &scissor);
@@ -674,7 +705,7 @@ struct ImageData : public NodeData {
 	void update_ubo(const PinVariant& value, size_t index) {
 		UboType::Class::FieldAt(index, [&](auto& field) {
 			using PinT = std::decay_t<decltype(field)>::Type;
-			uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
+			uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(std::declval<PinT>().value), field.getOffset());
 			});
 	}
 };

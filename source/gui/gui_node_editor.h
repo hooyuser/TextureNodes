@@ -208,7 +208,6 @@ namespace engine {
 						else {
 							node.inputs[index].default_value = value;
 						}
-						
 						});
 				}
 				node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TextureIdData>);

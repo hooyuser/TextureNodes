@@ -173,6 +173,8 @@ public:
 	std::shared_ptr<NodeTextureManager> node_texture_2d_manager;
 	std::shared_ptr<NodeTextureManager> node_texture_1d_manager;
 
+	VkFence immediate_submit_fence;
+
 	void init_window();
 
 	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
