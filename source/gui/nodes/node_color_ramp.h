@@ -2,9 +2,17 @@
 #include "../gui_node_base.h"
 
 struct NodeColorRamp : NodeTypeImageBase {
+	struct UboValue {
+		TextureIdData::value_t texture_v;
+		ColorRampData::value_t color_ramp_v;
+		REFLECT(UboValue,
+			texture_v,
+			color_ramp_v
+		)
+	};
 
 	struct UBO {
-
+		using value_t = UboValue;
 		TextureIdData texture{
 			.value = -1
 		};

@@ -459,7 +459,8 @@ namespace engine {
 				static ImGradientMark* draggingMark = nullptr;
 				static ImGradientMark* selectedMark = nullptr;
 				//bool updated = ImGui::GradientEditor(&gradient, draggingMark, selectedMark);
-				if (ImGui::GradientEditor(std::get<ColorRampData>(color_ramp_pin.default_value).ui_value.get(), draggingMark, selectedMark)) {
+				auto& color_ramp_data = std::get<ColorRampData>(color_ramp_pin.default_value);
+				if (ImGui::GradientEditor(color_ramp_data.ui_value.get(), draggingMark, selectedMark)) {
 					std::visit([&](auto&& node_data) {
 						using NodeDataT = std::decay_t<decltype(node_data)>;
 						if constexpr (is_image_data<NodeDataT>) {
@@ -468,7 +469,7 @@ namespace engine {
 								VkSubmitInfo submitInfo{
 									.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 									.commandBufferCount = 1,
-									.pCommandBuffers = &std::get<ColorRampData>(color_ramp_pin.default_value).ubo_value->command_buffer,
+									.pCommandBuffers = &color_ramp_data.ubo_value->command_buffer,
 								};
 								vkResetFences(engine->device, 1, &fence);
 								vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);

@@ -51,31 +51,38 @@ static constexpr bool has_field_type_v = (count_field_type_v<T, FieldType>) > 0;
 struct NodeData {};
 
 struct IntData : public NodeData {
-	int32_t value = 0;
+	using value_t = int32_t;
+	value_t value = 0;
 };
 
 struct FloatData : public NodeData {
-	float value = 0.0f;
+	using value_t = float;
+	value_t value = 0.0f;
 };
 
 struct Float4Data : public NodeData {
-	float value[4] = { 0.0f };
+	using value_t = float[4];
+	value_t value = { 0.0f };
 };
 
 struct Color4Data : public NodeData {
-	float value[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+	using value_t = float[4];
+	value_t value = { 1.0f, 1.0f, 1.0f, 1.0f };
 };
 
 struct BoolData : public NodeData {
-	bool value;
+	using value_t = bool;
+	value_t value;
 };
 
 struct EnumData : public NodeData {
-	uint32_t value;
+	using value_t = uint32_t;
+	value_t value;
 };
 
 struct TextureIdData : public NodeData {
-	int value = -1;
+	using value_t = int32_t;
+	value_t value = -1;
 };
 
 struct RampTexture {
@@ -95,7 +102,8 @@ struct RampTexture {
 };
 
 struct ColorRampData : public NodeData {
-	int value = -1;
+	using value_t = int32_t;
+	value_t value = -1;
 	std::unique_ptr<ImGradient> ui_value;
 	std::unique_ptr<RampTexture> ubo_value;
 
@@ -704,10 +712,21 @@ struct ImageData : public NodeData {
 	}
 
 	void update_ubo(const PinVariant& value, size_t index) {
-		UboType::Class::FieldAt(index, [&](auto& field) {
-			using PinT = std::decay_t<decltype(field)>::Type;
-			uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(std::declval<PinT>().value), field.getOffset());
-			});
+		if constexpr (has_field_type_v<UboType, ColorRampData>) {
+			UboType::value_t::Class::FieldAt(index, [&](auto& field_v) {
+				using PinValueT = std::decay_t<decltype(field_v)>::Type;
+				UboType::Class::FieldAt(index, [&](auto& field) {
+					using PinT = std::decay_t<decltype(field)>::Type;
+					uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinValueT), field_v.getOffset());
+					});
+				});
+		}
+		else {
+			UboType::Class::FieldAt(index, [&](auto& field) {
+				using PinT = std::decay_t<decltype(field)>::Type;
+				uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
+				});
+		}
 	}
 };
 

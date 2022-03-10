@@ -22,10 +22,8 @@ ImGradient::ImGradient(float* lookup) :m_cachedValues(lookup) {
 }
 
 
-ImGradient::~ImGradient()
-{
-	for (ImGradientMark* mark : m_marks)
-	{
+ImGradient::~ImGradient() {
+	for (ImGradientMark* mark : m_marks) {
 		delete mark;
 	}
 }
