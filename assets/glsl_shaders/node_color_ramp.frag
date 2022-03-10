@@ -13,14 +13,11 @@ layout(set = 2, binding = 0) uniform sampler1D lookupTextures[];
 layout(location = 0) in vec2 fragUV;
 layout(location = 0) out vec4 outColor;
 
-
 void main() {
-
-  
-    float factor = texture(nodeTextures[ubo.texture_id], fragUV).r;
-    outColor = texture(lookupTextures[ubo.lookup_id], factor);
-    //outColor = texture(nodeTextures[ubo.texture_id], fragUV);
-    //outColor = vec4(fragUV, 0.0, 1.0);
-    
+    if(ubo.texture_id >= 0) {
+        float factor = texture(nodeTextures[ubo.texture_id], fragUV).r;
+        outColor = texture(lookupTextures[ubo.lookup_id], factor);
+    } else {
+        outColor = texture(lookupTextures[ubo.lookup_id], fragUV.x);
+    }
 }
-

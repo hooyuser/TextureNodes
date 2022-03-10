@@ -67,6 +67,11 @@ namespace engine {
 		if (vkGetFenceStatus(engine->device, fence) != VK_SUCCESS) {
 			return;
 		}
+		//std::visit([&](auto&& node_data) {
+		//	using NodeDataT = std::remove_reference_t<decltype(node_data)>;
+		//	if constexpr (std::same_as<NodeDataT, >) {
+		//	}
+		//	}, nodes[updated_node_index].data);
 
 		static std::stack<uint32_t> dfs_stack;
 		std::vector<uint32_t> dfs_path;
@@ -458,8 +463,18 @@ namespace engine {
 					std::visit([&](auto&& node_data) {
 						using NodeDataT = std::decay_t<decltype(node_data)>;
 						if constexpr (is_image_data<NodeDataT>) {
-							//node_data->update_ubo(color_pin.default_value, *color_pin_index);
-							//update_from(*color_node_index);
+							node_data->update_ubo(color_ramp_pin.default_value, *color_ramp_pin_index);
+							if (vkGetFenceStatus(engine->device, fence) == VK_SUCCESS) {
+								VkSubmitInfo submitInfo{
+									.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+									.commandBufferCount = 1,
+									.pCommandBuffers = &std::get<ColorRampData>(color_ramp_pin.default_value).ubo_value->command_buffer,
+								};
+								vkResetFences(engine->device, 1, &fence);
+								vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
+								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, UINT64_MAX);
+								update_from(*color_ramp_node_index);
+							}
 						}
 						}, color_ramp_node.data);
 				}

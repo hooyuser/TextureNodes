@@ -26,10 +26,11 @@ void immediate_submit(VkDevice device, VkCommandPool commandPool, VkQueue queue,
 	std::invoke(FWD(function), commandBuffer);
 	vkEndCommandBuffer(commandBuffer);
 
-	VkSubmitInfo submitInfo{};
-	submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-	submitInfo.commandBufferCount = 1;
-	submitInfo.pCommandBuffers = &commandBuffer;
+	VkSubmitInfo submitInfo{
+		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+		.commandBufferCount = 1,
+		.pCommandBuffers = &commandBuffer,
+	};
 
 	vkResetFences(device, 1, &fence);
 	vkQueueSubmit(queue, 1, &submitInfo, fence);

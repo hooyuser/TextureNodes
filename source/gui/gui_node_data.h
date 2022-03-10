@@ -102,6 +102,7 @@ struct ColorRampData : public NodeData {
 	inline ColorRampData() {}
 	inline ColorRampData(VulkanEngine* engine) {
 		ubo_value = std::make_unique<RampTexture>(engine);
+		value = ubo_value->color_ramp_texture_id;
 		void* data;
 		vkMapMemory(engine->device, ubo_value->staging_buffer.memory, 0, ubo_value->staging_buffer.size, 0, &data);
 		ui_value = std::make_unique<ImGradient>(static_cast<float*>(data));

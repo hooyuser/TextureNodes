@@ -125,6 +125,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 }
 
 RampTexture::~RampTexture() {
+	engine->node_texture_1d_manager->delete_id(color_ramp_texture_id);
 	vkDestroySampler(engine->device, sampler, nullptr);
 	vkDestroyImageView(engine->device, image_view, nullptr);
 	vkDestroyImage(engine->device, image, nullptr);

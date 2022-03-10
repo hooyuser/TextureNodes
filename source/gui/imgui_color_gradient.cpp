@@ -16,6 +16,9 @@ static const float GRADIENT_MARK_DELETE_DIFFY = 40;
 ImGradient::ImGradient(float* lookup) :m_cachedValues(lookup) {
 	addMark(0.0f, ImColor(0.0f, 0.0f, 0.0f));
 	addMark(1.0f, ImColor(1.0f, 1.0f, 1.0f));
+	for (int i = 0; i < 256; ++i) {
+		m_cachedValues[4 * i + 3] = 1.0f;
+	}
 }
 
 
