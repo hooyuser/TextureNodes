@@ -131,7 +131,7 @@ namespace engine {
 				if constexpr (is_image_data<NodeDataT>) {
 					node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info1.size());
 					node_data->submit_info[0].pWaitSemaphoreInfos = node_data->wait_semaphore_submit_info1.data(),
-					memcpy(iter, node_data->submit_info.data(), sizeof(VkSubmitInfo2) * 2);
+						memcpy(iter, node_data->submit_info.data(), sizeof(VkSubmitInfo2) * 2);
 				}
 				}, nodes[i].data);
 			iter += 2;
@@ -182,6 +182,10 @@ namespace engine {
 		static std::optional<size_t> color_node_index;  //implies whether colorpicker should be open
 		static std::optional<size_t> color_pin_index;
 		bool hit_color_pin = false;  //implies whether enum pin has been hit
+
+		static std::optional<size_t> color_ramp_node_index;  //implies whether color ramp should be open
+		static std::optional<size_t> color_ramp_pin_index;
+		bool hit_color_ramp_pin = false;  //implies whether color ramp pin has been hit
 
 		static std::optional<size_t> enum_node_index;  //implies whether enum menu should be open
 		static std::optional<size_t> enum_pin_index;
@@ -342,6 +346,18 @@ namespace engine {
 						//ImGui::Text(pin->name.c_str());
 						rect = imgui_get_item_rect();
 					}
+					else if constexpr (std::is_same_v<PinT, ColorRampData>) {
+						ImGui::Dummy(ImVec2(2.0f, 25.0f));
+						rect = imgui_get_item_rect();
+						ImGui::SameLine();
+						auto& color_ramp_data = *std::get<ColorRampData>(node.inputs[i].default_value).ui_value;
+						if (ImGui::GradientButton(&color_ramp_data, 140.0f)) {
+							color_ramp_node_index = node_index;
+							color_ramp_pin_index = i;
+							hit_color_ramp_pin = true;
+						}
+						
+					}
 					}, pin->default_value);
 
 
@@ -420,6 +436,33 @@ namespace engine {
 							update_from(*color_node_index);
 						}
 						}, color_node.data);
+				}
+				ImGui::EndPopup();
+			}
+			ed::Resume();
+		}
+
+		//Processing color ramp pin popup
+		if (color_ramp_pin_index.has_value()) {
+			ed::Suspend();
+			auto& color_ramp_node = nodes[*color_ramp_node_index];
+			auto& color_ramp_pin = color_ramp_node.inputs[*color_ramp_pin_index];
+			if (hit_color_ramp_pin) {
+				ImGui::OpenPopup(("ColorRampPopup##" + std::to_string(color_ramp_pin.id.Get())).c_str());
+			}
+
+			if (ImGui::BeginPopup(("ColorRampPopup##" + std::to_string(color_ramp_pin.id.Get())).c_str())) {
+				static ImGradientMark* draggingMark = nullptr;
+				static ImGradientMark* selectedMark = nullptr;
+				//bool updated = ImGui::GradientEditor(&gradient, draggingMark, selectedMark);
+				if (ImGui::GradientEditor(std::get<ColorRampData>(color_ramp_pin.default_value).ui_value.get(), draggingMark, selectedMark)) {
+					std::visit([&](auto&& node_data) {
+						using NodeDataT = std::decay_t<decltype(node_data)>;
+						if constexpr (is_image_data<NodeDataT>) {
+							//node_data->update_ubo(color_pin.default_value, *color_pin_index);
+							//update_from(*color_node_index);
+						}
+						}, color_ramp_node.data);
 				}
 				ImGui::EndPopup();
 			}

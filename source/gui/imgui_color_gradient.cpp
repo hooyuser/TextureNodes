@@ -304,14 +304,14 @@ namespace ImGui
         ImGui::SetCursorScreenPos(ImVec2(bar_pos.x, bar_pos.y + height + 20.0f));
     }
     
-    bool GradientButton(ImGradient* gradient)
+    bool GradientButton(ImGradient* gradient, float max_width)
     {
         if(!gradient) return false;
         
         ImVec2 widget_pos = ImGui::GetCursorScreenPos();
         // ImDrawList* draw_list = ImGui::GetWindowDrawList();
         
-        float maxWidth = ImMax(250.0f, ImGui::GetContentRegionAvailWidth() - 100.0f);
+        float maxWidth = ImMin(max_width, ImGui::GetContentRegionAvailWidth() - 100.0f);
         bool clicked = ImGui::InvisibleButton("gradient_bar", ImVec2(maxWidth, GRADIENT_BAR_WIDGET_HEIGHT));
         
         DrawGradientBar(gradient, widget_pos, maxWidth, GRADIENT_BAR_WIDGET_HEIGHT);

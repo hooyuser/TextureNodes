@@ -76,7 +76,7 @@ private:
 
 namespace ImGui
 {
-    bool GradientButton(ImGradient* gradient);
+    bool GradientButton(ImGradient* gradient, float max_width = 250.0f);
     
     bool GradientEditor(ImGradient* gradient,
                         ImGradientMark* & draggingMark,

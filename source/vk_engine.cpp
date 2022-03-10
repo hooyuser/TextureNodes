@@ -1437,13 +1437,14 @@ void VulkanEngine::draw_frame() {
 		ImGui::Begin("Texture Viewer");
 		ImGui::PopStyleColor();
 		{
+//#define GRADIENT_DEBUG
 #ifdef GRADIENT_DEBUG
 			ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
 			ImVec2 viewer_size = ImGui::GetContentRegionAvail();
 			ImGui::SetCursorPos(ImVec2{ 0, window_size.y - viewer_size.y + 10 });
 
 			static ImGradient gradient = ImGradient();
-			if (ImGui::GradientButton(&gradient)) {
+			if (ImGui::GradientButton(&gradient, 100)) {
 				ImGui::OpenPopup("Gradient##1");
 			}
 			if (ImGui::BeginPopup("Gradient##1")) {
@@ -1453,8 +1454,7 @@ void VulkanEngine::draw_frame() {
 				bool updated = ImGui::GradientEditor(&gradient, draggingMark, selectedMark);
 				ImGui::EndPopup();
 			}
-#endif
-#ifndef GRADIENT_DEBUG
+#else
 			if (auto handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
 				ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
 				ImVec2 viewer_size = ImGui::GetContentRegionAvail();
