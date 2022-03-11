@@ -29,19 +29,23 @@ add_executable(${PROJECT_NAME}
 find_package(Git)
 if (WIN32)
     if(Git_FOUND)
-        add_custom_command(TARGET ${PROJECT_NAME}
-            PRE_BUILD
+        add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
             COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR}
             COMMAND compile_modified_spirv.bat
         )
     else() 
-        add_custom_command(TARGET ${PROJECT_NAME}
-            PRE_BUILD
+        add_custom_command(TARGET ${PROJECT_NAME} PRE_BUILD
             COMMAND cd ${CMAKE_CURRENT_SOURCE_DIR}
             COMMAND compile_spirv.bat
         )
     endif()
 endif()
+
+set(no_copy $<NOT:$<CONFIG:Release>>)
+add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different $<TARGET_FILE:${PROJECT_NAME}> ${CMAKE_SOURCE_DIR}/build/bin/$<TARGET_FILE_NAME:${PROJECT_NAME}>
+    COMMAND ${CMAKE_COMMAND} -E $<${no_copy}:echo> $<${no_copy}:"copy omitted for non-release build, command would have been "> copy_directory ${CMAKE_SOURCE_DIR}/assets ${CMAKE_SOURCE_DIR}/build/bin/assets
+)
 
 source_group("Source Files"            FILES ${SRC})
 source_group("Header Files"            FILES ${HEADER})
