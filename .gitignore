@@ -15,6 +15,7 @@ build[0-9]*/*
 *.json
 *.exe
 *.ttf
+*.txg
 
 # User-specific files
 *.rsuser

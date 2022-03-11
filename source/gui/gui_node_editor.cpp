@@ -4,9 +4,17 @@
 #include "../vk_initializers.h"
 #include "../vk_shader.h"
 #include <IconsFontAwesome5.h>
+#include <json.hpp>
 #include <ranges>
+#include <fstream>
+
+using json = nlohmann::json;
 
 constexpr bool show_imgui_demo = false;
+
+void to_json(json& j, const ImVec2& p) {
+	j = std::array{ p.x, p.y };
+}
 
 template <typename T, typename ArrayElementT>
 concept std_array = requires (T t) {
@@ -229,7 +237,7 @@ namespace engine {
 			auto& node = nodes[node_index];
 			ed::BeginNode(node.id);
 			auto yy = ImGui::GetCursorPosY();
-			ImGui::Text(node.type_name.c_str());
+			ImGui::Text(node.name.c_str());
 			ImGui::Dummy(ImVec2(160.0f, 3.0f));
 			auto node_rect = imgui_get_item_rect();
 			ImGui::GetWindowDrawList()->AddRectFilled(node_rect.GetTL(), node_rect.GetBR(), ImColor(68, 129, 196, 160));
@@ -748,5 +756,21 @@ namespace engine {
 			vkDestroyFence(engine->device, fence, nullptr);
 			ed::DestroyEditor(context);
 			});
+	}
+
+	void NodeEditor::serialize(std::string_view file_path) {
+		json json_file;
+		ed::SetCurrentEditor(context);
+		for (auto& node : nodes) {
+
+			json_file["nodes"].emplace_back(json{
+				{"type", node.data.index()} ,
+				{"pins", node.inputs},
+				{"pos", GetNodePosition(node.id)}
+				});
+		}
+		std::ofstream o(file_path.data());
+		o << std::setw(4) << json_file << std::endl;
+		ed::SetCurrentEditor(nullptr);
 	}
 };

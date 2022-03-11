@@ -48,14 +48,16 @@
 #pragma once
 
 #include "imgui.h"
+#include <json.hpp>
 
 #include <list>
+using json = nlohmann::json;
 
 struct ImGradientMark {
     float color[4];
     float position; //0 to 1
 };
-
+NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ImGradientMark, color, position)
 
 class ImGradient {
 public:
@@ -73,7 +75,15 @@ private:
     std::list<ImGradientMark*> m_marks;
 
     void computeColorAt(float position, float* color) const;
+
+    friend inline void to_json(json& j, const ImGradient& p);
 };
+
+inline void to_json(json& j, const ImGradient& p) {
+    for (auto iter : p.m_marks) {
+        j.emplace_back(*iter);
+    }
+}
 
 namespace ImGui {
     bool GradientButton(ImGradient* gradient, float max_width = 250.0f);

@@ -1396,7 +1396,7 @@ void VulkanEngine::draw_frame() {
 				if (ImGui::MenuItem(" " ICON_FA_FOLDER_OPEN " Open")) {
 				}
 				if (ImGui::MenuItem(" " ICON_FA_SAVE " Save")) {
-					ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".cpp,.h,.hpp", ".");
+					ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".txg", ".");
 				}
 				ImGui::EndMenu();
 			}
@@ -1411,7 +1411,8 @@ void VulkanEngine::draw_frame() {
 			if (ImGuiFileDialog::Instance()->IsOk())
 			{
 				std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-				std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+				//std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+				node_editor->serialize(filePathName);
 				// action
 			}
 

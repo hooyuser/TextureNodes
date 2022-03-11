@@ -123,6 +123,33 @@ struct ColorRampData : public NodeData {
 	//}
 };
 
+inline void to_json(json& j, const ColorRampData& p) {
+	j = *p.ui_value;
+}
+
+namespace nlohmann {
+	template <typename T> requires std::derived_from<T, NodeData>
+	struct adl_serializer<T> {
+		static void to_json(json& j, const T& opt) {
+			if constexpr (std::same_as<T, ColorRampData>) {
+				j = *(opt.ui_value);
+			}
+			else {
+				j = opt.value;
+			}
+
+		}
+	};
+
+	template <typename ...Args>
+	struct adl_serializer<std::variant<Args...>> {
+		static void to_json(json& j, std::variant<Args...> const& var) {
+			std::visit([&](auto&& value) {
+				j = FWD(value);
+				}, var);
+		}
+	};
+}
 
 using PinVariant = std::variant<
 	TextureIdData,

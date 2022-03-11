@@ -20,5 +20,7 @@ struct NodeAdd : NodeTypeBase {
 		)
 	};
 	using data_type = FloatData;
+
+	//constexpr inline static auto name = "Add";
 	constexpr auto static name() { return "Add"; }
 };

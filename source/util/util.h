@@ -16,6 +16,13 @@ decltype(auto) constexpr_if(Then&& then, OrElse&& or_else) {
     }
 }
 
+template <int N, typename F>
+inline void UNROLL(F&& func) {
+    [func = FWD(func)] <std::size_t... I> (std::index_sequence<I...>) {
+        (func.template operator() < I > (), ...);
+    }(std::make_index_sequence<N>{});
+}
+
 template <typename T> struct Pointer;
 
 template <typename T> struct Pointer<T*>

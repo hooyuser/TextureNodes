@@ -46,7 +46,7 @@ using NodeTypeList = TypeList<
 
 using NodeVariant = NodeTypeList::cast_to<std::variant>;
 
-using NodeDataVariant = decltype(make_unique_typeset(to_data_type(std::declval<NodeVariant>())));
+using NodeDataVariant = decltype(to_data_type(std::declval<NodeVariant>()));
 
 template <typename T>
 struct PredImageBase {
@@ -55,7 +55,7 @@ struct PredImageBase {
 
 using ImageNodeTypeTuple = filter_t<NodeTypeList::to_tuple, PredImageBase>;
 
-using ImageNodeDataTypeTuple = decltype(make_unique_typeset(to_data_type(std::declval<ImageNodeTypeTuple>())));
+using ImageNodeDataTypeTuple = decltype(to_data_type(std::declval<ImageNodeTypeTuple>()));
 
 //template <typename T>
 //constexpr bool is_image_data() {
@@ -101,6 +101,10 @@ struct Pin {
 	}
 };
 
+inline void to_json(json& j, const Pin& p) {
+	j = p.default_value;
+}
+
 //enum class NodeState {
 //	Normal = 0,
 //	Updated = 1,
@@ -114,13 +118,13 @@ struct Node {
 	std::vector<Pin> inputs;
 	std::vector<Pin> outputs;
 	//ImColor Color ;
-	std::string type_name;
+	//std::string type_name;
 	ImVec2 size = { 0, 0 };
 	NodeDataVariant data;
 
 	template<std::derived_from<NodeTypeBase> T>
 	Node(int id, std::string name, const T&, VulkanEngine* engine) :
-		id(id), name(name), type_name(T::name()) {
+		id(id), name(name) {
 		if constexpr (std::derived_from<T, NodeTypeImageBase>) {
 			data = std::make_shared<ref_t<T::data_type>>(engine);
 		}
@@ -236,6 +240,8 @@ namespace engine {
 		}
 
 		void draw();
+
+		void serialize(std::string_view file_path);
 
 		template<std::invocable<uint32_t> Func>
 		void for_each_connected_image_node(Func&& func, uint32_t node_index) {  //node_index is the index of current node
