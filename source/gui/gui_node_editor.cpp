@@ -6,6 +6,8 @@
 #include <IconsFontAwesome5.h>
 #include <ranges>
 
+constexpr bool show_imgui_demo = false;
+
 template <typename T, typename ArrayElementT>
 concept std_array = requires (T t) {
 	[] <size_t I> (std::array<ArrayElementT, I>) {}(t);
@@ -162,11 +164,13 @@ namespace engine {
 	}
 
 	void NodeEditor::draw() {
+		//static bool first = true;
+		auto& io = ImGui::GetIO();
 
 		if (ImGui::BeginMenuBar()) {
 			if (ImGui::BeginMenu("Add")) {
 				NodeTypeList::for_each([&]<typename T> () {
-					if (ImGui::MenuItem(T::name())) {
+					if (ImGui::MenuItem((std::string(" ") + T::name()).c_str())) {
 						update_from(create_node<T>());
 					}
 				});
@@ -175,9 +179,33 @@ namespace engine {
 			ImGui::EndMenuBar();
 		}
 
-		ImGui::ShowDemoWindow();
+		if constexpr (show_imgui_demo) {
+			ImGui::ShowDemoWindow();
+		}
+		
 		ed::SetCurrentEditor(context);
 		ed::Begin("My Editor", ImVec2(0.0f, 0.0f));
+
+		//if (first) {
+		//	ed::EnableShortcuts(true);
+		//	first = false;
+		//}
+
+		ed::Suspend();
+		if (ImGui::IsKeyPressed(io.KeyMap[ImGuiKey_Tab])) {
+			ImGui::OpenPopup("Add New Node");
+		}
+		if (ImGui::BeginPopup("Add New Node")) {
+			NodeTypeList::for_each([&]<typename T> () {
+				if (ImGui::MenuItem((std::string(" ") + T::name()).c_str())) {
+					auto node_i = create_node<T>();
+					update_from(node_i);
+					ed::SetNodePosition(nodes[node_i].id, ed::ScreenToCanvas(ImGui::GetMousePos()));
+				}
+			});
+			ImGui::EndPopup();
+		}
+		ed::Resume();
 
 		//Set display node
 		if (auto node_id = ed::GetDoubleClickedNode(); node_id != ed::NodeId::Invalid) {
@@ -630,6 +658,8 @@ namespace engine {
 		}
 		ed::EndCreate(); // Wraps up object creation action handling.
 
+		
+		
 		if (ed::BeginDelete()) {
 			// There may be many links marked for deletion, let's loop over them.
 			ed::LinkId deleted_link_id;
@@ -679,7 +709,14 @@ namespace engine {
 		}
 		ed::EndDelete(); // Wrap up deletion action
 
-
+		//shortcut
+		if (ImGui::IsKeyPressed(io.KeyMap[ImGuiKey_Space])) {
+			ed::NavigateToContent();
+		}
+		if (ImGui::IsKeyPressed('F')) {
+			ed::NavigateToSelection();
+		}
+		
 		ed::End();
 		ed::SetCurrentEditor(nullptr);
 
@@ -696,17 +733,10 @@ namespace engine {
 
 	NodeEditor::NodeEditor(VulkanEngine* engine) :engine(engine) {
 		ed::Config config;
-		config.SettingsFile = "Simple.json";
+		//config.SettingsFile = "TextureNode.json";
 		context = ed::CreateEditor(&config);
 
 		create_fence();
-		/*create_node_descriptor_pool();
-		create_node_descriptor_set_layouts();
-		create_node_texture_descriptor_set();*/
-
-		/*for (auto i : std::views::iota(0u, max_bindless_node_2d_textures)) {
-			engine->node_texture_manager.unused_id.emplace(i);
-		}*/
 
 		engine->main_deletion_queue.push_function([=]() {
 			nodes.clear();

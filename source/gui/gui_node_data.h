@@ -387,7 +387,7 @@ struct ImageData : public NodeData {
 	void create_image_pocessing_pipeline_layout() {
 
 		auto descriptor_set_layouts = [&]() {
-			if constexpr (has_field_type_v<UboType, ColorRampData>) {
+			if constexpr (has_field_type_v<UboType, ColorRampData> && has_field_type_v<UboType, TextureIdData>) {
 				return std::array{
 					ubo_descriptor_set_layout,
 					engine->node_texture_2d_manager->descriptor_set_layout,
@@ -487,7 +487,7 @@ struct ImageData : public NodeData {
 		};
 
 		auto descriptor_sets = [&]() {
-			if constexpr (has_field_type_v<UboType, ColorRampData>) {
+			if constexpr (has_field_type_v<UboType, ColorRampData> && has_field_type_v<UboType, TextureIdData>) {
 				return std::array{
 					ubo_descriptor_set,
 					engine->node_texture_2d_manager->descriptor_set,

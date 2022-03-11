@@ -16,7 +16,7 @@ struct NodeTextureManager {
 
 	void create_node_texture_descriptor_set(VulkanEngine* engine);
 
-	NodeTextureManager(VulkanEngine* engine);
+	NodeTextureManager(VulkanEngine* engine, uint32_t max_textures);
 
 	inline const auto get_id() {
 		auto id = *unused_id.begin();

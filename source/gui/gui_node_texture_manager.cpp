@@ -4,12 +4,12 @@
 #include <ranges>
 #include <stdexcept>
 
-NodeTextureManager::NodeTextureManager(VulkanEngine* engine) {
+NodeTextureManager::NodeTextureManager(VulkanEngine* engine, uint32_t max_textures) {
 	
 	create_node_descriptor_set_layouts(engine);
 	create_node_texture_descriptor_set(engine);
 
-	for (auto i : std::views::iota(0u, engine->max_bindless_node_2d_textures)) {
+	for (auto i : std::views::iota(0u, max_textures)) {
 		unused_id.emplace(i);
 	}
 }

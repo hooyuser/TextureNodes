@@ -170,8 +170,6 @@ namespace engine {
 		ed::NodeId display_node_id = ed::NodeId::Invalid;
 		void* gui_display_texture_handle = nullptr;
 		//uint64_t semophore_counter = 0;
-
-		//std::vector<VkSubmitInfo2> submits;
 		
 		VkSemaphoreWaitInfo preview_semaphore_wait_info{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,

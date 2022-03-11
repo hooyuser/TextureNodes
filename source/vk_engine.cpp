@@ -1317,8 +1317,8 @@ void VulkanEngine::create_sync_objects() {
 void VulkanEngine::init_imgui() {
 	gui = std::make_shared<engine::GUI>();
 	gui->init(this);
-	node_texture_1d_manager = std::make_shared<NodeTextureManager>(this);
-	node_texture_2d_manager = std::make_shared<NodeTextureManager>(this);
+	node_texture_1d_manager = std::make_shared<NodeTextureManager>(this, max_bindless_node_1d_textures);
+	node_texture_2d_manager = std::make_shared<NodeTextureManager>(this, max_bindless_node_2d_textures);
 	node_editor = std::make_shared<engine::NodeEditor>(this);
 }
 
