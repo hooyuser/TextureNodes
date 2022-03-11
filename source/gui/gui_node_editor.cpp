@@ -182,7 +182,7 @@ namespace engine {
 		if constexpr (show_imgui_demo) {
 			ImGui::ShowDemoWindow();
 		}
-		
+
 		ed::SetCurrentEditor(context);
 		ed::Begin("My Editor", ImVec2(0.0f, 0.0f));
 
@@ -389,7 +389,7 @@ namespace engine {
 							color_ramp_pin_index = i;
 							hit_color_ramp_pin = true;
 						}
-						
+
 					}
 					}, pin->default_value);
 
@@ -658,8 +658,8 @@ namespace engine {
 		}
 		ed::EndCreate(); // Wraps up object creation action handling.
 
-		
-		
+
+
 		if (ed::BeginDelete()) {
 			// There may be many links marked for deletion, let's loop over them.
 			ed::LinkId deleted_link_id;
@@ -716,7 +716,7 @@ namespace engine {
 		if (ImGui::IsKeyPressed('F')) {
 			ed::NavigateToSelection();
 		}
-		
+
 		ed::End();
 		ed::SetCurrentEditor(nullptr);
 
@@ -729,11 +729,16 @@ namespace engine {
 		}
 	}
 
-
-
 	NodeEditor::NodeEditor(VulkanEngine* engine) :engine(engine) {
 		ed::Config config;
-		//config.SettingsFile = "TextureNode.json";
+		//disable writing json
+		config.SaveSettings = [](const char* data, size_t size, ed::SaveReasonFlags reason, void* userPointer) {
+			return false;
+		};
+
+		config.SaveNodeSettings = [](ed::NodeId nodeId, const char* data, size_t size, ed::SaveReasonFlags reason, void* userPointer) {
+			return false;
+		};
 		context = ed::CreateEditor(&config);
 
 		create_fence();

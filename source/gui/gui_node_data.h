@@ -437,7 +437,10 @@ struct ImageData : public NodeData {
 		pipeline_builder.buildPipeline(engine->device, image_pocessing_render_pass, image_pocessing_pipeline_layout, image_pocessing_pipeline);
 
 		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyPipeline(engine->device, image_pocessing_pipeline, nullptr);
+			if (image_pocessing_pipeline) {
+				vkDestroyPipeline(engine->device, image_pocessing_pipeline, nullptr);
+				image_pocessing_pipeline = nullptr;
+			}
 			});
 	}
 

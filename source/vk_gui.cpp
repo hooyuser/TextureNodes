@@ -183,7 +183,8 @@ namespace engine {
 		icons_config.OversampleV = 4;
 		icons_config.MergeMode = true;
 		icons_config.PixelSnapH = true;
-		io.Fonts->AddFontFromFileTTF((std::filesystem::path("assets") / "fonts" / FONT_ICON_FILE_NAME_FAS).string().c_str(), 22.0f, &icons_config, icons_ranges);
+		icons_config.GlyphMinAdvanceX = 25.0f;
+		io.Fonts->AddFontFromFileTTF((std::filesystem::path("assets") / "fonts" / FONT_ICON_FILE_NAME_FAS).string().c_str(), 18.0f, &icons_config, icons_ranges);
 
 		immediate_submit(engine, [&](VkCommandBuffer cmd) {
 			ImGui_ImplVulkan_CreateFontsTexture(cmd);

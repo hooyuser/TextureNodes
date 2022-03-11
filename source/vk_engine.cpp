@@ -10,6 +10,7 @@
 #include "vk_camera.h"
 #include "vk_material.h"
 #include "vk_gui.h"
+#include "gui/ImGuiFileDialog.h"
 
 #include "gui/imgui_color_gradient.h"
 
@@ -19,6 +20,8 @@
 #include <filesystem>
 #include <chrono>
 #include <algorithm>
+
+#include <IconsFontAwesome5.h>
 
 #define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
@@ -1387,8 +1390,33 @@ void VulkanEngine::draw_frame() {
 		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
 		if (ImGui::BeginMenuBar()) {
-			ImGui::Text("FPS: %.2f (%.2gms)", io.Framerate, io.Framerate ? 1000.0f / io.Framerate : 0.0f);
+			if (ImGui::BeginMenu("File")) {
+				if (ImGui::MenuItem(" " ICON_FA_FOLDER_PLUS " New")) {
+				}
+				if (ImGui::MenuItem(" " ICON_FA_FOLDER_OPEN " Open")) {
+				}
+				if (ImGui::MenuItem(" " ICON_FA_SAVE " Save")) {
+					ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".cpp,.h,.hpp", ".");
+				}
+				ImGui::EndMenu();
+			}
+			ImGui::SameLine(ImGui::GetWindowWidth() - 110);
+			ImGui::Text("FPS: %.f (%.fms)", io.Framerate, io.Framerate ? 1000.0f / io.Framerate : 0.0f);
 			ImGui::EndMenuBar();
+		}
+
+		if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
+		{
+			// action if OK
+			if (ImGuiFileDialog::Instance()->IsOk())
+			{
+				std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
+				std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+				// action
+			}
+
+			// close
+			ImGuiFileDialog::Instance()->Close();
 		}
 
 		static bool first_time = true;
@@ -1463,7 +1491,7 @@ void VulkanEngine::draw_frame() {
 			if (auto handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
 				ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
 				ImVec2 viewer_size = ImGui::GetContentRegionAvail();
-				constexpr static float scale_factor = 0.96;
+				constexpr static float scale_factor = 0.975;
 				float image_width = std::min(viewer_size.x, viewer_size.y) * scale_factor;
 				ImVec2 image_size = ImVec2{ image_width, image_width };
 				ImGui::SetCursorPos((viewer_size - image_size) * 0.5f + ImVec2{ 0, window_size.y - viewer_size.y });
