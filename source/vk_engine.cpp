@@ -1395,9 +1395,10 @@ void VulkanEngine::draw_frame() {
 					node_editor->clear();
 				}
 				if (ImGui::MenuItem(" " ICON_FA_FOLDER_OPEN " Open")) {
+					ImGuiFileDialog::Instance()->OpenDialog("OpenFileDlgKey", "Choose File", ".txg", ".");
 				}
 				if (ImGui::MenuItem(" " ICON_FA_SAVE " Save")) {
-					ImGuiFileDialog::Instance()->OpenDialog("ChooseFileDlgKey", "Choose File", ".txg", ".");
+					ImGuiFileDialog::Instance()->OpenDialog("SaveFileDlgKey", "Choose File", ".txg", ".");
 				}
 				ImGui::EndMenu();
 			}
@@ -1406,13 +1407,23 @@ void VulkanEngine::draw_frame() {
 			ImGui::EndMenuBar();
 		}
 
-		if (ImGuiFileDialog::Instance()->Display("ChooseFileDlgKey"))
-		{
+		if (ImGuiFileDialog::Instance()->Display("OpenFileDlgKey")) {
 			// action if OK
-			if (ImGuiFileDialog::Instance()->IsOk())
-			{
+			if (ImGuiFileDialog::Instance()->IsOk()) {
 				std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-				//std::string filePath = ImGuiFileDialog::Instance()->GetCurrentPath();
+				node_editor->clear();
+				node_editor->deserialize(filePathName);
+				// action
+			}
+
+			// close
+			ImGuiFileDialog::Instance()->Close();
+		}
+
+		if (ImGuiFileDialog::Instance()->Display("SaveFileDlgKey")) {
+			// action if OK
+			if (ImGuiFileDialog::Instance()->IsOk()) {
+				std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
 				node_editor->serialize(filePathName);
 				// action
 			}
@@ -1500,11 +1511,11 @@ void VulkanEngine::draw_frame() {
 				ImGui::Image(handle, image_size, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
 			}
 #endif
-			
+
 			/*ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
 			ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
 			ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);*/
-		}
+	}
 		ImGui::End();
 
 		ImGui::SetNextWindowBgAlpha(0.0f);
@@ -1528,7 +1539,7 @@ void VulkanEngine::draw_frame() {
 		ImGui::End();
 
 		ImGui::PopStyleVar(3);
-	}
+}
 
 	gui->end_render(this, imageIndex);
 

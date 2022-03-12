@@ -25,6 +25,11 @@ static std::string first_letter_to_upper(std::string_view str);
 template<typename UnknownType, typename ...ReferenceTypes>
 concept any_of = (std::same_as<std::decay_t<UnknownType>, ReferenceTypes> || ...);
 
+template <typename T>
+concept std_variant = requires (T t) {
+	[] <typename... Ts> (std::variant<Ts...>) {}(t);
+};
+
 template <template<typename ...> typename TypeList, typename ...Ts>
 consteval auto to_data_type(TypeList<Ts...>)->TypeList<typename Ts::data_type...>;
 
@@ -46,6 +51,9 @@ using NodeTypeList = TypeList<
 
 using NodeVariant = NodeTypeList::cast_to<std::variant>;
 
+template <std_variant VariantT, size_t I>
+using ComponentT = typename std::decay_t<decltype(std::get<I>(std::declval<VariantT>()))>;
+
 using NodeDataVariant = decltype(to_data_type(std::declval<NodeVariant>()));
 
 template <typename T>
@@ -65,6 +73,7 @@ using ImageNodeDataTypeTuple = decltype(to_data_type(std::declval<ImageNodeTypeT
 //}
 
 
+
 template <typename T, typename Tuple>
 struct any_of_tuple {
 	static constexpr bool value = std::invoke([] <std::size_t... I> (std::index_sequence<I...>) {
@@ -74,10 +83,23 @@ struct any_of_tuple {
 template <typename T, typename Tuple>
 static constexpr bool any_of_tuple_v = any_of_tuple<T, Tuple>::value; //chech if T is a subtype of Tuple, Tuple is std::tuple
 
-
-
 template <typename T>
 static constexpr bool is_image_data = any_of_tuple_v<T, ImageNodeDataTypeTuple>;
+
+template <typename T>
+concept ImageDataConcept = is_image_data<T>;
+
+template <typename T>
+concept NonImageDataConcept = !is_image_data<T>;
+
+template <ImageDataConcept T>
+auto inline get_ubo(T)->ref_t<T>::UboType;
+
+template <NonImageDataConcept T>
+auto inline get_ubo(T)->T::UboType;
+
+template <typename NodeDataT>
+using UboOf = std::decay_t<decltype(get_ubo(std::declval<NodeDataT>()))>;
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -246,6 +268,8 @@ namespace engine {
 		void draw();
 
 		void serialize(std::string_view file_path);
+
+		void deserialize(std::string_view file_path);
 
 		void clear();
 

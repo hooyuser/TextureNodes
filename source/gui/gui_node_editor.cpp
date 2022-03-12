@@ -220,13 +220,13 @@ namespace engine {
 			display_node_id = node_id;
 		}
 
-		static std::optional<size_t> color_node_index;  
+		static std::optional<size_t> color_node_index;
 		bool hit_color_pin = false;  //implies whether enum pin has been hit
 
-		static std::optional<size_t> color_ramp_node_index;  
+		static std::optional<size_t> color_ramp_node_index;
 		bool hit_color_ramp_pin = false;  //implies whether color ramp pin has been hit
 
-		static std::optional<size_t> enum_node_index;  
+		static std::optional<size_t> enum_node_index;
 		bool hit_enum_pin = false;  //implies whether enum pin has been hit
 
 		// Start drawing nodes.
@@ -285,42 +285,42 @@ namespace engine {
 							//ImGui::SameLine();
 							bool response_flag = false;
 							std::visit([&](auto&& node_data) {
-								using NodeDataT = std::remove_reference_t<decltype(node_data)>;
-								if constexpr (is_image_data<NodeDataT>) {
-									using UboT = typename ref_t<NodeDataT>::UboType;
-									UboT::Class::FieldAt(i, [&](auto& field) {
-										auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
-										if constexpr (std::is_same_v<PinT, FloatData>) {
-											if (widget_info.enable_slider) {
-												response_flag |= ImGui::SliderFloat(("##" + std::to_string(pin->id.Get())).c_str(),
-													&std::get<PinT>(pin->default_value).value,
-													widget_info.min,
-													widget_info.max,
-													(pin->name + " : %.3f").c_str());
-											}
-											else {
-												response_flag |= ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(),
-													&std::get<PinT>(pin->default_value).value,
-													widget_info.speed,
-													widget_info.min,
-													widget_info.max,
-													(pin->name + " : %.3f").c_str());
-											}
+								using NodeDataT = std::decay_t<decltype(node_data)>;
+								UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
+									auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
+									if constexpr (std::is_same_v<PinT, FloatData>) {
+										if (widget_info.enable_slider) {
+											response_flag |= ImGui::SliderFloat(("##" + std::to_string(pin->id.Get())).c_str(),
+												&std::get<PinT>(pin->default_value).value,
+												widget_info.min,
+												widget_info.max,
+												(pin->name + " : %.3f").c_str());
 										}
-										else if constexpr (std::is_same_v<PinT, IntData>) {
-											response_flag |= ImGui::DragInt(("##" + std::to_string(pin->id.Get())).c_str(),
+										else {
+											response_flag |= ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(),
 												&std::get<PinT>(pin->default_value).value,
 												widget_info.speed,
-												static_cast<int>(widget_info.min),
-												static_cast<int>(widget_info.max),
-												(pin->name + " : %d").c_str());
+												widget_info.min,
+												widget_info.max,
+												(pin->name + " : %.3f").c_str());
 										}
-										if (response_flag) {
+									}
+									else if constexpr (std::is_same_v<PinT, IntData>) {
+										response_flag |= ImGui::DragInt(("##" + std::to_string(pin->id.Get())).c_str(),
+											&std::get<PinT>(pin->default_value).value,
+											widget_info.speed,
+											static_cast<int>(widget_info.min),
+											static_cast<int>(widget_info.max),
+											(pin->name + " : %d").c_str());
+									}
+									if (response_flag) {
+										if constexpr (is_image_data<NodeDataT>) {
 											node_data->update_ubo(pin->default_value, i);
 											update_from(node_index);
 										}
-										});
-								}
+									}
+									});
+
 								}, node.data);
 
 							ImGui::PopItemWidth();
@@ -765,9 +765,24 @@ namespace engine {
 				{"pos", GetNodePosition(node.id)}
 				});
 		}
-		std::ofstream o(file_path.data());
-		o << std::setw(4) << json_file << std::endl;
+		std::ofstream o_file(file_path.data());
+		o_file << std::setw(4) << json_file << std::endl;
 		ed::SetCurrentEditor(nullptr);
+	}
+
+	void NodeEditor::deserialize(std::string_view file_path) {
+		std::ifstream i_file(file_path.data());
+		json json_file;
+		i_file >> json_file;
+
+		for (auto& node : json_file["nodes"]) {
+			UNROLL<std::variant_size_v<NodeVariant>>([&] <std::size_t I>() {
+				if (node["type"] == I) {
+					using T = ComponentT<NodeVariant, I>;
+					create_node<T>();
+				}
+			});
+		}
 	}
 
 	void NodeEditor::clear() {

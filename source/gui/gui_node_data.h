@@ -160,6 +160,12 @@ using PinVariant = std::variant<
 	EnumData,
 	ColorRampData>;
 
+template<typename UniformBufferType, typename ResultT>
+struct NonImageData : public NodeData {
+	using UboType = UniformBufferType;
+	using ResultType = ResultT;
+};
+
 template<typename UniformBufferType, StringLiteral ...Shaders>
 struct ImageData : public NodeData {
 	using UboType = UniformBufferType;
