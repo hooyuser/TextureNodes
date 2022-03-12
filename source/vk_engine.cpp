@@ -1392,6 +1392,7 @@ void VulkanEngine::draw_frame() {
 		if (ImGui::BeginMenuBar()) {
 			if (ImGui::BeginMenu("File")) {
 				if (ImGui::MenuItem(" " ICON_FA_FOLDER_PLUS " New")) {
+					node_editor->clear();
 				}
 				if (ImGui::MenuItem(" " ICON_FA_FOLDER_OPEN " Open")) {
 				}

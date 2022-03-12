@@ -220,16 +220,13 @@ namespace engine {
 			display_node_id = node_id;
 		}
 
-		static std::optional<size_t> color_node_index;  //implies whether colorpicker should be open
-		static std::optional<size_t> color_pin_index;
+		static std::optional<size_t> color_node_index;  
 		bool hit_color_pin = false;  //implies whether enum pin has been hit
 
-		static std::optional<size_t> color_ramp_node_index;  //implies whether color ramp should be open
-		static std::optional<size_t> color_ramp_pin_index;
+		static std::optional<size_t> color_ramp_node_index;  
 		bool hit_color_ramp_pin = false;  //implies whether color ramp pin has been hit
 
-		static std::optional<size_t> enum_node_index;  //implies whether enum menu should be open
-		static std::optional<size_t> enum_pin_index;
+		static std::optional<size_t> enum_node_index;  
 		bool hit_enum_pin = false;  //implies whether enum pin has been hit
 
 		// Start drawing nodes.
@@ -762,7 +759,6 @@ namespace engine {
 		json json_file;
 		ed::SetCurrentEditor(context);
 		for (auto& node : nodes) {
-
 			json_file["nodes"].emplace_back(json{
 				{"type", node.data.index()} ,
 				{"pins", node.inputs},
@@ -772,5 +768,14 @@ namespace engine {
 		std::ofstream o(file_path.data());
 		o << std::setw(4) << json_file << std::endl;
 		ed::SetCurrentEditor(nullptr);
+	}
+
+	void NodeEditor::clear() {
+		color_pin_index.reset();
+		color_ramp_pin_index.reset();
+		enum_pin_index.reset();
+		links.clear();
+		nodes.clear();
+		next_id = 1;
 	}
 };

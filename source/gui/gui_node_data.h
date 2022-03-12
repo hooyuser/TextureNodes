@@ -406,8 +406,8 @@ struct ImageData : public NodeData {
 			throw std::runtime_error("failed to create render pass!");
 		}
 
-		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyRenderPass(engine->device, image_pocessing_render_pass, nullptr);
+		engine->main_deletion_queue.push_function([device = engine->device, render_pass = image_pocessing_render_pass]() {
+			vkDestroyRenderPass(device, render_pass, nullptr);
 			});
 	}
 
@@ -438,9 +438,9 @@ struct ImageData : public NodeData {
 			throw std::runtime_error("failed to create pipeline layout!");
 		}
 
-		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyPipelineLayout(engine->device, image_pocessing_pipeline_layout, nullptr);
-			});
+		engine->main_deletion_queue.push_function([device = engine->device, pipeline_layout = image_pocessing_pipeline_layout]() {
+			vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
+		});
 	}
 
 	void create_image_pocessing_pipeline() {
@@ -463,12 +463,9 @@ struct ImageData : public NodeData {
 
 		pipeline_builder.buildPipeline(engine->device, image_pocessing_render_pass, image_pocessing_pipeline_layout, image_pocessing_pipeline);
 
-		engine->main_deletion_queue.push_function([=]() {
-			if (image_pocessing_pipeline) {
-				vkDestroyPipeline(engine->device, image_pocessing_pipeline, nullptr);
-				image_pocessing_pipeline = nullptr;
-			}
-			});
+		engine->main_deletion_queue.push_function([device = engine->device, pipeline = image_pocessing_pipeline]() {
+			vkDestroyPipeline(device, pipeline, nullptr);
+		});
 	}
 
 	void create_framebuffer() {
@@ -527,7 +524,7 @@ struct ImageData : public NodeData {
 			else if constexpr (has_field_type_v<UboType, TextureIdData>) {
 				return std::array{
 					ubo_descriptor_set,
-					engine->node_texture_2d_manager->descriptor_set 
+					engine->node_texture_2d_manager->descriptor_set
 				};
 			}
 			else {

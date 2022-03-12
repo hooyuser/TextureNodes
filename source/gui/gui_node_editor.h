@@ -171,6 +171,10 @@ namespace engine {
 		VkFence fence;
 		int next_id = 1;
 
+		std::optional<size_t> color_pin_index; //implies whether colorpicker should be open
+		std::optional<size_t> color_ramp_pin_index; //implies whether color ramp should be open
+		std::optional<size_t> enum_pin_index;  //implies whether enum menu should be open
+
 		ed::NodeId display_node_id = ed::NodeId::Invalid;
 		void* gui_display_texture_handle = nullptr;
 		//uint64_t semophore_counter = 0;
@@ -242,6 +246,8 @@ namespace engine {
 		void draw();
 
 		void serialize(std::string_view file_path);
+
+		void clear();
 
 		template<std::invocable<uint32_t> Func>
 		void for_each_connected_image_node(Func&& func, uint32_t node_index) {  //node_index is the index of current node
