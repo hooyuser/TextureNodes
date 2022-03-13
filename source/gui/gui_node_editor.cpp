@@ -318,6 +318,9 @@ namespace engine {
 											node_data->update_ubo(pin->default_value, i);
 											update_from(node_index);
 										}
+										else {
+											node_data.update_ubo(pin->default_value, i);
+										}
 									}
 									});
 
@@ -350,8 +353,7 @@ namespace engine {
 						std::visit([&](auto&& node_data) {
 							using NodeDataT = std::decay_t<decltype(node_data)>;
 							if constexpr (is_image_data<NodeDataT>) {
-								using UboT = typename ref_t<NodeDataT>::UboType;
-								UboT::Class::FieldAt(i, [&](auto& field) {
+								UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
 									field.forEachAnnotation([&](auto& items) {
 										using T = typename std::remove_cvref_t<decltype(items)>;
 										if constexpr (std_array<T, const char*>) {
@@ -531,8 +533,7 @@ namespace engine {
 				std::visit([&](auto&& node_data) {
 					using NodeDataT = std::decay_t<decltype(node_data)>;
 					if constexpr (is_image_data<NodeDataT>) {
-						using UboT = typename ref_t<NodeDataT>::UboType;
-						UboT::Class::FieldAt(*enum_pin_index, [&](auto& field) {
+						UboOf<NodeDataT>::Class::FieldAt(*enum_pin_index, [&](auto& field) {
 							field.forEachAnnotation([&](auto& items) {
 								using T = typename std::remove_cvref_t<decltype(items)>;
 								if constexpr (std_array<T, const char*>) {
@@ -778,7 +779,7 @@ namespace engine {
 		for (auto& node : json_file["nodes"]) {
 			UNROLL<std::variant_size_v<NodeVariant>>([&] <std::size_t I>() {
 				if (node["type"] == I) {
-					using T = ComponentT<NodeVariant, I>;
+					using T = NodeTypeList::element_t<I>;
 					create_node<T>();
 				}
 			});

@@ -9,7 +9,6 @@
 #include <imgui_internal.h>
 #include <imgui_impl_vulkan.h>
 
-#include "../util/type_list.h"
 #include "all_node_headers.h"
 
 #if NDEBUG
@@ -22,8 +21,7 @@ namespace ed = ax::NodeEditor;
 //using namespace std::literals;
 static std::string first_letter_to_upper(std::string_view str);
 
-template<typename UnknownType, typename ...ReferenceTypes>
-concept any_of = (std::same_as<std::decay_t<UnknownType>, ReferenceTypes> || ...);
+
 
 template <typename T>
 concept std_variant = requires (T t) {
@@ -39,7 +37,7 @@ enum class PinInOut {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-
+//All Node Types
 using NodeTypeList = TypeList<
 	NodeUniformColor,
 	NodePolygon,
@@ -49,21 +47,21 @@ using NodeTypeList = TypeList<
 	NodeAdd
 >;
 
+//All Image Node Types
+template <typename T>
+struct PredImageBase : std::bool_constant<std::derived_from<T, NodeTypeImageBase>> {};
+
+using ImageNodeTypeList = NodeTypeList::filtered_by<PredImageBase>;
+
+//Cast node types to their data types
+using NodeDataTypeList = decltype(to_data_type(std::declval<NodeTypeList>()));
+
+using ImageNodeDataTypeList = decltype(to_data_type(std::declval<ImageNodeTypeList>()));
+
+//Generate aliases for std::variant
 using NodeVariant = NodeTypeList::cast_to<std::variant>;
 
-template <std_variant VariantT, size_t I>
-using ComponentT = typename std::decay_t<decltype(std::get<I>(std::declval<VariantT>()))>;
-
-using NodeDataVariant = decltype(to_data_type(std::declval<NodeVariant>()));
-
-template <typename T>
-struct PredImageBase {
-	static inline constexpr bool value = std::is_base_of<NodeTypeImageBase, T>::value;
-};
-
-using ImageNodeTypeTuple = filter_t<NodeTypeList::to_tuple, PredImageBase>;
-
-using ImageNodeDataTypeTuple = decltype(to_data_type(std::declval<ImageNodeTypeTuple>()));
+using NodeDataVariant = NodeDataTypeList::cast_to<std::variant>;
 
 //template <typename T>
 //constexpr bool is_image_data() {
@@ -72,19 +70,8 @@ using ImageNodeDataTypeTuple = decltype(to_data_type(std::declval<ImageNodeTypeT
 //	}(ImageNodeDataTypeTuple{});
 //}
 
-
-
-template <typename T, typename Tuple>
-struct any_of_tuple {
-	static constexpr bool value = std::invoke([] <std::size_t... I> (std::index_sequence<I...>) {
-		return any_of<T, std::tuple_element_t<I, Tuple>...>;
-	}, std::make_index_sequence<std::tuple_size<Tuple>::value>{});
-};
-template <typename T, typename Tuple>
-static constexpr bool any_of_tuple_v = any_of_tuple<T, Tuple>::value; //chech if T is a subtype of Tuple, Tuple is std::tuple
-
 template <typename T>
-static constexpr bool is_image_data = any_of_tuple_v<T, ImageNodeDataTypeTuple>;
+static constexpr bool is_image_data = ImageNodeDataTypeList::has_type<T>;
 
 template <typename T>
 concept ImageDataConcept = is_image_data<T>;
@@ -93,10 +80,10 @@ template <typename T>
 concept NonImageDataConcept = !is_image_data<T>;
 
 template <ImageDataConcept T>
-auto inline get_ubo(T)->ref_t<T>::UboType;
+auto get_ubo(T)->ref_t<T>::UboType;
 
 template <NonImageDataConcept T>
-auto inline get_ubo(T)->T::UboType;
+auto get_ubo(T)->T::UboType;
 
 template <typename NodeDataT>
 using UboOf = std::decay_t<decltype(get_ubo(std::declval<NodeDataT>()))>;
