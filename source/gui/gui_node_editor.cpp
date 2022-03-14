@@ -78,7 +78,7 @@ namespace engine {
 			return;
 		}
 
-		static std::stack<uint32_t> dfs_stack;
+		static std::vector<uint32_t> dfs_stack;
 
 		static std::vector<char> visited_nodes; //check if a node has been visited
 		visited_nodes.resize(nodes.size());
@@ -87,7 +87,7 @@ namespace engine {
 		std::visit([&](auto&& node_data) {
 			using NodeDataT = std::remove_reference_t<decltype(node_data)>;
 			if constexpr (is_image_data<NodeDataT>) {
-				dfs_stack.push(updated_node_index);
+				dfs_stack.emplace_back(updated_node_index);
 			}
 			else {
 				std::vector<uint32_t> non_image_nodes;
@@ -108,13 +108,13 @@ namespace engine {
 					else {
 						topo_sort_stack.push(~idx);
 						for (auto& pin : nodes[idx].outputs) {
-							for (auto connected_pin : pin.connected_pins) {
+							for (Pin* connected_pin : pin.connected_pins) {
 								auto connected_node_idx = connected_pin->node_index;
 								if (visited_nodes[connected_node_idx] == 0) {
 									visited_nodes[connected_node_idx] = 1;
 									std::visit([&](auto&& connected_node_data) {
 										if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
-											dfs_stack.push(connected_node_idx);
+											dfs_stack.emplace_back(connected_node_idx);
 										}
 										else {
 											topo_sort_stack.push(connected_node_idx);
@@ -126,21 +126,33 @@ namespace engine {
 					}
 				}
 
-				for (size_t i = non_image_nodes.size() - 1; i > 0; i--) {
-
+				for(auto i : non_image_nodes | std::ranges::views::reverse) {
+					recalculate_node(i);
+					for (auto& output : nodes[i].outputs) {
+						for (Pin* connected_pin : output.connected_pins) {
+							auto& connected_node = nodes[connected_pin->node_index];
+							std::visit([&](auto&& connected_node_data) {
+								using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
+								if constexpr (is_image_data<NodeDataT>) {
+									auto ubo_index = std::find(connected_node.inputs.begin(), connected_node.inputs.end(), *connected_pin);
+									connected_node_data->update_ubo(output.default_value, ubo_index - connected_node.inputs.begin());
+									visited_nodes[connected_pin->node_index] = 0;  //restore visited flag
+								}
+								}, connected_node.data);
+						}
+					}
+						
 				}
-
-
-
 			}
 			}, nodes[updated_node_index].data);
 				
+		
 		std::vector<uint32_t> dfs_path;	
 
 		while (!dfs_stack.empty()) {
 
-			auto idx = dfs_stack.top();
-			dfs_stack.pop();
+			auto idx = dfs_stack.back();
+			dfs_stack.pop_back();
 
 			std::visit([&](auto&& node_data) {
 				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
@@ -173,7 +185,7 @@ namespace engine {
 								}, nodes[connected_pin->node_index].data);
 
 							if (visited_nodes[connected_node_idx] == 0) {
-								dfs_stack.push(connected_pin->node_index);
+								dfs_stack.emplace_back(connected_pin->node_index);
 							}
 						}
 					}
@@ -373,6 +385,9 @@ namespace engine {
 								}, node.data);
 
 							ImGui::PopItemWidth();
+						}
+						else {
+							ImGui::Text(pin->name.c_str());
 						}
 						rect = imgui_get_item_rect();
 					}
@@ -830,6 +845,19 @@ namespace engine {
 				}
 			});
 		}
+	}
+
+	void NodeEditor::recalculate_node(size_t index) {
+		std::visit([=](auto&& node_data) {
+			using NodeDataT = std::decay_t<decltype(node_data)>;
+			if constexpr (NonImageDataConcept<NodeDataT>) {
+				using UboT = UboOf<NodeDataT>;
+				using FieldTypeList = TypeList<>::from<decltype(class_field_to_tuple(std::declval<UboT>()))>::remove_ref;
+				nodes[index].outputs[0].default_value = [&] <std::size_t... I> (std::index_sequence<I...>) {
+					return NodeDataT::calculate(std::get<FieldTypeList::at<I>>(nodes[index].evaluate_input(I))...);
+				}(std::make_index_sequence<UboT::Class::TotalFields>{});
+			}
+			}, nodes[index].data);
 	}
 
 	void NodeEditor::clear() {

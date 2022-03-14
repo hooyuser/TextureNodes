@@ -142,8 +142,9 @@ struct Node {
 		}
 	}
 
-	inline PinVariant& input_from_connected(uint32_t i) {
-		return (*begin(inputs[i].connected_pins))->default_value;
+	inline PinVariant& evaluate_input(uint32_t i) {
+		auto& connect_pins = inputs[i].connected_pins;
+		return (connect_pins.empty()) ? inputs[i].default_value : (*(inputs[i].connected_pins.begin()))->default_value;
 	}
 };
 
@@ -191,12 +192,12 @@ namespace engine {
 		ed::NodeId display_node_id = ed::NodeId::Invalid;
 		void* gui_display_texture_handle = nullptr;
 		//uint64_t semophore_counter = 0;
-		
+
 		VkSemaphoreWaitInfo preview_semaphore_wait_info{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
 			.semaphoreCount = 1,
 		};
-		
+
 		constexpr static inline uint32_t preview_image_size = 128;
 		//constexpr static inline uint32_t max_bindless_node_2d_textures = 300;
 
@@ -230,7 +231,7 @@ namespace engine {
 					});
 			}
 
-			if constexpr (std::derived_from<NodeType, NodeTypeImageBase>) {	
+			if constexpr (std::derived_from<NodeType, NodeTypeImageBase>) {
 				node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TextureIdData>);
 				auto& node_data = std::get<NodeDataType>(node.data);
 				node.outputs[0].default_value = TextureIdData{ .value = node_data->node_texture_id };
@@ -280,18 +281,7 @@ namespace engine {
 			}
 		}
 
-		void recalculate_node(size_t index) {
-			std::visit([&](auto&& node_data) {
-				using NodeDataT = std::decay_t<decltype(node_data)>;
-				if constexpr (NonImageDataConcept<NodeDataT>) {
-					using UboT = UboOf<NodeDataT>;
-					using FieldTypeList = TypeList<>::from<decltype(class_field_to_tuple(std::declval<UboT>()))>::remove_ref;
-					nodes[index].outputs[0].default_value = [&] <std::size_t... I> (std::index_sequence<I...>) {
-						return NodeDataT::calculate(std::get<FieldTypeList::at<I>>(nodes[index].input_from_connected(I))...);
-					}(std::make_index_sequence<UboT::Class::TotalFields>{});
-				}
-				}, nodes[index].data);
-		}
+		void recalculate_node(size_t index);
 	};
 };
 
