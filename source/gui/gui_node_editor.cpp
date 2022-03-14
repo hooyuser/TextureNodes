@@ -77,20 +77,65 @@ namespace engine {
 		if (vkGetFenceStatus(engine->device, fence) != VK_SUCCESS) {
 			return;
 		}
-		//std::visit([&](auto&& node_data) {
-		//	using NodeDataT = std::remove_reference_t<decltype(node_data)>;
-		//	if constexpr (std::same_as<NodeDataT, >) {
-		//	}
-		//	}, nodes[updated_node_index].data);
 
 		static std::stack<uint32_t> dfs_stack;
-		std::vector<uint32_t> dfs_path;
 
-		static std::vector<char> visited_nodes;
+		static std::vector<char> visited_nodes; //check if a node has been visited
 		visited_nodes.resize(nodes.size());
 		visited_nodes.assign(visited_nodes.size(), 0);
 
-		dfs_stack.push(updated_node_index);
+		std::visit([&](auto&& node_data) {
+			using NodeDataT = std::remove_reference_t<decltype(node_data)>;
+			if constexpr (is_image_data<NodeDataT>) {
+				dfs_stack.push(updated_node_index);
+			}
+			else {
+				std::vector<uint32_t> non_image_nodes;
+				std::stack<int64_t> topo_sort_stack;
+		
+				visited_nodes[updated_node_index] = true;
+				topo_sort_stack.push(updated_node_index);
+				int64_t idx;
+
+				while (!topo_sort_stack.empty()) {
+					idx = topo_sort_stack.top();
+					topo_sort_stack.pop();
+
+					//A dummy node to denote finish order (e.g. topological order)
+					if (idx < 0) {
+						non_image_nodes.emplace_back(~idx);
+					}
+					else {
+						topo_sort_stack.push(~idx);
+						for (auto& pin : nodes[idx].outputs) {
+							for (auto connected_pin : pin.connected_pins) {
+								auto connected_node_idx = connected_pin->node_index;
+								if (visited_nodes[connected_node_idx] == 0) {
+									visited_nodes[connected_node_idx] = 1;
+									std::visit([&](auto&& connected_node_data) {
+										if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
+											dfs_stack.push(connected_node_idx);
+										}
+										else {
+											topo_sort_stack.push(connected_node_idx);
+										}
+										}, nodes[connected_node_idx].data);
+								}
+							}
+						}
+					}
+				}
+
+				for (size_t i = non_image_nodes.size() - 1; i > 0; i--) {
+
+				}
+
+
+
+			}
+			}, nodes[updated_node_index].data);
+				
+		std::vector<uint32_t> dfs_path;	
 
 		while (!dfs_stack.empty()) {
 
@@ -319,7 +364,8 @@ namespace engine {
 											update_from(node_index);
 										}
 										else {
-											node_data.update_ubo(pin->default_value, i);
+											update_from(node_index);
+											//node_data.update_ubo(pin->default_value, i);
 										}
 									}
 									});
@@ -779,7 +825,7 @@ namespace engine {
 		for (auto& node : json_file["nodes"]) {
 			UNROLL<std::variant_size_v<NodeVariant>>([&] <std::size_t I>() {
 				if (node["type"] == I) {
-					using T = NodeTypeList::element_t<I>;
+					using T = NodeTypeList::at<I>;
 					create_node<T>();
 				}
 			});

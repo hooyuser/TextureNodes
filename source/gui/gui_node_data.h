@@ -166,19 +166,21 @@ using PinVariant = PinTypeList::cast_to<std::variant>;
 template <typename T>
 concept PinDataConcept = PinTypeList::has_type<T>;
 
-template<typename UniformBufferType, typename ResultT>
+template<typename UniformBufferType, typename ResultT, auto function>
 struct NonImageData : public NodeData {
 	using UboType = UniformBufferType;
 	using ResultType = ResultT;
 
-	UboType ubo;
+	inline static decltype(function) calculate = function;
 
-	void update_ubo(const PinVariant& value, size_t index) {
-		UboType::Class::FieldAt(ubo, index, [&](auto& field, auto& ubo_value) {
-			using PinT = std::decay_t<decltype(field)>::Type;
-			ubo_value = std::get<PinT>(value);
-			});
-	}
+	//UboType ubo;
+
+	//void update_ubo(const PinVariant& value, size_t index) {
+	//	UboType::Class::FieldAt(ubo, index, [&](auto& field, auto& ubo_value) {
+	//		using PinT = std::decay_t<decltype(field)>::Type;
+	//		ubo_value = std::get<PinT>(value);
+	//		});
+	//}
 };
 
 template<typename UniformBufferType, StringLiteral ...Shaders>

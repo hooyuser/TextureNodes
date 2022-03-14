@@ -18,7 +18,19 @@ struct NodeAdd : NodeTypeBase {
 			value2
 		)
 	};
-	using data_type = NonImageData<UBO, FloatData>;
+
+	struct ResultData {
+		FloatData result;
+		//std::tuple calc { [&](FloatData value1, FloatData value2)-> FloatData {return FloatData{.value=value1.value+ value2.value} };
+		REFLECT(ResultData,
+			result
+		)
+	};
+
+	using data_type = NonImageData < UBO, ResultData,
+		[](FloatData value1, FloatData value2) -> FloatData {
+		return { .value = value1.value + value2.value };
+	} > ;
 
 	//constexpr inline static auto name = "Add";
 	constexpr auto static name() { return "Add"; }

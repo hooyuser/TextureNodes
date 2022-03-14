@@ -33,32 +33,38 @@ using filter_t = typename filter<Tpl, Pred>::type;
 template <template<typename ...> typename TypeSetFrom, template<typename ...> typename TypeSetTo, typename ...Types>
 consteval auto convert_type_list_to(TypeSetFrom<Types...>, TypeSetTo<>)->TypeSetTo<Types...>;
 
+
 template<typename... Ts>
 struct TypeList {
-	template<typename Func>
-	static void for_each(Func&& func) {
-		(FWD(func).template operator() < Ts > (), ...);
-	}
+	//Member constants
+	static constexpr size_t size = sizeof...(Ts);
 
-	template<template<typename...> class U>
-	using cast_to = U<Ts...>;
+	template<typename T>
+	static constexpr bool has_type = any_of_tuple_v<T, std::tuple<Ts...>>;
+
+	//Member types
+	template <typename TypeSetFrom>
+	using from = decltype(convert_type_list_to(std::declval<std::remove_reference_t<TypeSetFrom>>(), std::declval<TypeList<>>()));
+
+	template<template<typename...> class TypeSetTo>
+	using cast_to = TypeSetTo<Ts...>;
 
 	using to_tuple = cast_to<std::tuple>;
 
-	template <typename FromT>
-	using from = decltype(convert_type_list_to(std::declval<FromT>(), std::declval<TypeList<>>()));
+	using remove_ref = TypeList<std::remove_reference_t<Ts>...>;
 
 	template<size_t I>
-	using element_t = std::tuple_element_t<I, std::tuple<Ts...>>;
+	using at = std::tuple_element_t<I, std::tuple<Ts...>>;
 
 	template<template<typename...> class Pred>
 	using filtered_by = from<filter_t<std::tuple<Ts...>, Pred>>;
 
-	template<typename T>
-	static constexpr bool has_type = any_of_tuple_v<T, std::tuple<Ts...>>;
+	//Member functions
+	template<typename Func>
+	static void for_each(Func&& func) {  //loop over types
+		(FWD(func).template operator() < Ts > (), ...);
+	}
 };
-
-
 
 template <template<typename ...> typename TypeSet, typename ...Ts>
 consteval auto concat(TypeSet<Ts...>)->TypeSet<Ts...>;
@@ -81,4 +87,3 @@ consteval auto make_unique_typeset(TypeSet<T, Rest...>) {
 		return TypeSet<T>{};
 	}
 }
-

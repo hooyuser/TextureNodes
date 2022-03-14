@@ -82,6 +82,7 @@ target_link_libraries(${PROJECT_NAME}
 )
 
 if (MSVC)
+    add_compile_options(/Zc:preprocessor)
     set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
     set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DPI_AWARE "On")
 endif()

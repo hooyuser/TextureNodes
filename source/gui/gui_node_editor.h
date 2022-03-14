@@ -10,6 +10,7 @@
 #include <imgui_impl_vulkan.h>
 
 #include "all_node_headers.h"
+#include "../util/class_field_type_list.h"
 
 #if NDEBUG
 #else
@@ -20,7 +21,6 @@ namespace ed = ax::NodeEditor;
 
 //using namespace std::literals;
 static std::string first_letter_to_upper(std::string_view str);
-
 
 
 template <typename T>
@@ -77,7 +77,7 @@ template <typename T>
 concept ImageDataConcept = is_image_data<T>;
 
 template <typename T>
-concept NonImageDataConcept = !is_image_data<T>;
+concept NonImageDataConcept = NodeDataTypeList::has_type<T> && !is_image_data<T>;
 
 template <ImageDataConcept T>
 auto get_ubo(T)->ref_t<T>::UboType;
@@ -105,7 +105,7 @@ struct Pin {
 		id(id), name(name), default_value(T()) {
 	}
 
-	bool operator==(const Pin& pin) const {
+	inline bool operator==(const Pin& pin) const {
 		return (this->id == pin.id);
 	}
 };
@@ -140,6 +140,10 @@ struct Node {
 		else {
 			data = NodeDataVariant(std::in_place_type<T::data_type>);
 		}
+	}
+
+	inline PinVariant& input_from_connected(uint32_t i) {
+		return (*begin(inputs[i].connected_pins))->default_value;
 	}
 };
 
@@ -207,34 +211,36 @@ namespace engine {
 			nodes.emplace_back(get_next_id(), NodeType::name(), NodeType{}, engine);
 			auto& node = nodes.back();
 
-			if constexpr (std::derived_from<NodeType, NodeTypeImageBase>) {
-				using NodeDataType = NodeType::data_type;
-				using UboT = typename ref_t<NodeDataType>::UboType;
-				UboT ubo{};
-				node.inputs.reserve(UboT::Class::TotalFields);
-				for (size_t index = 0; index < UboT::Class::TotalFields; ++index) {
-					UboT::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
-						using PinType = std::decay_t<decltype(field)>::Type;
-						
-						node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
-						if constexpr (std::same_as<PinType, ColorRampData>) {
-							node.inputs[index].default_value = std::move(ColorRampData(engine));
-						}
-						else {
-							node.inputs[index].default_value = value;
-						}
-						});
-				}
+			using NodeDataType = NodeType::data_type;
+			using UboT = UboOf<NodeDataType>;
+			UboT ubo{};
+			node.inputs.reserve(UboT::Class::TotalFields);
+
+			for (size_t index = 0; index < UboT::Class::TotalFields; ++index) {
+				UboT::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
+					using PinType = std::decay_t<decltype(field)>::Type;
+
+					node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
+					if constexpr (std::same_as<PinType, ColorRampData>) {
+						node.inputs[index].default_value = std::move(ColorRampData(engine));
+					}
+					else {
+						node.inputs[index].default_value = value;
+					}
+					});
+			}
+
+			if constexpr (std::derived_from<NodeType, NodeTypeImageBase>) {	
 				node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TextureIdData>);
 				auto& node_data = std::get<NodeDataType>(node.data);
 				node.outputs[0].default_value = TextureIdData{ .value = node_data->node_texture_id };
 				node_data->uniform_buffer->copyFromHost(&ubo);
 			}
-			else if constexpr (std::same_as<NodeType, NodeAdd>) {
-				node.inputs.reserve(2);
-				node.inputs.emplace_back(get_next_id(), "Value", FloatData{});
-				node.inputs.emplace_back(get_next_id(), "Value", FloatData{});
-				node.outputs.emplace_back(get_next_id(), "Result", FloatData{});
+			else {
+				NodeDataType::ResultType::Class::ForEachField([&](auto& field) {
+					using PinType = std::decay_t<decltype(field)>::Type;
+					node.outputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
+					});
 			}
 
 			uint32_t node_index = nodes.size() - 1;
@@ -272,6 +278,19 @@ namespace engine {
 						}, nodes[connected_pin->node_index].data);
 				}
 			}
+		}
+
+		void recalculate_node(size_t index) {
+			std::visit([&](auto&& node_data) {
+				using NodeDataT = std::decay_t<decltype(node_data)>;
+				if constexpr (NonImageDataConcept<NodeDataT>) {
+					using UboT = UboOf<NodeDataT>;
+					using FieldTypeList = TypeList<>::from<decltype(class_field_to_tuple(std::declval<UboT>()))>::remove_ref;
+					nodes[index].outputs[0].default_value = [&] <std::size_t... I> (std::index_sequence<I...>) {
+						return NodeDataT::calculate(std::get<FieldTypeList::at<I>>(nodes[index].input_from_connected(I))...);
+					}(std::make_index_sequence<UboT::Class::TotalFields>{});
+				}
+				}, nodes[index].data);
 		}
 	};
 };
