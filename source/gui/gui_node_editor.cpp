@@ -84,68 +84,64 @@ namespace engine {
 		visited_nodes.resize(nodes.size());
 		visited_nodes.assign(visited_nodes.size(), 0);
 
-		std::visit([&](auto&& node_data) {
-			using NodeDataT = std::remove_reference_t<decltype(node_data)>;
-			if constexpr (is_image_data<NodeDataT>) {
-				dfs_stack.emplace_back(updated_node_index);
-			}
-			else {
-				std::vector<uint32_t> non_image_nodes;
-				std::stack<int64_t> topo_sort_stack;
+		if (is_image_node(nodes[updated_node_index])) {
+			dfs_stack.emplace_back(updated_node_index);
+		}
+		else {
+			std::vector<uint32_t> non_image_nodes;
+			std::stack<int64_t> topo_sort_stack;
 		
-				visited_nodes[updated_node_index] = true;
-				topo_sort_stack.push(updated_node_index);
-				int64_t idx;
+			visited_nodes[updated_node_index] = true;
+			topo_sort_stack.push(updated_node_index);
+			int64_t idx;
 
-				while (!topo_sort_stack.empty()) {
-					idx = topo_sort_stack.top();
-					topo_sort_stack.pop();
+			while (!topo_sort_stack.empty()) {
+				idx = topo_sort_stack.top();
+				topo_sort_stack.pop();
 
-					//A dummy node to denote finish order (e.g. topological order)
-					if (idx < 0) {
-						non_image_nodes.emplace_back(~idx);
-					}
-					else {
-						topo_sort_stack.push(~idx);
-						for (auto& pin : nodes[idx].outputs) {
-							for (Pin* connected_pin : pin.connected_pins) {
-								auto connected_node_idx = connected_pin->node_index;
-								if (visited_nodes[connected_node_idx] == 0) {
-									visited_nodes[connected_node_idx] = 1;
-									std::visit([&](auto&& connected_node_data) {
-										if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
-											dfs_stack.emplace_back(connected_node_idx);
-										}
-										else {
-											topo_sort_stack.push(connected_node_idx);
-										}
-										}, nodes[connected_node_idx].data);
-								}
+				//A dummy node to denote finish order (e.g. topological order)
+				if (idx < 0) {
+					non_image_nodes.emplace_back(~idx);
+				}
+				else {
+					topo_sort_stack.push(~idx);
+					for (auto& pin : nodes[idx].outputs) {
+						for (Pin* connected_pin : pin.connected_pins) {
+							auto connected_node_idx = connected_pin->node_index;
+							if (visited_nodes[connected_node_idx] == 0) {
+								visited_nodes[connected_node_idx] = 1;
+								std::visit([&](auto&& connected_node_data) {
+									if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
+										dfs_stack.emplace_back(connected_node_idx);
+									}
+									else {
+										topo_sort_stack.push(connected_node_idx);
+									}
+									}, nodes[connected_node_idx].data);
 							}
 						}
 					}
 				}
-
-				for(auto i : non_image_nodes | std::ranges::views::reverse) {
-					recalculate_node(i);
-					for (auto& output : nodes[i].outputs) {
-						for (Pin* connected_pin : output.connected_pins) {
-							auto& connected_node = nodes[connected_pin->node_index];
-							std::visit([&](auto&& connected_node_data) {
-								using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
-								if constexpr (is_image_data<NodeDataT>) {
-									auto ubo_index = std::find(connected_node.inputs.begin(), connected_node.inputs.end(), *connected_pin);
-									connected_node_data->update_ubo(output.default_value, ubo_index - connected_node.inputs.begin());
-									visited_nodes[connected_pin->node_index] = 0;  //restore visited flag
-								}
-								}, connected_node.data);
-						}
-					}
-						
-				}
 			}
-			}, nodes[updated_node_index].data);
-				
+
+			for(auto i : non_image_nodes | std::ranges::views::reverse) {
+				recalculate_node(i);
+				for (auto& output : nodes[i].outputs) {
+					for (Pin* connected_pin : output.connected_pins) {
+						auto& connected_node = nodes[connected_pin->node_index];
+						std::visit([&](auto&& connected_node_data) {
+							using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
+							if constexpr (is_image_data<NodeDataT>) {
+								auto ubo_index = std::find(connected_node.inputs.begin(), connected_node.inputs.end(), *connected_pin);
+								connected_node_data->update_ubo(output.default_value, ubo_index - connected_node.inputs.begin());
+								visited_nodes[connected_pin->node_index] = 0;  //restore visited flag
+							}
+							}, connected_node.data);
+					}
+				}
+						
+			}
+		}				
 		
 		std::vector<uint32_t> dfs_path;	
 
@@ -377,7 +373,6 @@ namespace engine {
 										}
 										else {
 											update_from(node_index);
-											//node_data.update_ubo(pin->default_value, i);
 										}
 									}
 									});
@@ -410,7 +405,6 @@ namespace engine {
 						rect = imgui_get_item_rect();
 					}
 					else if constexpr (std::is_same_v<PinT, EnumData>) {
-
 						std::visit([&](auto&& node_data) {
 							using NodeDataT = std::decay_t<decltype(node_data)>;
 							if constexpr (is_image_data<NodeDataT>) {
@@ -433,7 +427,6 @@ namespace engine {
 							}, node.data);
 					}
 					else if constexpr (std::is_same_v<PinT, BoolData>) {
-
 						auto& bool_data = std::get<BoolData>(node.inputs[i].default_value);
 						if (ImGui::Checkbox(pin->name.c_str(), &bool_data.value)) {
 							std::visit([&](auto&& node_data) {
@@ -452,12 +445,11 @@ namespace engine {
 						rect = imgui_get_item_rect();
 						ImGui::SameLine();
 						auto& color_ramp_data = *std::get<ColorRampData>(node.inputs[i].default_value).ui_value;
-						if (ImGui::GradientButton(&color_ramp_data, 140.0f)) {
+						if (ImGui::GradientButton((std::string("GradientBar##") + std::to_string(pin->id.Get())).c_str(), &color_ramp_data, 140.0f)) {
 							color_ramp_node_index = node_index;
 							color_ramp_pin_index = i;
 							hit_color_ramp_pin = true;
 						}
-
 					}
 					}, pin->default_value);
 
@@ -552,11 +544,8 @@ namespace engine {
 			}
 
 			if (ImGui::BeginPopup(("ColorRampPopup##" + std::to_string(color_ramp_pin.id.Get())).c_str())) {
-				static ImGradientMark* draggingMark = nullptr;
-				static ImGradientMark* selectedMark = nullptr;
-				//bool updated = ImGui::GradientEditor(&gradient, draggingMark, selectedMark);
 				auto& color_ramp_data = std::get<ColorRampData>(color_ramp_pin.default_value);
-				if (ImGui::GradientEditor(color_ramp_data.ui_value.get(), draggingMark, selectedMark)) {
+				if (ImGui::GradientEditor(("ColorRampEditor##" + std::to_string(color_ramp_pin.id.Get())).c_str(), color_ramp_data.ui_value.get(), color_ramp_data.draggingMark, color_ramp_data.selectedMark)) {
 					std::visit([&](auto&& node_data) {
 						using NodeDataT = std::decay_t<decltype(node_data)>;
 						if constexpr (is_image_data<NodeDataT>) {
@@ -858,6 +847,13 @@ namespace engine {
 				}(std::make_index_sequence<UboT::Class::TotalFields>{});
 			}
 			}, nodes[index].data);
+	}
+
+	bool NodeEditor::is_image_node(const Node& node) {
+		return std::visit([&](auto&& node_data) {
+			using NodeDataT = std::decay_t<decltype(node_data)>;
+			return is_image_data<NodeDataT>;
+			}, node.data);
 	}
 
 	void NodeEditor::clear() {

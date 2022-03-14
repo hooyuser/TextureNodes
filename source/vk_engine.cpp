@@ -1402,6 +1402,12 @@ void VulkanEngine::draw_frame() {
 				}
 				ImGui::EndMenu();
 			}
+			if (ImGui::BeginMenu("Help")) {
+				if (ImGui::MenuItem(" Document")) {
+			
+				}
+				ImGui::EndMenu();
+			}
 			ImGui::SameLine(ImGui::GetWindowWidth() - 110);
 			ImGui::Text("FPS: %.f (%.fms)", io.Framerate, io.Framerate ? 1000.0f / io.Framerate : 0.0f);
 			ImGui::EndMenuBar();

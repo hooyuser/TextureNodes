@@ -107,6 +107,8 @@ struct ColorRampData : public NodeData {
 	value_t value = -1;
 	std::unique_ptr<ImGradient> ui_value;
 	std::unique_ptr<RampTexture> ubo_value;
+	ImGradientMark* draggingMark = nullptr;
+	ImGradientMark* selectedMark = nullptr;
 
 	inline ColorRampData() {}
 	inline ColorRampData(VulkanEngine* engine) {

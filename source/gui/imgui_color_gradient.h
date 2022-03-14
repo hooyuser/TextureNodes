@@ -86,9 +86,9 @@ inline void to_json(json& j, const ImGradient& p) {
 }
 
 namespace ImGui {
-    bool GradientButton(ImGradient* gradient, float max_width = 250.0f);
+    bool GradientButton(const char* label, ImGradient* gradient, float max_width = 250.0f);
     
-    bool GradientEditor(ImGradient* gradient,
+    bool GradientEditor(const char* label, ImGradient* gradient,
                         ImGradientMark* & draggingMark,
                         ImGradientMark* & selectedMark);
 }

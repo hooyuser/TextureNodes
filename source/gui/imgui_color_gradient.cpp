@@ -306,7 +306,7 @@ namespace ImGui
 		ImGui::SetCursorScreenPos(ImVec2(bar_pos.x, bar_pos.y + height + 20.0f));
 	}
 
-	bool GradientButton(ImGradient* gradient, float max_width)
+	bool GradientButton(const char* label, ImGradient* gradient, float max_width)
 	{
 		if (!gradient) return false;
 
@@ -314,14 +314,14 @@ namespace ImGui
 		// ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
 		float maxWidth = ImMin(max_width, ImGui::GetContentRegionAvailWidth() - 100.0f);
-		bool clicked = ImGui::InvisibleButton("gradient_bar", ImVec2(maxWidth, GRADIENT_BAR_WIDGET_HEIGHT));
+		bool clicked = ImGui::InvisibleButton(label, ImVec2(maxWidth, GRADIENT_BAR_WIDGET_HEIGHT));
 
 		DrawGradientBar(gradient, widget_pos, maxWidth, GRADIENT_BAR_WIDGET_HEIGHT);
 
 		return clicked;
 	}
 
-	bool GradientEditor(ImGradient* gradient,
+	bool GradientEditor(const char* label, ImGradient* gradient,
 		ImGradientMark*& draggingMark,
 		ImGradientMark*& selectedMark)
 	{
@@ -334,7 +334,7 @@ namespace ImGui
 		float maxWidth = ImGui::GetContentRegionAvailWidth() - 20;
 		float barBottom = bar_pos.y + GRADIENT_BAR_EDITOR_HEIGHT;
 
-		ImGui::InvisibleButton("gradient_editor_bar", ImVec2(maxWidth, GRADIENT_BAR_EDITOR_HEIGHT));
+		ImGui::InvisibleButton(label, ImVec2(maxWidth, GRADIENT_BAR_EDITOR_HEIGHT));
 
 		if (ImGui::IsItemHovered() && ImGui::IsMouseClicked(0))
 		{

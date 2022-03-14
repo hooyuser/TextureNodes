@@ -215,27 +215,44 @@ namespace engine {
 			using NodeDataType = NodeType::data_type;
 			using UboT = UboOf<NodeDataType>;
 			UboT ubo{};
-			node.inputs.reserve(UboT::Class::TotalFields);
 
+			node.inputs.reserve(UboT::Class::TotalFields);
 			for (size_t index = 0; index < UboT::Class::TotalFields; ++index) {
 				UboT::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
 					using PinType = std::decay_t<decltype(field)>::Type;
-
 					node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
+					auto& pin_value = node.inputs[index].default_value;
+					
 					if constexpr (std::same_as<PinType, ColorRampData>) {
-						node.inputs[index].default_value = std::move(ColorRampData(engine));
+						pin_value = std::move(ColorRampData(engine));
+						
+						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, UINT64_MAX);
+						VkSubmitInfo submitInfo{
+							.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+							.commandBufferCount = 1,
+							.pCommandBuffers = &std::get<ColorRampData>(pin_value).ubo_value->command_buffer,
+						};
+						vkResetFences(engine->device, 1, &fence);
+						vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
+						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, UINT64_MAX);
 					}
 					else {
-						node.inputs[index].default_value = value;
+						pin_value = value;
+					}
+
+					if constexpr (ImageDataConcept<NodeDataType> && has_field_type_v<UboT, ColorRampData>) {
+						std::get<NodeDataType>(node.data)->update_ubo(pin_value, index);
 					}
 					});
 			}
 
-			if constexpr (std::derived_from<NodeType, NodeTypeImageBase>) {
+			if constexpr (ImageDataConcept<NodeDataType>) {
 				node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TextureIdData>);
 				auto& node_data = std::get<NodeDataType>(node.data);
 				node.outputs[0].default_value = TextureIdData{ .value = node_data->node_texture_id };
-				node_data->uniform_buffer->copyFromHost(&ubo);
+				if constexpr (!has_field_type_v<UboT, ColorRampData>) {
+					node_data->uniform_buffer->copyFromHost(&ubo);
+				}
 			}
 			else {
 				NodeDataType::ResultType::Class::ForEachField([&](auto& field) {
@@ -282,6 +299,8 @@ namespace engine {
 		}
 
 		void recalculate_node(size_t index);
+
+		bool is_image_node(const Node& node);
 	};
 };
 
