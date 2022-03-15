@@ -131,16 +131,21 @@ inline void to_json(json& j, const ColorRampData& p) {
 }
 
 namespace nlohmann {
-	template <typename T> requires std::derived_from<T, NodeData>
+	template <typename T> requires (std::derived_from<T, NodeData> && !std::same_as<T, ColorRampData>)
 	struct adl_serializer<T> {
-		static void to_json(json& j, const T& opt) {
-			if constexpr (std::same_as<T, ColorRampData>) {
-				j = *(opt.ui_value);
-			}
-			else {
-				j = opt.value;
-			}
+		static void to_json(json& j, const T& data) {
+			j = data.value;
+		}
+	
+		static void from_json(const json& j, T& data) {
+			j.get_to(data.value);
+		}
+	};
 
+	template <>
+	struct adl_serializer<ColorRampData> {
+		static void to_json(json& j, const ColorRampData& data) {
+			j = *(data.ui_value);
 		}
 	};
 

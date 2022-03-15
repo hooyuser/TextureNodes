@@ -65,8 +65,15 @@ public:
     ~ImGradient();
     
     void getColorAt(float position, float* color) const;
+    void insert_mark(float position, ImColor const color);
     void addMark(float position, ImColor const color);
     void removeMark(ImGradientMark* mark);
+    inline void clear_marks() {
+        for (ImGradientMark* mark : m_marks) {
+            delete mark;
+        }
+        m_marks.clear();
+    }
     void refreshCache();
     inline std::list<ImGradientMark*> & getMarks(){ return m_marks; }
 
@@ -84,6 +91,13 @@ inline void to_json(json& j, const ImGradient& p) {
         j.emplace_back(*iter);
     }
 }
+
+inline void from_json(const json& j, ImColor& p) {
+    j[0].get_to(p.Value.x);
+    j[1].get_to(p.Value.y);
+    j[2].get_to(p.Value.z);
+    j[3].get_to(p.Value.w);
+};
 
 namespace ImGui {
     bool GradientButton(const char* label, ImGradient* gradient, float max_width = 250.0f);

@@ -88,6 +88,9 @@ auto get_ubo(T)->T::UboType;
 template <typename NodeDataT>
 using UboOf = std::decay_t<decltype(get_ubo(std::declval<NodeDataT>()))>;
 
+template <typename UboT>
+using FieldTypeList = TypeList<>::from<decltype(class_field_to_tuple(std::declval<UboT>()))>::remove_ref;
+
 ////////////////////////////////////////////////////////////////////////////////////////////
 
 struct Node;
@@ -230,7 +233,7 @@ namespace engine {
 						VkSubmitInfo submitInfo{
 							.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 							.commandBufferCount = 1,
-							.pCommandBuffers = &std::get<ColorRampData>(pin_value).ubo_value->command_buffer,
+							.pCommandBuffers = &(std::get<ColorRampData>(pin_value).ubo_value->command_buffer),
 						};
 						vkResetFences(engine->device, 1, &fence);
 						vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
@@ -299,6 +302,18 @@ namespace engine {
 		}
 
 		void recalculate_node(size_t index);
+
+		inline size_t get_input_pin_index(const Node& node, const Pin& pin) {
+			auto ubo_index = std::find(node.inputs.begin(), node.inputs.end(), pin);
+			assert(("get_input_pin_index() error: vector access violation!", ubo_index != node.inputs.end()));
+			return ubo_index - node.inputs.begin();
+		}
+
+		inline size_t get_output_pin_index(const Node& node, const Pin& pin) {
+			auto ubo_index = std::find(node.outputs.begin(), node.outputs.end(), pin);
+			assert(("get_output_pin_index() error: vector access violation!", ubo_index != node.outputs.end()));
+			return ubo_index - node.outputs.begin();
+		}
 
 		bool is_image_node(const Node& node);
 	};

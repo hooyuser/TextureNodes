@@ -90,7 +90,7 @@ namespace engine {
 		else {
 			std::vector<uint32_t> non_image_nodes;
 			std::stack<int64_t> topo_sort_stack;
-		
+
 			visited_nodes[updated_node_index] = true;
 			topo_sort_stack.push(updated_node_index);
 			int64_t idx;
@@ -124,7 +124,7 @@ namespace engine {
 				}
 			}
 
-			for(auto i : non_image_nodes | std::ranges::views::reverse) {
+			for (auto i : non_image_nodes | std::ranges::views::reverse) {
 				recalculate_node(i);
 				for (auto& output : nodes[i].outputs) {
 					for (Pin* connected_pin : output.connected_pins) {
@@ -132,18 +132,17 @@ namespace engine {
 						std::visit([&](auto&& connected_node_data) {
 							using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
 							if constexpr (is_image_data<NodeDataT>) {
-								auto ubo_index = std::find(connected_node.inputs.begin(), connected_node.inputs.end(), *connected_pin);
-								connected_node_data->update_ubo(output.default_value, ubo_index - connected_node.inputs.begin());
+								connected_node_data->update_ubo(output.default_value, get_input_pin_index(connected_node, *connected_pin));
 								visited_nodes[connected_pin->node_index] = 0;  //restore visited flag
 							}
 							}, connected_node.data);
 					}
 				}
-						
+
 			}
-		}				
-		
-		std::vector<uint32_t> dfs_path;	
+		}
+
+		std::vector<uint32_t> dfs_path;
 
 		while (!dfs_stack.empty()) {
 
@@ -816,6 +815,19 @@ namespace engine {
 				{"pos", GetNodePosition(node.id)}
 				});
 		}
+		for (auto& link : links) {
+			auto start_node_index = link.start_pin->node_index;
+			auto start_pin_index = get_output_pin_index(nodes[start_node_index], *link.start_pin);
+			auto end_node_index = link.end_pin->node_index;
+			auto end_pin_index = get_input_pin_index(nodes[end_node_index], *link.end_pin);
+
+			json_file["links"].emplace_back(json{
+				{"start_node_index", start_node_index} ,
+				{"start_pin_index", start_pin_index},
+				{"end_node_index", end_node_index} ,
+				{"end_pin_index", end_pin_index},
+				});
+		}
 		std::ofstream o_file(file_path.data());
 		o_file << std::setw(4) << json_file << std::endl;
 		ed::SetCurrentEditor(nullptr);
@@ -825,15 +837,41 @@ namespace engine {
 		std::ifstream i_file(file_path.data());
 		json json_file;
 		i_file >> json_file;
+		ed::SetCurrentEditor(context);
 
-		for (auto& node : json_file["nodes"]) {
-			UNROLL<std::variant_size_v<NodeVariant>>([&] <std::size_t I>() {
-				if (node["type"] == I) {
-					using T = NodeTypeList::at<I>;
-					create_node<T>();
+		for (size_t node_index = 0; node_index < json_file["nodes"].size(); ++node_index) {
+			auto& json_node = json_file["nodes"][node_index];
+			UNROLL<std::variant_size_v<NodeVariant>>([&] <std::size_t type_index>() {
+				if (json_node["type"] == type_index) {
+					using NodeType = NodeTypeList::at<type_index>;
+					create_node<NodeType>();
+
+					using NodeDataType = NodeType::data_type;
+					using UboT = UboOf<NodeDataType>;
+
+					using FieldTypes = FieldTypeList<UboT>;
+					UNROLL<FieldTypes::size>([&] <std::size_t pin_index>() {
+						using PinType = FieldTypeList<UboT>::template at<pin_index>;
+						if constexpr (std::same_as<PinType, ColorRampData>) {
+							auto& ramp_ui_value = std::get<ColorRampData>(nodes[node_index].inputs[pin_index].default_value).ui_value;
+							ramp_ui_value->clear_marks();
+							for (auto& json_mark : json_node["pins"][pin_index]) {
+								ramp_ui_value->insert_mark(json_mark["position"].get<float>(), json_mark["color"].get<ImColor>());
+							}
+							ramp_ui_value->refreshCache();
+						}
+						else if constexpr (!std::same_as<PinType, TextureIdData>) {
+							nodes[node_index].inputs[pin_index].default_value = json_node["pins"][pin_index].get<PinType>();
+						}													
+					});
 				}
 			});
+
+			ed::SetNodePosition(nodes[node_index].id, ImVec2{ json_node["pos"][0], json_node["pos"][1] });
+
 		}
+
+		ed::SetCurrentEditor(nullptr);
 	}
 
 	void NodeEditor::recalculate_node(size_t index) {
@@ -841,9 +879,10 @@ namespace engine {
 			using NodeDataT = std::decay_t<decltype(node_data)>;
 			if constexpr (NonImageDataConcept<NodeDataT>) {
 				using UboT = UboOf<NodeDataT>;
-				using FieldTypeList = TypeList<>::from<decltype(class_field_to_tuple(std::declval<UboT>()))>::remove_ref;
+				using FieldTypes = FieldTypeList<UboT>;
 				nodes[index].outputs[0].default_value = [&] <std::size_t... I> (std::index_sequence<I...>) {
-					return NodeDataT::calculate(std::get<FieldTypeList::at<I>>(nodes[index].evaluate_input(I))...);
+					return NodeDataT::calculate(
+						std::get<FieldTypes::at<I>>(nodes[index].evaluate_input(I))...);
 				}(std::make_index_sequence<UboT::Class::TotalFields>{});
 			}
 			}, nodes[index].data);

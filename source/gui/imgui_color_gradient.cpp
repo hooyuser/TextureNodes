@@ -28,6 +28,19 @@ ImGradient::~ImGradient() {
 	}
 }
 
+void ImGradient::insert_mark(float position, ImColor const color)
+{
+	position = ImClamp(position, 0.0f, 1.0f);
+	ImGradientMark* newMark = new ImGradientMark();
+	newMark->position = position;
+	newMark->color[0] = color.Value.x;
+	newMark->color[1] = color.Value.y;
+	newMark->color[2] = color.Value.z;
+	newMark->color[3] = color.Value.w;
+
+	m_marks.push_back(newMark);
+}
+
 void ImGradient::addMark(float position, ImColor const color)
 {
 	position = ImClamp(position, 0.0f, 1.0f);
