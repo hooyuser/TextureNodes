@@ -84,63 +84,67 @@ namespace engine {
 		visited_nodes.resize(nodes.size());
 		visited_nodes.assign(visited_nodes.size(), 0);
 
-		if (is_image_node(nodes[updated_node_index])) {
-			dfs_stack.emplace_back(updated_node_index);
-		}
-		else {
-			std::vector<uint32_t> non_image_nodes;
-			std::stack<int64_t> topo_sort_stack;
+		//std::visit([&](auto&& updated_node_data) {
+		//	if constexpr (is_image_data<std::decay_t<decltype(updated_node_data)>>) {
+		//		dfs_stack.emplace_back(updated_node_index);
+		//	}
+		//	else {
+		//		std::vector<uint32_t> non_image_nodes;
+		//		std::stack<int64_t> topo_sort_stack;
 
-			visited_nodes[updated_node_index] = true;
-			topo_sort_stack.push(updated_node_index);
-			int64_t idx;
+		//		visited_nodes[updated_node_index] = true;
+		//		topo_sort_stack.push(updated_node_index);
+		//		int64_t idx;
 
-			while (!topo_sort_stack.empty()) {
-				idx = topo_sort_stack.top();
-				topo_sort_stack.pop();
+		//		while (!topo_sort_stack.empty()) {
+		//			idx = topo_sort_stack.top();
+		//			topo_sort_stack.pop();
 
-				//A dummy node to denote finish order (e.g. topological order)
-				if (idx < 0) {
-					non_image_nodes.emplace_back(~idx);
-				}
-				else {
-					topo_sort_stack.push(~idx);
-					for (auto& pin : nodes[idx].outputs) {
-						for (Pin* connected_pin : pin.connected_pins) {
-							auto connected_node_idx = connected_pin->node_index;
-							if (visited_nodes[connected_node_idx] == 0) {
-								visited_nodes[connected_node_idx] = 1;
-								std::visit([&](auto&& connected_node_data) {
-									if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
-										dfs_stack.emplace_back(connected_node_idx);
-									}
-									else {
-										topo_sort_stack.push(connected_node_idx);
-									}
-									}, nodes[connected_node_idx].data);
-							}
-						}
-					}
-				}
-			}
+		//			//A dummy node to denote finish order (e.g. topological order)
+		//			if (idx < 0) {
+		//				non_image_nodes.emplace_back(~idx);
+		//			}
+		//			else {
+		//				topo_sort_stack.push(~idx);
+		//				for (auto& pin : nodes[idx].outputs) {
+		//					for (Pin* connected_pin : pin.connected_pins) {
+		//						auto connected_node_idx = connected_pin->node_index;
+		//						if (visited_nodes[connected_node_idx] == 0) {
+		//							visited_nodes[connected_node_idx] = 1;
+		//							std::visit([&](auto&& connected_node_data) {
+		//								if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
+		//									dfs_stack.emplace_back(connected_node_idx);
+		//								}
+		//								else {
+		//									topo_sort_stack.push(connected_node_idx);
+		//								}
+		//								}, nodes[connected_node_idx].data);
+		//						}
+		//					}
+		//				}
+		//			}
+		//		}
 
-			for (auto i : non_image_nodes | std::ranges::views::reverse) {
-				recalculate_node(i);
-				for (auto& output : nodes[i].outputs) {
-					for (Pin* connected_pin : output.connected_pins) {
-						auto& connected_node = nodes[connected_pin->node_index];
-						std::visit([&](auto&& connected_node_data) {
-							using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
-							if constexpr (is_image_data<NodeDataT>) {
-								connected_node_data->update_ubo(output.default_value, get_input_pin_index(connected_node, *connected_pin));
-								visited_nodes[connected_pin->node_index] = 0;  //restore visited flag
-							}
-							}, connected_node.data);
-					}
-				}
+		//		for (auto i : non_image_nodes | std::ranges::views::reverse) {
+		//			recalculate_node(i);
+		//			for (auto& output : nodes[i].outputs) {
+		//				for (Pin* connected_pin : output.connected_pins) {
+		//					auto& connected_node = nodes[connected_pin->node_index];
+		//					std::visit([&](auto&& connected_node_data) {
+		//						using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
+		//						if constexpr (is_image_data<NodeDataT>) {
+		//							connected_node_data->update_ubo(output.default_value, get_input_pin_index(connected_node, *connected_pin));
+		//							visited_nodes[connected_pin->node_index] = 0;  //restore visited flag
+		//						}
+		//						}, connected_node.data);
+		//				}
+		//			}
 
-			}
-		}
+		//		}
+		//	}
+		//	}, nodes[updated_node_index].data);
+
+		dfs_stack.emplace_back(updated_node_index);
 
 		std::vector<uint32_t> dfs_path;
 
@@ -188,7 +192,7 @@ namespace engine {
 				}, nodes[idx].data);
 		}
 
-		static VectorBuffer<VkSubmitInfo2> submits;
+		VectorBuffer<VkSubmitInfo2> submits{};
 		auto const submit_size = dfs_path.size() * 2;
 		submits.reserve(submit_size);
 		auto iter = submits.data();
@@ -197,8 +201,8 @@ namespace engine {
 				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
 				if constexpr (is_image_data<NodeDataT>) {
 					node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info1.size());
-					node_data->submit_info[0].pWaitSemaphoreInfos = node_data->wait_semaphore_submit_info1.data(),
-						memcpy(iter, node_data->submit_info.data(), sizeof(VkSubmitInfo2) * 2);
+					node_data->submit_info[0].pWaitSemaphoreInfos = node_data->wait_semaphore_submit_info1.data();
+					memcpy(iter, node_data->submit_info.data(), sizeof(VkSubmitInfo2) * 2);
 				}
 				}, nodes[i].data);
 			iter += 2;
@@ -495,7 +499,7 @@ namespace engine {
 						const uint64_t wait_value = counter + 1;
 						preview_semaphore_wait_info.pSemaphores = &arg->semaphore;
 						preview_semaphore_wait_info.pValues = &wait_value;
-						vkWaitSemaphores(engine->device, &preview_semaphore_wait_info, UINT64_MAX);
+						//vkWaitSemaphores(engine->device, &preview_semaphore_wait_info, VULKAN_WAIT_TIMEOUT);
 					}
 					ImGui::Image(static_cast<ImTextureID>(arg->gui_texture), ImVec2{ preview_image_size, preview_image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
 				}
@@ -556,8 +560,9 @@ namespace engine {
 									.pCommandBuffers = &color_ramp_data.ubo_value->command_buffer,
 								};
 								vkResetFences(engine->device, 1, &fence);
+								bool debug = true;
 								vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
-								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, UINT64_MAX);
+								//vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 								update_from(*color_ramp_node_index);
 							}
 						}
@@ -886,13 +891,6 @@ namespace engine {
 				}(std::make_index_sequence<UboT::Class::TotalFields>{});
 			}
 			}, nodes[index].data);
-	}
-
-	bool NodeEditor::is_image_node(const Node& node) {
-		return std::visit([&](auto&& node_data) {
-			using NodeDataT = std::decay_t<decltype(node_data)>;
-			return is_image_data<NodeDataT>;
-			}, node.data);
 	}
 
 	void NodeEditor::clear() {

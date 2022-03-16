@@ -34,7 +34,7 @@ void immediate_submit(VkDevice device, VkCommandPool commandPool, VkQueue queue,
 
 	vkResetFences(device, 1, &fence);
 	vkQueueSubmit(queue, 1, &submitInfo, fence);
-	vkWaitForFences(device, 1, &fence, VK_TRUE, UINT64_MAX);
+	vkWaitForFences(device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 
 	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
 }

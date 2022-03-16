@@ -218,7 +218,7 @@ struct ImageData : public NodeData {
 
 	std::array<VkSubmitInfo2, 2> submit_info;
 
-	VkImageMemoryBarrier2 image_memory_barrier;
+	//VkImageMemoryBarrier2 image_memory_barrier;
 	VkDependencyInfo dependency_info;
 
 	int node_texture_id = -1;
@@ -379,7 +379,7 @@ struct ImageData : public NodeData {
 		VkAttachmentDescription colorAttachment{
 			.format = VK_FORMAT_R8G8B8A8_UNORM,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
-			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
@@ -398,6 +398,7 @@ struct ImageData : public NodeData {
 			.pColorAttachments = &colorAttachmentRef,
 		};
 
+		
 		std::array dependencies{
 			VkSubpassDependency {
 				.srcSubpass = VK_SUBPASS_EXTERNAL,
@@ -428,7 +429,8 @@ struct ImageData : public NodeData {
 			.pAttachments = attachments.data(),
 			.subpassCount = 1,
 			.pSubpasses = &subpass,
-			.dependencyCount = static_cast<uint32_t>(dependencies.size()),
+			.dependencyCount = 0,
+			//.dependencyCount = static_cast<uint32_t>(dependencies.size()),
 			.pDependencies = dependencies.data(),
 		};
 

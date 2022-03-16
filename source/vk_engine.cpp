@@ -53,7 +53,8 @@ constexpr double maxPeriod = 1.0 / maxFPS;
 
 
 const std::vector<const char*> validationLayers = {
-	"VK_LAYER_KHRONOS_validation"
+	"VK_LAYER_KHRONOS_validation",
+	"VK_LAYER_KHRONOS_synchronization2",
 };
 
 constexpr std::array<const char*, 0> instance_extensions = {
@@ -1346,7 +1347,7 @@ void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
 void VulkanEngine::draw_frame() {
 	//drawFrame will first acquire the index of the available swapchain image, then render into this image, and finally request to prensent this image
 
-	vkWaitForFences(device, 1, &frameData[currentFrame].inFlightFence, VK_TRUE, UINT64_MAX); // begin draw i+2 frame if we've complete rendering at frame i
+	vkWaitForFences(device, 1, &frameData[currentFrame].inFlightFence, VK_TRUE, VULKAN_WAIT_TIMEOUT); // begin draw i+2 frame if we've complete rendering at frame i
 
 	uint32_t imageIndex;
 	VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frameData[currentFrame].imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
@@ -1569,7 +1570,7 @@ void VulkanEngine::draw_frame() {
 	};
 
 	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
-		vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, UINT64_MAX);  //start to render into this image if we've complete the last rendering of this image
+		vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, VULKAN_WAIT_TIMEOUT);  //start to render into this image if we've complete the last rendering of this image
 	}
 	imagesInFlight[imageIndex] = frameData[currentFrame].inFlightFence;  //update the fence of this image
 

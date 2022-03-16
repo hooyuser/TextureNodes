@@ -186,6 +186,7 @@ namespace engine {
 		std::vector<Node> nodes;
 		std::unordered_set<Link> links;
 		VkFence fence;
+		//VkFence fence;
 		int next_id = 1;
 
 		std::optional<size_t> color_pin_index; //implies whether colorpicker should be open
@@ -229,7 +230,7 @@ namespace engine {
 					if constexpr (std::same_as<PinType, ColorRampData>) {
 						pin_value = std::move(ColorRampData(engine));
 						
-						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, UINT64_MAX);
+						//vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 						VkSubmitInfo submitInfo{
 							.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 							.commandBufferCount = 1,
@@ -237,7 +238,7 @@ namespace engine {
 						};
 						vkResetFences(engine->device, 1, &fence);
 						vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
-						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, UINT64_MAX);
+						//vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 					}
 					else {
 						pin_value = value;
@@ -314,8 +315,6 @@ namespace engine {
 			assert(("get_output_pin_index() error: vector access violation!", ubo_index != node.outputs.end()));
 			return ubo_index - node.outputs.begin();
 		}
-
-		bool is_image_node(const Node& node);
 	};
 };
 
