@@ -74,11 +74,14 @@ namespace engine {
 	}
 
 	void NodeEditor::update_from(uint32_t updated_node_index) {
+
+		//return;
+
 		if (vkGetFenceStatus(engine->device, fence) != VK_SUCCESS) {
 			return;
 		}
 
-		static std::vector<uint32_t> dfs_stack;
+		std::vector<uint32_t> dfs_stack;
 
 		static std::vector<char> visited_nodes; //check if a node has been visited
 		visited_nodes.resize(nodes.size());
@@ -148,6 +151,15 @@ namespace engine {
 
 		std::vector<uint32_t> dfs_path;
 
+		for (auto& node : nodes) {
+			std::visit([&](auto&& node_data) {
+				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
+				if constexpr (is_image_data<NodeDataT>) {
+					node_data->wait_semaphore_submit_info1.clear();
+				}
+				}, node.data);
+		}
+
 		while (!dfs_stack.empty()) {
 
 			auto idx = dfs_stack.back();
@@ -192,27 +204,32 @@ namespace engine {
 				}, nodes[idx].data);
 		}
 
-		VectorBuffer<VkSubmitInfo2> submits{};
+		std::vector<VkSubmitInfo2> submits;
 		auto const submit_size = dfs_path.size() * 2;
 		submits.reserve(submit_size);
-		auto iter = submits.data();
+
 		for (auto i : dfs_path) {
 			std::visit([&](auto&& node_data) {
 				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
 				if constexpr (is_image_data<NodeDataT>) {
 					node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info1.size());
-					node_data->submit_info[0].pWaitSemaphoreInfos = node_data->wait_semaphore_submit_info1.data();
-					memcpy(iter, node_data->submit_info.data(), sizeof(VkSubmitInfo2) * 2);
+
+					node_data->submit_info[0].pWaitSemaphoreInfos = (node_data->submit_info[0].waitSemaphoreInfoCount > 0) ? node_data->wait_semaphore_submit_info1.data() : nullptr;
+
+					submits.emplace_back(node_data->submit_info[0]);
+					submits.emplace_back(node_data->submit_info[1]);
 				}
 				}, nodes[i].data);
-			iter += 2;
+
 		}
 
 		vkResetFences(engine->device, 1, &fence);
 
-		if (vkQueueSubmit2(engine->graphicsQueue, submit_size, submits.data(), fence) != VK_SUCCESS) {
+		if (vkQueueSubmit2(engine->graphicsQueue, submits.size(), submits.data(), fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
+		vkWaitForFences(engine->device, 1, &fence, VK_TRUE, 1000000000000);
+
 	}
 
 	void NodeEditor::build_node(uint32_t node_index) {
@@ -867,7 +884,7 @@ namespace engine {
 						}
 						else if constexpr (!std::same_as<PinType, TextureIdData>) {
 							nodes[node_index].inputs[pin_index].default_value = json_node["pins"][pin_index].get<PinType>();
-						}													
+						}
 					});
 				}
 			});
