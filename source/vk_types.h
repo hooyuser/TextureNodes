@@ -14,7 +14,7 @@
 #include "util/util.h"
 #include "util/flag_bit_enum.h"
 
-inline constexpr uint64_t VULKAN_WAIT_TIMEOUT = 18000000000;
+inline constexpr uint64_t VULKAN_WAIT_TIMEOUT = 3000000000;
 
 template <class R, class T>
 concept Matrix = std::convertible_to<std::ranges::range_reference_t<std::ranges::range_reference_t<R>>, T>;

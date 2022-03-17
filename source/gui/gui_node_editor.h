@@ -230,7 +230,7 @@ namespace engine {
 					if constexpr (std::same_as<PinType, ColorRampData>) {
 						pin_value = std::move(ColorRampData(engine));
 						
-						//vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 						VkSubmitInfo submitInfo{
 							.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 							.commandBufferCount = 1,
@@ -238,7 +238,7 @@ namespace engine {
 						};
 						vkResetFences(engine->device, 1, &fence);
 						vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
-						//vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 					}
 					else {
 						pin_value = value;

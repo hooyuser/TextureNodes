@@ -399,26 +399,26 @@ struct ImageData : public NodeData {
 		};
 
 		
-		std::array dependencies{
-			VkSubpassDependency {
-				.srcSubpass = VK_SUBPASS_EXTERNAL,
-				.dstSubpass = 0,
-				.srcStageMask = 0,
-				.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				.srcAccessMask = 0,
-				.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-				.dependencyFlags = 0,
-			},
-			VkSubpassDependency {
-				.srcSubpass = 0,
-				.dstSubpass = VK_SUBPASS_EXTERNAL,
-				.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-				.dstStageMask = 0,
-				.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-				.dstAccessMask = 0,
-				.dependencyFlags = 0,
-			}
-		};
+		//std::array dependencies{
+		//	VkSubpassDependency {
+		//		.srcSubpass = VK_SUBPASS_EXTERNAL,
+		//		.dstSubpass = 0,
+		//		.srcStageMask = 0,
+		//		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		//		.srcAccessMask = 0,
+		//		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		//		.dependencyFlags = 0,
+		//	},
+		//	VkSubpassDependency {
+		//		.srcSubpass = 0,
+		//		.dstSubpass = VK_SUBPASS_EXTERNAL,
+		//		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
+		//		.dstStageMask = 0,
+		//		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
+		//		.dstAccessMask = 0,
+		//		.dependencyFlags = 0,
+		//	}
+		//};
 
 		std::array attachments = { colorAttachment };
 
@@ -431,7 +431,7 @@ struct ImageData : public NodeData {
 			.pSubpasses = &subpass,
 			.dependencyCount = 0,
 			//.dependencyCount = static_cast<uint32_t>(dependencies.size()),
-			.pDependencies = dependencies.data(),
+			.pDependencies = nullptr,//dependencies.data(),
 		};
 
 		if (vkCreateRenderPass(engine->device, &render_pass_info, nullptr, &image_pocessing_render_pass) != VK_SUCCESS) {

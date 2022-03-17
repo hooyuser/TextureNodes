@@ -74,112 +74,64 @@ namespace engine {
 	}
 
 	void NodeEditor::update_from(uint32_t updated_node_index) {
-
-		//return;
-
 		if (vkGetFenceStatus(engine->device, fence) != VK_SUCCESS) {
 			return;
 		}
-
-		std::vector<uint32_t> dfs_stack;
 
 		static std::vector<char> visited_nodes; //check if a node has been visited
 		visited_nodes.resize(nodes.size());
 		visited_nodes.assign(visited_nodes.size(), 0);
 
-		//std::visit([&](auto&& updated_node_data) {
-		//	if constexpr (is_image_data<std::decay_t<decltype(updated_node_data)>>) {
-		//		dfs_stack.emplace_back(updated_node_index);
-		//	}
-		//	else {
-		//		std::vector<uint32_t> non_image_nodes;
-		//		std::stack<int64_t> topo_sort_stack;
+		std::vector<uint32_t> sorted_nodes;
+		sorted_nodes.reserve(nodes.size());
+		std::stack<int64_t> topo_sort_stack;
+		int64_t idx;
 
-		//		visited_nodes[updated_node_index] = true;
-		//		topo_sort_stack.push(updated_node_index);
-		//		int64_t idx;
+		visited_nodes[updated_node_index] = 1;
+		topo_sort_stack.push(updated_node_index);
 
-		//		while (!topo_sort_stack.empty()) {
-		//			idx = topo_sort_stack.top();
-		//			topo_sort_stack.pop();
+		while (!topo_sort_stack.empty()) {
+			idx = topo_sort_stack.top();
+			topo_sort_stack.pop();
+			//A dummy node to denote finish order (e.g. topological order)
+			if (idx < 0) {
+				sorted_nodes.emplace_back(~idx);
+			}
+			else {
+				topo_sort_stack.push(~idx);
+				for (auto& pin : nodes[idx].outputs) {
+					for (Pin* connected_pin : pin.connected_pins) {
+						auto connected_node_idx = connected_pin->node_index;
+						if (visited_nodes[connected_node_idx] == 0) {
+							visited_nodes[connected_node_idx] = 1;
+							topo_sort_stack.push(connected_node_idx);
+						}
+					}
+				}
+			}
+		}
 
-		//			//A dummy node to denote finish order (e.g. topological order)
-		//			if (idx < 0) {
-		//				non_image_nodes.emplace_back(~idx);
-		//			}
-		//			else {
-		//				topo_sort_stack.push(~idx);
-		//				for (auto& pin : nodes[idx].outputs) {
-		//					for (Pin* connected_pin : pin.connected_pins) {
-		//						auto connected_node_idx = connected_pin->node_index;
-		//						if (visited_nodes[connected_node_idx] == 0) {
-		//							visited_nodes[connected_node_idx] = 1;
-		//							std::visit([&](auto&& connected_node_data) {
-		//								if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
-		//									dfs_stack.emplace_back(connected_node_idx);
-		//								}
-		//								else {
-		//									topo_sort_stack.push(connected_node_idx);
-		//								}
-		//								}, nodes[connected_node_idx].data);
-		//						}
-		//					}
-		//				}
-		//			}
-		//		}
+		std::vector<VkSubmitInfo2> submits;
+		submits.reserve(sorted_nodes.size() * 2);
 
-		//		for (auto i : non_image_nodes | std::ranges::views::reverse) {
-		//			recalculate_node(i);
-		//			for (auto& output : nodes[i].outputs) {
-		//				for (Pin* connected_pin : output.connected_pins) {
-		//					auto& connected_node = nodes[connected_pin->node_index];
-		//					std::visit([&](auto&& connected_node_data) {
-		//						using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
-		//						if constexpr (is_image_data<NodeDataT>) {
-		//							connected_node_data->update_ubo(output.default_value, get_input_pin_index(connected_node, *connected_pin));
-		//							visited_nodes[connected_pin->node_index] = 0;  //restore visited flag
-		//						}
-		//						}, connected_node.data);
-		//				}
-		//			}
-
-		//		}
-		//	}
-		//	}, nodes[updated_node_index].data);
-
-		dfs_stack.emplace_back(updated_node_index);
-
-		std::vector<uint32_t> dfs_path;
-
-		for (auto& node : nodes) {
+		for (auto i : sorted_nodes) {
 			std::visit([&](auto&& node_data) {
 				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
 				if constexpr (is_image_data<NodeDataT>) {
 					node_data->wait_semaphore_submit_info1.clear();
 				}
-				}, node.data);
+				}, nodes[i].data);
 		}
 
-		while (!dfs_stack.empty()) {
-
-			auto idx = dfs_stack.back();
-			dfs_stack.pop_back();
-
+		for (auto i : sorted_nodes | std::ranges::views::reverse) {
 			std::visit([&](auto&& node_data) {
-				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
-				if constexpr (is_image_data<NodeDataT>) {
+				if constexpr (is_image_data<std::decay_t<decltype(node_data)>>) {
 					uint64_t counter;
 					vkGetSemaphoreCounterValue(engine->device, node_data->semaphore, &counter);
-
-					if (visited_nodes[idx] == 0) {
-						visited_nodes[idx] = 1;
-						dfs_path.emplace_back(idx);
-						node_data->signal_semaphore_submit_info1.value = counter + 1;
-						node_data->wait_semaphore_submit_info2.value = counter + 1;
-						node_data->signal_semaphore_submit_info2.value = counter + 2;
-					}
-
-					for (auto& pin : nodes[idx].outputs) {
+					node_data->signal_semaphore_submit_info1.value = counter + 1;
+					node_data->wait_semaphore_submit_info2.value = counter + 1;
+					node_data->signal_semaphore_submit_info2.value = counter + 2;
+					for (auto& pin : nodes[i].outputs) {
 						for (auto connected_pin : pin.connected_pins) {
 							auto connected_node_idx = connected_pin->node_index;
 
@@ -194,35 +146,31 @@ namespace engine {
 										});
 								}
 								}, nodes[connected_pin->node_index].data);
+						}
+					}
+					node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info1.size());
+					node_data->submit_info[0].pWaitSemaphoreInfos = (node_data->submit_info[0].waitSemaphoreInfoCount > 0) ? node_data->wait_semaphore_submit_info1.data() : nullptr;
 
-							if (visited_nodes[connected_node_idx] == 0) {
-								dfs_stack.emplace_back(connected_pin->node_index);
-							}
+					submits.push_back(node_data->submit_info[0]);
+					submits.push_back(node_data->submit_info[1]);
+				}
+				else {
+					recalculate_node(i);
+					for (auto& output : nodes[i].outputs) {
+						for (Pin* connected_pin : output.connected_pins) {
+							auto& connected_node = nodes[connected_pin->node_index];
+							std::visit([&](auto&& connected_node_data) {
+								using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
+								if constexpr (is_image_data<NodeDataT>) {
+									connected_node_data->update_ubo(output.default_value, get_input_pin_index(connected_node, *connected_pin));
+								}
+								}, connected_node.data);
 						}
 					}
 				}
-				}, nodes[idx].data);
-		}
-
-		std::vector<VkSubmitInfo2> submits;
-		auto const submit_size = dfs_path.size() * 2;
-		submits.reserve(submit_size);
-
-		for (auto i : dfs_path) {
-			std::visit([&](auto&& node_data) {
-				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
-				if constexpr (is_image_data<NodeDataT>) {
-					node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info1.size());
-
-					node_data->submit_info[0].pWaitSemaphoreInfos = (node_data->submit_info[0].waitSemaphoreInfoCount > 0) ? node_data->wait_semaphore_submit_info1.data() : nullptr;
-
-					submits.emplace_back(node_data->submit_info[0]);
-					submits.emplace_back(node_data->submit_info[1]);
-				}
 				}, nodes[i].data);
-
 		}
-
+		
 		vkResetFences(engine->device, 1, &fence);
 
 		if (vkQueueSubmit2(engine->graphicsQueue, submits.size(), submits.data(), fence) != VK_SUCCESS) {
@@ -516,7 +464,7 @@ namespace engine {
 						const uint64_t wait_value = counter + 1;
 						preview_semaphore_wait_info.pSemaphores = &arg->semaphore;
 						preview_semaphore_wait_info.pValues = &wait_value;
-						//vkWaitSemaphores(engine->device, &preview_semaphore_wait_info, VULKAN_WAIT_TIMEOUT);
+						vkWaitSemaphores(engine->device, &preview_semaphore_wait_info, VULKAN_WAIT_TIMEOUT);
 					}
 					ImGui::Image(static_cast<ImTextureID>(arg->gui_texture), ImVec2{ preview_image_size, preview_image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
 				}
@@ -579,7 +527,7 @@ namespace engine {
 								vkResetFences(engine->device, 1, &fence);
 								bool debug = true;
 								vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
-								//vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 								update_from(*color_ramp_node_index);
 							}
 						}
