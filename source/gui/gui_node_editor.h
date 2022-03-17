@@ -304,6 +304,12 @@ namespace engine {
 
 		void recalculate_node(size_t index);
 
+		void update_all_nodes();
+
+		void topological_sort(uint32_t index, std::vector<char>& visited_nodes, std::vector<uint32_t>& sorted_nodes);
+
+		void excute_graph(const std::vector<uint32_t>& sorted_nodes);
+
 		inline size_t get_input_pin_index(const Node& node, const Pin& pin) {
 			auto ubo_index = std::find(node.inputs.begin(), node.inputs.end(), pin);
 			assert(("get_input_pin_index() error: vector access violation!", ubo_index != node.inputs.end()));

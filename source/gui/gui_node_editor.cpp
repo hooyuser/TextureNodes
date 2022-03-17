@@ -73,27 +73,17 @@ namespace engine {
 		return next_id++;
 	}
 
-	void NodeEditor::update_from(uint32_t updated_node_index) {
-		if (vkGetFenceStatus(engine->device, fence) != VK_SUCCESS) {
-			return;
-		}
-
-		static std::vector<char> visited_nodes; //check if a node has been visited
-		visited_nodes.resize(nodes.size());
-		visited_nodes.assign(visited_nodes.size(), 0);
-
-		std::vector<uint32_t> sorted_nodes;
-		sorted_nodes.reserve(nodes.size());
+	void NodeEditor::topological_sort(uint32_t index, std::vector<char>& visited_nodes, std::vector<uint32_t>& sorted_nodes) {
 		std::stack<int64_t> topo_sort_stack;
 		int64_t idx;
 
-		visited_nodes[updated_node_index] = 1;
-		topo_sort_stack.push(updated_node_index);
+		visited_nodes[index] = 1;
+		topo_sort_stack.push(index);
 
-		while (!topo_sort_stack.empty()) {
+		while (!topo_sort_stack.empty()) { //topological sorting
 			idx = topo_sort_stack.top();
 			topo_sort_stack.pop();
-			//A dummy node to denote finish order (e.g. topological order)
+
 			if (idx < 0) {
 				sorted_nodes.emplace_back(~idx);
 			}
@@ -110,7 +100,9 @@ namespace engine {
 				}
 			}
 		}
+	}
 
+	void NodeEditor::excute_graph(const std::vector<uint32_t>& sorted_nodes) {
 		std::vector<VkSubmitInfo2> submits;
 		submits.reserve(sorted_nodes.size() * 2);
 
@@ -170,14 +162,48 @@ namespace engine {
 				}
 				}, nodes[i].data);
 		}
-		
+
 		vkResetFences(engine->device, 1, &fence);
 
 		if (vkQueueSubmit2(engine->graphicsQueue, submits.size(), submits.data(), fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
-		vkWaitForFences(engine->device, 1, &fence, VK_TRUE, 1000000000000);
+	}
 
+	void NodeEditor::update_from(uint32_t updated_node_index) {
+		if (vkGetFenceStatus(engine->device, fence) != VK_SUCCESS) {
+			return;
+		}
+
+		static std::vector<char> visited_nodes; //check if a node has been visited
+		visited_nodes.resize(nodes.size());
+		visited_nodes.assign(visited_nodes.size(), 0);
+
+		std::vector<uint32_t> sorted_nodes;
+		sorted_nodes.reserve(nodes.size());
+
+		topological_sort(updated_node_index, visited_nodes, sorted_nodes);
+		excute_graph(sorted_nodes);
+	}
+
+	void NodeEditor::update_all_nodes() {
+		vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+
+		static std::vector<char> visited_nodes; //check if a node has been visited
+		visited_nodes.resize(nodes.size());
+		visited_nodes.assign(visited_nodes.size(), 0);
+
+		std::vector<uint32_t> sorted_nodes;
+		sorted_nodes.reserve(nodes.size());
+
+		for (auto i : std::views::iota(0u, nodes.size())) {
+			if (visited_nodes[i] == 0) {
+				topological_sort(i, visited_nodes, sorted_nodes);
+			}
+		}
+
+		excute_graph(sorted_nodes);
+		vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 	}
 
 	void NodeEditor::build_node(uint32_t node_index) {
@@ -396,7 +422,7 @@ namespace engine {
 					}
 					else if constexpr (std::is_same_v<PinT, BoolData>) {
 						auto& bool_data = std::get<BoolData>(node.inputs[i].default_value);
-						if (ImGui::Checkbox(pin->name.c_str(), &bool_data.value)) {
+						if (ImGui::Checkbox((pin->name + "##" + std::to_string(pin->id.Get())).c_str(), &bool_data.value)) {
 							std::visit([&](auto&& node_data) {
 								using NodeT = std::decay_t<decltype(node_data)>;
 								if constexpr (is_image_data<NodeT>) {
@@ -792,9 +818,9 @@ namespace engine {
 			auto end_pin_index = get_input_pin_index(nodes[end_node_index], *link.end_pin);
 
 			json_file["links"].emplace_back(json{
-				{"start_node_index", start_node_index} ,
+				{"start_node_index", start_node_index},
 				{"start_pin_index", start_pin_index},
-				{"end_node_index", end_node_index} ,
+				{"end_node_index", end_node_index},
 				{"end_pin_index", end_pin_index},
 				});
 		}
@@ -818,20 +844,35 @@ namespace engine {
 
 					using NodeDataType = NodeType::data_type;
 					using UboT = UboOf<NodeDataType>;
-
 					using FieldTypes = FieldTypeList<UboT>;
+
 					UNROLL<FieldTypes::size>([&] <std::size_t pin_index>() {
 						using PinType = FieldTypeList<UboT>::template at<pin_index>;
+						auto& node = nodes[node_index];
+						auto& pin_value = node.inputs[pin_index].default_value;
+
 						if constexpr (std::same_as<PinType, ColorRampData>) {
-							auto& ramp_ui_value = std::get<ColorRampData>(nodes[node_index].inputs[pin_index].default_value).ui_value;
+							auto& ramp_ui_value = std::get<ColorRampData>(pin_value).ui_value;
 							ramp_ui_value->clear_marks();
 							for (auto& json_mark : json_node["pins"][pin_index]) {
 								ramp_ui_value->insert_mark(json_mark["position"].get<float>(), json_mark["color"].get<ImColor>());
 							}
 							ramp_ui_value->refreshCache();
+							vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+							VkSubmitInfo submitInfo{
+								.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+								.commandBufferCount = 1,
+								.pCommandBuffers = &(std::get<ColorRampData>(pin_value).ubo_value->command_buffer),
+							};
+							vkResetFences(engine->device, 1, &fence);
+							vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
+							vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 						}
 						else if constexpr (!std::same_as<PinType, TextureIdData>) {
-							nodes[node_index].inputs[pin_index].default_value = json_node["pins"][pin_index].get<PinType>();
+							pin_value = json_node["pins"][pin_index].get<PinType>();
+							if constexpr (is_image_data<NodeDataType>) {
+								std::get<NodeDataType>(node.data)->update_ubo(pin_value, pin_index);
+							}
 						}
 					});
 				}
@@ -840,6 +881,28 @@ namespace engine {
 			ed::SetNodePosition(nodes[node_index].id, ImVec2{ json_node["pos"][0], json_node["pos"][1] });
 
 		}
+
+		for (auto& json_link : json_file["links"]) {
+			auto start_node_index = json_link["start_node_index"].get<int>();
+			auto start_pin_index = json_link["start_pin_index"].get<int>();
+			auto end_node_index = json_link["end_node_index"].get<int>();
+			auto end_pin_index = json_link["end_pin_index"].get<int>();
+
+			auto& start_pin = nodes[start_node_index].outputs[start_pin_index];
+			auto& end_pin = nodes[end_node_index].inputs[end_pin_index];
+			start_pin.connected_pins.emplace(&end_pin);
+			end_pin.connected_pins.emplace(&start_pin);
+			links.emplace(ed::LinkId(get_next_id()), &start_pin, &end_pin);
+
+			std::visit([&](auto&& end_node_data) {
+				using NodeT = std::decay_t<decltype(end_node_data)>;
+				if constexpr (is_image_data<NodeT>) {
+					end_node_data->update_ubo(start_pin.default_value, end_pin_index);
+				}
+				}, nodes[end_node_index].data);
+		}
+
+		update_all_nodes();
 
 		ed::SetCurrentEditor(nullptr);
 	}
