@@ -1,20 +1,20 @@
 #pragma once
-
+#include <IconsFontAwesome5.h>
 // uncomment and modify defines under for customize ImGuiFileDialog
 
 //this options need c++17
-//#define USE_STD_FILESYSTEM
+#define USE_STD_FILESYSTEM
 
 //#define MAX_FILE_DIALOG_NAME_BUFFER 1024
 //#define MAX_PATH_BUFFER_SIZE 1024
 
 // the slash's buttons in path cna be used for quick select parallles directories
-//#define USE_QUICK_PATH_SELECT
+#define USE_QUICK_PATH_SELECT
 
 // the spacing between button path's can be customized. 
 // if disabled the spacing is defined by the imgui theme
 // define the space between path buttons 
-//#define CUSTOM_PATH_SPACING 2
+#define CUSTOM_PATH_SPACING 1
 
 //#define USE_THUMBNAILS
 //the thumbnail generation use the stb_image and stb_resize lib who need to define the implementation
@@ -58,10 +58,10 @@
 //#define IMGUI_BUTTON ImGui::Button
 
 // locales string
-//#define createDirButtonString "+"
-//#define resetButtonString "R"
-//#define drivesButtonString "Drives"
-//#define editPathButtonString "E"
+#define createDirButtonString ICON_FA_FOLDER_PLUS
+#define resetButtonString ICON_FA_UNDO_ALT
+#define drivesButtonString ICON_FA_HDD
+#define editPathButtonString ICON_FA_EDIT
 //#define searchString "Search"
 //#define dirEntryString "[DIR] "
 //#define linkEntryString "[LINK] "
@@ -75,16 +75,16 @@
 //#define buttonCreateDirString "Create Directory"
 //#define OverWriteDialogTitleString "The file Already Exist !"
 //#define OverWriteDialogMessageString "Would you like to OverWrite it ?"
-//#define OverWriteDialogConfirmButtonString "Confirm"
-//#define OverWriteDialogCancelButtonString "Cancel"
+#define OverWriteDialogConfirmButtonString ICON_FA_CHECK "Confirm"
+#define OverWriteDialogCancelButtonString ICON_FA_TIMES "Cancel"
 
 //Validation buttons
-//#define okButtonString " OK"
+#define okButtonString ICON_FA_CHECK " OK"
 //#define okButtonWidth 0.0f
-//#define cancelButtonString " Cancel"
+#define cancelButtonString ICON_FA_TIMES " Cancel"
 //#define cancelButtonWidth 0.0f
 //alignement [0:1], 0.0 is left, 0.5 middle, 1.0 right, and other ratios
-//#define okCancelButtonAlignement 0.0f
+#define okCancelButtonAlignement 1.0f
 //#define invertOkAndCancelButtons 0
 
 // DateTimeFormat
@@ -97,14 +97,14 @@
 //#define USE_CUSTOM_SORTING_ICON
 //#define tableHeaderAscendingIcon "A|"
 //#define tableHeaderDescendingIcon "D|"
-//#define tableHeaderFileNameString " File name"
-//#define tableHeaderFileTypeString " Type"
+#define tableHeaderFileNameString " File name"
+#define tableHeaderFileTypeString " Extension"
 //#define tableHeaderFileSizeString " Size"
 //#define tableHeaderFileDateTimeString " Date"
-//#define fileSizeBytes "o"
-//#define fileSizeKiloBytes "Ko"
-//#define fileSizeMegaBytes "Mo"
-//#define fileSizeGigaBytes "Go"
+#define fileSizeBytes "B"
+#define fileSizeKiloBytes "KB"
+#define fileSizeMegaBytes "MB"
+#define fileSizeGigaBytes "GB"
 
 // default table sort field (must be FIELD_FILENAME, FIELD_TYPE, FIELD_SIZE, FIELD_DATE or FIELD_THUMBNAILS)
 //#define defaultSortField FIELD_FILENAME
@@ -116,10 +116,10 @@
 //#define defaultSortOrderDate true
 //#define defaultSortOrderThumbnails true
 
-//#define USE_BOOKMARK
-//#define bookmarkPaneWith 150.0f
-//#define IMGUI_TOGGLE_BUTTON ToggleButton
-//#define bookmarksButtonString "Bookmark"
-//#define bookmarksButtonHelpString "Bookmark"
-//#define addBookmarkButtonString "+"
-//#define removeBookmarkButtonString "-"
+#define USE_BOOKMARK
+#define bookmarkPaneWith 150.0f
+//#define IMGUI_TOGGLE_BUTTON void(const char* label, bool *toggle)
+#define bookmarksButtonString ICON_FA_BOOKMARK
+#define bookmarksButtonHelpString "Bookmark"
+#define addBookmarkButtonString ICON_FA_PLUS
+#define removeBookmarkButtonString ICON_FA_MINUS

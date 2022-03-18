@@ -603,7 +603,7 @@ void VulkanEngine::load_gltf() {
 }
 
 void VulkanEngine::parse_material_info() {
-	
+
 	load_gltf();
 
 	auto envMaterialInfoJson = R"(
@@ -1394,22 +1394,29 @@ void VulkanEngine::draw_frame() {
 		ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
 		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
+		static bool first_time = true;
+		if (first_time) {
+			ImGuiFileDialog::Instance()->SetFileStyle(IGFD_FileStyleByTypeDir, "", ImVec4(0.5f, 1.0f, 0.9f, 0.9f), ICON_FA_FOLDER);
+			ImGuiFileDialog::Instance()->SetFileStyle(IGFD_FileStyleByExtention, ".txg", ImVec4(1.0f, 1.0f, 0.0f, 0.9f), ICON_FA_CODE_BRANCH);
+		}
+
+
 		if (ImGui::BeginMenuBar()) {
 			if (ImGui::BeginMenu("File")) {
 				if (ImGui::MenuItem(" " ICON_FA_FOLDER_PLUS " New")) {
 					node_editor->clear();
 				}
 				if (ImGui::MenuItem(" " ICON_FA_FOLDER_OPEN " Open")) {
-					ImGuiFileDialog::Instance()->OpenDialog("OpenFileDlgKey", "Choose File", ".txg", ".");
+					ImGuiFileDialog::Instance()->OpenDialog("OpenFileDlgKey", "Open File", ".txg", ".", 1, nullptr, ImGuiFileDialogFlags_ConfirmOverwrite);
 				}
 				if (ImGui::MenuItem(" " ICON_FA_SAVE " Save")) {
-					ImGuiFileDialog::Instance()->OpenDialog("SaveFileDlgKey", "Choose File", ".txg", ".");
+					ImGuiFileDialog::Instance()->OpenDialog("SaveFileDlgKey", "Save File", ".txg", ".", 1, nullptr, ImGuiFileDialogFlags_ConfirmOverwrite);
 				}
 				ImGui::EndMenu();
 			}
 			if (ImGui::BeginMenu("Help")) {
 				if (ImGui::MenuItem(" Document")) {
-			
+
 				}
 				ImGui::EndMenu();
 			}
@@ -1418,7 +1425,16 @@ void VulkanEngine::draw_frame() {
 			ImGui::EndMenuBar();
 		}
 
-		if (ImGuiFileDialog::Instance()->Display("OpenFileDlgKey")) {
+		constexpr auto file_dialog_min_x = 720;
+		constexpr auto file_dialog_min_y = 495;
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowPadding, ImVec2(10, 8));
+		ImGui::PushStyleVar(ImGuiStyleVar_WindowRounding, 4.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_ChildRounding, 4.0f);
+		ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2(5, 4));
+		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
+		ImGui::PushStyleColor(ImGuiCol_ResizeGrip, 0);
+		if (ImGuiFileDialog::Instance()->Display("OpenFileDlgKey", ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking, ImVec2{ file_dialog_min_x, file_dialog_min_y })) {
+			
 			// action if OK
 			if (ImGuiFileDialog::Instance()->IsOk()) {
 				std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
@@ -1426,24 +1442,19 @@ void VulkanEngine::draw_frame() {
 				node_editor->deserialize(filePathName);
 				// action
 			}
-
 			// close
 			ImGuiFileDialog::Instance()->Close();
 		}
 
-		if (ImGuiFileDialog::Instance()->Display("SaveFileDlgKey")) {
-			// action if OK
+		if (ImGuiFileDialog::Instance()->Display("SaveFileDlgKey", ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking, ImVec2{ file_dialog_min_x, file_dialog_min_y })) {
 			if (ImGuiFileDialog::Instance()->IsOk()) {
 				std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
 				node_editor->serialize(filePathName);
-				// action
 			}
-
-			// close
 			ImGuiFileDialog::Instance()->Close();
 		}
-
-		static bool first_time = true;
+		ImGui::PopStyleVar(5);
+		ImGui::PopStyleColor();
 
 		if (first_time) {
 			first_time = false;
@@ -1526,7 +1537,7 @@ void VulkanEngine::draw_frame() {
 			/*ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
 			ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
 			ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);*/
-	}
+		}
 		ImGui::End();
 
 		ImGui::SetNextWindowBgAlpha(0.0f);
@@ -1550,7 +1561,7 @@ void VulkanEngine::draw_frame() {
 		ImGui::End();
 
 		ImGui::PopStyleVar(3);
-}
+	}
 
 	gui->end_render(this, imageIndex);
 
