@@ -747,10 +747,18 @@ namespace engine {
 
 						links.emplace(ed::LinkId(get_next_id()), start_pin, end_pin);
 
-						std::visit([&](auto&& node_data) {
-							using NodeT = std::decay_t<decltype(node_data)>;
+						std::visit([&](auto&& end_node_data) {
+							using NodeT = std::decay_t<decltype(end_node_data)>;
 							if constexpr (is_image_data<NodeT>) {
-								node_data->update_ubo(start_pin->default_value, end_pin_index);
+								std::visit([&](auto&& end_pin_value) {
+									using PinT = std::decay_t<decltype(end_pin_value)>;
+									if constexpr (std::same_as<PinT, FloatTextureIdData>) {
+										if (std::holds_alternative<FloatData>(start_pin->default_value)) {
+											end_pin_value.value.id = -1;
+										}
+									}
+									}, end_pin->default_value);
+								end_node_data->update_ubo(start_pin->default_value, end_pin_index);
 							}
 							}, nodes[end_pin->node_index].data);
 
@@ -783,6 +791,24 @@ namespace engine {
 						link_end_pin->connected_pins.erase(link_start_pin);
 
 						links.erase(deleted_link);
+
+						std::visit([&](auto&& end_node_data) {
+							using NodeT = std::decay_t<decltype(end_node_data)>;
+							if constexpr (is_image_data<NodeT>) {
+								std::visit([&](auto&& end_pin_value) {
+									using PinT = std::decay_t<decltype(end_pin_value)>;
+									if constexpr (std::same_as<PinT, TextureIdData>) {
+										end_pin_value.value = -1;
+									}
+									else if constexpr (std::same_as<PinT, FloatTextureIdData>) {
+										end_pin_value.value.id = -1;
+									}
+									}, link_end_pin->default_value);
+								end_node_data->update_ubo(link_end_pin->default_value, get_input_pin_index(*link_end_pin));
+							}
+							}, nodes[link_end_pin->node_index].data);
+
+						update_from(link_end_pin->node_index);
 					}
 				}
 			}

@@ -312,6 +312,13 @@ namespace engine {
 
 		void excute_graph(const std::vector<uint32_t>& sorted_nodes);
 
+		inline size_t get_input_pin_index(const Pin& pin) {
+			const Node& node = nodes[pin.node_index];
+			auto ubo_index = std::find(node.inputs.begin(), node.inputs.end(), pin);
+			assert(("get_input_pin_index() error: vector access violation!", ubo_index != node.inputs.end()));
+			return ubo_index - node.inputs.begin();
+		}
+
 		inline size_t get_input_pin_index(const Node& node, const Pin& pin) {
 			auto ubo_index = std::find(node.inputs.begin(), node.inputs.end(), pin);
 			assert(("get_input_pin_index() error: vector access violation!", ubo_index != node.inputs.end()));

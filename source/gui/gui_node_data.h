@@ -821,8 +821,14 @@ struct ImageData : public NodeData {
 						if (std::same_as<StartPinT, FloatData>) {
 							uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(FloatData), field.getOffset());
 						}
-						else {
+						else if (std::same_as<StartPinT, TextureIdData>) {
 							uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(FloatData));
+						}
+						else if (std::same_as<StartPinT, FloatTextureIdData>) {
+							uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(FloatTextureIdData), field.getOffset());
+						}
+						else {
+							assert((false, "Error occurs when updating ubo. Pin type is FloatTextureIdData"));
 						}
 						}, value);
 				}
@@ -831,6 +837,33 @@ struct ImageData : public NodeData {
 				}
 				});
 		}
+	}
+
+	template<PinDataConcept StartPinT>
+	void update_ubo_by_value(const StartPinT& value, size_t index) {
+		UboType::Class::FieldAt(index, [&](auto& field) {
+			using PinT = std::decay_t<decltype(field)>::Type;
+			if constexpr (std::same_as<PinT, FloatTextureIdData>) {
+				std::visit([&](auto&& v) {
+					using StartPinT = std::decay_t<decltype(v)>;
+					if (std::same_as<StartPinT, FloatData>) {
+						uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(FloatData), field.getOffset());
+					}
+					else if (std::same_as<StartPinT, TextureIdData>) {
+						uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(FloatData));
+					}
+					else if (std::same_as<StartPinT, FloatTextureIdData>) {
+						uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(FloatTextureIdData), field.getOffset());
+					}
+					else {
+						assert((false, "Error occurs when updating ubo. Pin type is FloatTextureIdData"));
+					}
+					}, value);
+			}
+			else if constexpr (std::same_as<PinT, StartPinT>) {
+				uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
+			}
+			});
 	}
 };
 
