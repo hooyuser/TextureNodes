@@ -1,9 +1,10 @@
 #version 460
 #extension GL_EXT_nonuniform_qualifier:enable
 
-layout(set = 0, binding = 0) uniform UniformBufferObject {
+layout(std140, set = 0, binding = 0) uniform UniformBufferObject {
     uint mode;
-    float opacity;
+    float opacity_value;
+    int opacity_texture_id;
     int foreground;
     int background;
 } ubo;
@@ -21,8 +22,14 @@ float screen(float fg, float bg) {
 void main() {
     vec4 colA = texture(nodeTextures[ubo.foreground], fragUV);
     vec4 colB = texture(nodeTextures[ubo.background], fragUV);
-
-    float alpha_a = ubo.opacity * colA.a;
+    float opacity;
+    if(ubo.opacity_texture_id<0){
+        opacity = ubo.opacity_value;
+    }
+    else{
+        opacity = texture(nodeTextures[ubo.opacity_texture_id], fragUV).r;
+    }
+    float alpha_a = opacity * colA.a;
     float alpha_b = colB.a;
     float alpha_o = alpha_a + alpha_b - alpha_a * alpha_b;
 

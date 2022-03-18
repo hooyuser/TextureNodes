@@ -532,8 +532,7 @@ void VulkanEngine::create_swap_chain_image_views() {
 //		});
 //}
 
-
-void VulkanEngine::parse_material_info() {
+void VulkanEngine::load_gltf() {
 	const std::string filename = "assets/gltf_models/dragon.gltf";
 	tinygltf::Model glTFModel;
 	tinygltf::TinyGLTF gltfContext;
@@ -601,6 +600,11 @@ void VulkanEngine::parse_material_info() {
 			}
 		}
 	}
+}
+
+void VulkanEngine::parse_material_info() {
+	
+	load_gltf();
 
 	auto envMaterialInfoJson = R"(
 	{

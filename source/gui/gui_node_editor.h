@@ -273,6 +273,8 @@ namespace engine {
 		}
 		void create_fence();
 
+		bool is_pin_connection_valid(const PinVariant& pin1, const PinVariant& pin2);
+
 	public:
 		NodeEditor(VulkanEngine* engine);
 

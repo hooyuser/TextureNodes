@@ -229,6 +229,8 @@ public:
 
 	void create_window_attachments();
 
+	void load_gltf();
+
 	VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
 	VkFormat find_depth_format();

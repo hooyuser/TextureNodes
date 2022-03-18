@@ -86,6 +86,22 @@ struct TextureIdData : public NodeData {
 	value_t value = -1;
 };
 
+struct FloatTextureIdData : public NodeData {
+	using value_t = struct Value {
+		float number = 0.0f;
+		int32_t id = -1;
+	};
+	value_t value = Value{};
+};
+
+struct Color4TextureIdData : public NodeData {
+	using value_t = struct Value {
+		float color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
+		int32_t id = -1;
+	};
+	value_t value = Value{};
+};
+
 struct RampTexture {
 	VulkanEngine* engine;
 	VkImage image;
@@ -132,11 +148,11 @@ inline void to_json(json& j, const ColorRampData& p) {
 
 namespace nlohmann {
 	template <typename T> requires (std::derived_from<T, NodeData> && !std::same_as<T, ColorRampData>)
-	struct adl_serializer<T> {
+		struct adl_serializer<T> {
 		static void to_json(json& j, const T& data) {
 			j = data.value;
 		}
-	
+
 		static void from_json(const json& j, T& data) {
 			j.get_to(data.value);
 		}
@@ -146,6 +162,21 @@ namespace nlohmann {
 	struct adl_serializer<ColorRampData> {
 		static void to_json(json& j, const ColorRampData& data) {
 			j = *(data.ui_value);
+		}
+	};
+
+	template <>
+	struct adl_serializer<FloatTextureIdData> {
+		static void to_json(json& j, const FloatTextureIdData& data) {
+			j = data.value.number;
+		}
+
+		static void from_json(const json& j, FloatTextureIdData& data) {
+			data = FloatTextureIdData{
+				.value = {
+					.number = j.get<float>()
+				}
+			};
 		}
 	};
 
@@ -166,7 +197,8 @@ using PinTypeList = TypeList<
 	BoolData,
 	Color4Data,
 	EnumData,
-	ColorRampData>;
+	ColorRampData,
+	FloatTextureIdData>;
 
 using PinVariant = PinTypeList::cast_to<std::variant>;
 
@@ -398,7 +430,7 @@ struct ImageData : public NodeData {
 			.pColorAttachments = &colorAttachmentRef,
 		};
 
-		
+
 		//std::array dependencies{
 		//	VkSubpassDependency {
 		//		.srcSubpass = VK_SUBPASS_EXTERNAL,
@@ -440,7 +472,7 @@ struct ImageData : public NodeData {
 
 		engine->main_deletion_queue.push_function([device = engine->device, render_pass = image_pocessing_render_pass]() {
 			vkDestroyRenderPass(device, render_pass, nullptr);
-			});
+		});
 	}
 
 	void create_image_pocessing_pipeline_layout() {
@@ -783,7 +815,20 @@ struct ImageData : public NodeData {
 		else {
 			UboType::Class::FieldAt(index, [&](auto& field) {
 				using PinT = std::decay_t<decltype(field)>::Type;
-				uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
+				if constexpr (std::same_as<PinT, FloatTextureIdData>) {
+					std::visit([&](auto&& v) {
+						using StartPinT = std::decay_t<decltype(v)>;
+						if (std::same_as<StartPinT, FloatData>) {
+							uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(FloatData), field.getOffset());
+						}
+						else {
+							uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(FloatData));
+						}
+						}, value);
+				}
+				else {
+					uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
+				}
 				});
 		}
 	}

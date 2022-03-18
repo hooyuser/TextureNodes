@@ -10,8 +10,11 @@ struct NodeBlend : NodeTypeImageBase {
 		};
 
 		NOTE(factor, NumberInputWidgetInfo{ .min = 0, .max = 1, .speed = 0.005, .enable_slider = true })
-		FloatData factor {
-			.value = 0.5f
+		FloatTextureIdData factor {
+			.value = {
+				.number = 0.5f,
+				.id = -1 
+			}
 		};
 
 		TextureIdData texture1{

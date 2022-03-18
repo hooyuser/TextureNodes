@@ -218,6 +218,13 @@ namespace engine {
 		}
 	}
 
+	bool NodeEditor::is_pin_connection_valid(const PinVariant& output_pin, const PinVariant& input_pin) {
+		return (output_pin.index() == input_pin.index()
+			|| std::holds_alternative<FloatData>(output_pin) && std::holds_alternative<FloatTextureIdData>(input_pin)
+			|| std::holds_alternative<TextureIdData>(output_pin) && std::holds_alternative<FloatTextureIdData>(input_pin)
+			);
+	}
+
 	void NodeEditor::draw() {
 		//static bool first = true;
 		auto& io = ImGui::GetIO();
@@ -395,6 +402,49 @@ namespace engine {
 					}
 					else if constexpr (std::is_same_v<PinT, TextureIdData>) {
 						ImGui::Text(pin->name.c_str());
+						rect = imgui_get_item_rect();
+					}
+					else if constexpr (std::is_same_v<PinT, FloatTextureIdData>) {
+						if (pin->connected_pins.empty()) {
+							ImGui::PushItemWidth(150.f);
+							//ImGui::SameLine();
+							bool response_flag = false;
+							std::visit([&](auto&& node_data) {
+								using NodeDataT = std::decay_t<decltype(node_data)>;
+								UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
+									auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
+									if (widget_info.enable_slider) {
+										response_flag = ImGui::SliderFloat(("##" + std::to_string(pin->id.Get())).c_str(),
+											&std::get<PinT>(pin->default_value).value.number,
+											widget_info.min,
+											widget_info.max,
+											(pin->name + " : %.3f").c_str());
+									}
+									else {
+										response_flag = ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(),
+											&std::get<PinT>(pin->default_value).value.number,
+											widget_info.speed,
+											widget_info.min,
+											widget_info.max,
+											(pin->name + " : %.3f").c_str());
+									}
+									if (response_flag) {
+										if constexpr (is_image_data<NodeDataT>) {
+											node_data->update_ubo(pin->default_value, i);
+											update_from(node_index);
+										}
+										else {
+											assert((is_image_data<NodeDataT>, "Error occurs during processing FloatTextureIdData"));
+										}
+									}
+									});
+								}, node.data);
+
+							ImGui::PopItemWidth();
+						}
+						else {
+							ImGui::Text(pin->name.c_str());
+						}
 						rect = imgui_get_item_rect();
 					}
 					else if constexpr (std::is_same_v<PinT, EnumData>) {
@@ -603,6 +653,8 @@ namespace engine {
 			ed::Resume();
 		}
 
+
+		//Create new link
 		if (ed::BeginCreate()) {
 			ed::PinId start_pin_id, end_pin_id;
 			if (ed::QueryNewLink(&start_pin_id, &end_pin_id)) {
@@ -664,7 +716,9 @@ namespace engine {
 						showLabel(hint, ImColor(45, 32, 32, 180));
 						ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
 					}
-					else if (start_pin->default_value.index() != end_pin->default_value.index()) {
+					else if (start_pin->flow_direction == PinInOut::INPUT && !is_pin_connection_valid(end_pin->default_value, start_pin->default_value)
+						|| start_pin->flow_direction == PinInOut::OUTPUT && !is_pin_connection_valid(start_pin->default_value, end_pin->default_value)) {
+
 						showLabel("Incompatible Pin Type", ImColor(45, 32, 32, 180));
 						ed::RejectNewItem(ImColor(255, 128, 128), 1.0f);
 					}
