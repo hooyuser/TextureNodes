@@ -370,7 +370,6 @@ namespace engine {
 										}
 									}
 									});
-
 								}, node.data);
 
 							ImGui::PopItemWidth();
@@ -808,7 +807,7 @@ namespace engine {
 			json_file["nodes"].emplace_back(json{
 				{"type", node.data.index()} ,
 				{"pins", node.inputs},
-				{"pos", GetNodePosition(node.id)}
+				{"pos", GetNodePosition(node.id)},
 				});
 		}
 		for (auto& link : links) {
@@ -824,6 +823,18 @@ namespace engine {
 				{"end_pin_index", end_pin_index},
 				});
 		}
+
+		json_file["view"] = {
+			{
+				"origin",{
+					ed::GetCurrentViewOrigin().x,
+					ed::GetCurrentViewOrigin().y,
+				}
+			},
+			{
+				"scale", ed::GetCurrentViewScale(),
+			}
+		};
 		std::ofstream o_file(file_path.data());
 		o_file << std::setw(4) << json_file << std::endl;
 		ed::SetCurrentEditor(nullptr);
@@ -879,7 +890,6 @@ namespace engine {
 			});
 
 			ed::SetNodePosition(nodes[node_index].id, ImVec2{ json_node["pos"][0], json_node["pos"][1] });
-
 		}
 
 		for (auto& json_link : json_file["links"]) {
@@ -903,6 +913,14 @@ namespace engine {
 		}
 
 		update_all_nodes();
+
+		ed::SetCurrentView(
+			ImVec2{
+				json_file["view"]["origin"][0].get<float>(),
+				json_file["view"]["origin"][1].get<float>()
+			},
+			json_file["view"]["scale"].get<float>()
+		);
 
 		ed::SetCurrentEditor(nullptr);
 	}

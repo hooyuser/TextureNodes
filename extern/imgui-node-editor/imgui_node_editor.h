@@ -329,6 +329,10 @@ int  GetActionContextLinks(LinkId* links, int size);
 void EndShortcut();
 
 float GetCurrentZoom();
+float GetCurrentViewScale();
+ImVec2 GetCurrentViewOrigin();
+void SetCurrentView(const ImVec2& origin, float scale);
+
 
 NodeId GetDoubleClickedNode();
 PinId GetDoubleClickedPin();

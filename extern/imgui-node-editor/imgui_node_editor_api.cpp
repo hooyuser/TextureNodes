@@ -591,6 +591,20 @@ float ax::NodeEditor::GetCurrentZoom()
     return s_Editor->GetView().InvScale;
 }
 
+float ax::NodeEditor::GetCurrentViewScale()
+{
+    return s_Editor->GetView().Scale;
+}
+
+ImVec2 ax::NodeEditor::GetCurrentViewOrigin()
+{
+    return s_Editor->GetView().Origin;
+}
+
+void ax::NodeEditor::SetCurrentView(const ImVec2& origin, float scale) {
+    s_Editor->SetView(origin, scale);
+}
+
 ax::NodeEditor::NodeId ax::NodeEditor::GetDoubleClickedNode()
 {
     return s_Editor->GetDoubleClickedNode();
