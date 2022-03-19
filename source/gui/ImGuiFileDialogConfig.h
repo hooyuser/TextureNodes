@@ -14,7 +14,7 @@
 // the spacing between button path's can be customized. 
 // if disabled the spacing is defined by the imgui theme
 // define the space between path buttons 
-#define CUSTOM_PATH_SPACING 1
+#define CUSTOM_PATH_SPACING 1.5
 
 //#define USE_THUMBNAILS
 //the thumbnail generation use the stb_image and stb_resize lib who need to define the implementation

@@ -231,6 +231,8 @@ public:
 
 	void load_gltf();
 
+	void load_obj();
+
 	VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
 
 	VkFormat find_depth_format();

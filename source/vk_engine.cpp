@@ -602,7 +602,15 @@ void VulkanEngine::load_gltf() {
 	}
 }
 
+
+void VulkanEngine::load_obj() {
+	loadedMeshes.emplace_back(engine::Mesh::loadFromObj(this, "assets/obj_models/rounded_cube.obj"));
+
+
+	auto ppp = loadedMeshes.back();
+}
 void VulkanEngine::parse_material_info() {
+	load_obj();
 
 	load_gltf();
 
@@ -1400,7 +1408,6 @@ void VulkanEngine::draw_frame() {
 			ImGuiFileDialog::Instance()->SetFileStyle(IGFD_FileStyleByExtention, ".txg", ImVec4(1.0f, 1.0f, 0.0f, 0.9f), ICON_FA_CODE_BRANCH);
 		}
 
-
 		if (ImGui::BeginMenuBar()) {
 			if (ImGui::BeginMenu("File")) {
 				if (ImGui::MenuItem(" " ICON_FA_FOLDER_PLUS " New")) {
@@ -1506,23 +1513,6 @@ void VulkanEngine::draw_frame() {
 		ImGui::Begin("Texture Viewer");
 		ImGui::PopStyleColor();
 		{
-#ifdef GRADIENT_DEBUG
-			ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
-			ImVec2 viewer_size = ImGui::GetContentRegionAvail();
-			ImGui::SetCursorPos(ImVec2{ 0, window_size.y - viewer_size.y + 10 });
-
-			static ImGradient gradient = ImGradient();
-			if (ImGui::GradientButton(&gradient, 100)) {
-				ImGui::OpenPopup("Gradient##1");
-			}
-			if (ImGui::BeginPopup("Gradient##1")) {
-				//set show editor flag to true/false
-				static ImGradientMark* draggingMark = nullptr;
-				static ImGradientMark* selectedMark = nullptr;
-				bool updated = ImGui::GradientEditor(&gradient, draggingMark, selectedMark);
-				ImGui::EndPopup();
-			}
-#else
 			if (auto handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
 				ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
 				ImVec2 viewer_size = ImGui::GetContentRegionAvail();
@@ -1532,8 +1522,6 @@ void VulkanEngine::draw_frame() {
 				ImGui::SetCursorPos((viewer_size - image_size) * 0.5f + ImVec2{ 0, window_size.y - viewer_size.y });
 				ImGui::Image(handle, image_size, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
 			}
-#endif
-
 			/*ImVec2 viewportPanelPos = ImGui::GetWindowContentRegionMin();
 			ImGui::Text("Pos = (%f, %f)", viewportPanelPos.x, viewportPanelPos.y);
 			ImGui::Text("Size = (%f, %f)", viewportPanelSize.x, viewportPanelSize.y);*/
