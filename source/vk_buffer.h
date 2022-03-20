@@ -12,6 +12,7 @@ namespace vk_base {
 		VkDeviceMemory memory = VK_NULL_HANDLE;
 
 		VkDeviceSize size = 0;
+		void* mapped_buffer = nullptr;
 
 		Buffer(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, VkDeviceSize size);
 

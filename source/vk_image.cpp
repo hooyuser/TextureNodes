@@ -667,13 +667,10 @@ namespace engine {
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			TEMP_BIT);
 
-		void* data;
-		vkMapMemory(engine->device, pStagingBuffer->memory, 0, imageSize, 0, &data);
 		for (int i = 0; i < 6; i++) {
-			memcpy(static_cast<char*>(data) + (layerSize * i), pixels[i], static_cast<size_t>(layerSize));
+			memcpy(static_cast<char*>(pStagingBuffer->mapped_buffer) + (layerSize * i), pixels[i], static_cast<size_t>(layerSize));
 			stbi_image_free(pixels[i]);
 		}
-		vkUnmapMemory(engine->device, pStagingBuffer->memory);
 
 		auto pTexture = engine::Texture::createCubemapTexture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT);
 
@@ -730,13 +727,10 @@ namespace engine {
 				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 				TEMP_BIT);
 
-			void* data;
-			vkMapMemory(engine->device, pStagingBuffer->memory, 0, imageSize, 0, &data);
 			for (int i = 0; i < 6; i++) {
-				memcpy(static_cast<char*>(data) + (layerSize * i), pixels[i], static_cast<size_t>(layerSize));
+				memcpy(static_cast<char*>(pStagingBuffer->mapped_buffer) + (layerSize * i), pixels[i], static_cast<size_t>(layerSize));
 				stbi_image_free(pixels[i]);
 			}
-			vkUnmapMemory(engine->device, pStagingBuffer->memory);
 
 			if (mipLevel == 0) {
 				pTexture = engine::Texture::createCubemapTexture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT, filePathLayers.size());

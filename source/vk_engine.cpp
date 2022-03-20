@@ -610,7 +610,6 @@ void VulkanEngine::load_obj() {
 	auto ppp = loadedMeshes.back();
 }
 void VulkanEngine::parse_material_info() {
-	load_obj();
 
 	load_gltf();
 
@@ -1274,12 +1273,9 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 		//only bind the mesh if its a different one from last bind
 		if (object.mesh != lastMesh) {
 			if (object.mesh->pMaterial != lastMaterial) {
-				if (std::holds_alternative<PbrMaterialPtr>(object.mesh->pMaterial)) {
-					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std::get<PbrMaterialPtr>(object.mesh->pMaterial)->pipeline);
-				}
-				else if (std::holds_alternative<HDRiMaterialPtr>(object.mesh->pMaterial)) {
-					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, std::get<HDRiMaterialPtr>(object.mesh->pMaterial)->pipeline);
-				}
+				std::visit([&](auto p_material) {
+					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, p_material->pipeline);
+					}, object.mesh->pMaterial);
 				lastMaterial = object.mesh->pMaterial;
 			}
 			//bind the mesh vertex buffer with offset 0
@@ -1414,7 +1410,7 @@ void VulkanEngine::draw_frame() {
 					node_editor->clear();
 				}
 				if (ImGui::MenuItem(" " ICON_FA_FOLDER_OPEN " Open")) {
-					ImGuiFileDialog::Instance()->OpenDialog("OpenFileDlgKey", "Open File", ".txg", ".", 1, nullptr, ImGuiFileDialogFlags_ConfirmOverwrite);
+					ImGuiFileDialog::Instance()->OpenDialog("OpenFileDlgKey", "Open File", ".txg", ".", 1, nullptr);
 				}
 				if (ImGui::MenuItem(" " ICON_FA_SAVE " Save")) {
 					ImGuiFileDialog::Instance()->OpenDialog("SaveFileDlgKey", "Save File", ".txg", ".", 1, nullptr, ImGuiFileDialogFlags_ConfirmOverwrite);

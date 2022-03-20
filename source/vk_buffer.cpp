@@ -32,16 +32,25 @@ namespace vk_base {
 		}
 
 		vkBindBufferMemory(device, buffer, memory, 0);
+
+		if (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT & memoryProperties) {
+			vkMapMemory(device, memory, 0, size, 0, &mapped_buffer);
+		}
+		
 	}
 
 	Buffer::~Buffer() {
+		if (memory != VK_NULL_HANDLE) {
+			if (mapped_buffer) {
+				vkUnmapMemory(device, memory);
+				mapped_buffer = nullptr;
+			}
+			vkFreeMemory(device, memory, nullptr);
+			memory = VK_NULL_HANDLE;
+		}
 		if (buffer != VK_NULL_HANDLE) {
 			vkDestroyBuffer(device, buffer, nullptr);
 			buffer = VK_NULL_HANDLE;
-		}
-		if (memory != VK_NULL_HANDLE) {
-			vkFreeMemory(device, memory, nullptr);
-			memory = VK_NULL_HANDLE;
 		}
 	}
 }
@@ -58,23 +67,16 @@ namespace engine {
 				pBuffer->buffer = VK_NULL_HANDLE;
 				pBuffer->memory = VK_NULL_HANDLE;
 				});
-
 		}
 		return pBuffer;
 	}
 
 	void Buffer::copyFromHost(void* hostData) {
-		void* data;
-		vkMapMemory(device, memory, 0, size, 0, &data);
-		memcpy(data, hostData, (size_t)size);
-		vkUnmapMemory(device, memory);
+		memcpy(mapped_buffer, hostData, (size_t)size);
 	}
 
 	void Buffer::copyFromHost(const void* host_data, size_t data_size, size_t offset) {
-		void* data;
-		vkMapMemory(device, memory, offset, data_size, 0, &data);
-		memcpy(data, host_data, data_size);
-		vkUnmapMemory(device, memory);
+		memcpy(static_cast<char*>(mapped_buffer) + offset, host_data, data_size);
 	}
 
 	void Buffer::copyFromBuffer(VulkanEngine* engine, VkBuffer srcBuffer) {
@@ -84,5 +86,4 @@ namespace engine {
 			vkCmdCopyBuffer(commandBuffer, srcBuffer, buffer, 1, &copyRegion);
 			});
 	}
-
 }

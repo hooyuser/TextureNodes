@@ -130,14 +130,13 @@ struct ColorRampData : public NodeData {
 	inline ColorRampData(VulkanEngine* engine) {
 		ubo_value = std::make_unique<RampTexture>(engine);
 		value = ubo_value->color_ramp_texture_id;
-		void* data;
-		vkMapMemory(engine->device, ubo_value->staging_buffer.memory, 0, ubo_value->staging_buffer.size, 0, &data);
-		ui_value = std::make_unique<ImGradient>(static_cast<float*>(data));
+		ui_value = std::make_unique<ImGradient>(static_cast<float*>(ubo_value->staging_buffer.mapped_buffer));
 	}
 	//inline ColorRampData(ColorRampData&&ramp_data) noexcept :ui_value(std::move(ramp_data.ui_value)), ubo_value(std::move(ramp_data.ubo_value)){}
 	//inline ColorRampData& operator=(ColorRampData&& ramp_data) noexcept {
 	//	ui_value = std::move(ramp_data.ui_value);
-	//	ubo_value = std::move(ramp_data.ubo_value);
+	//	ubo_value = std::move(ramp_d
+	// ata.ubo_value);
 	//	return *this;
 	//}
 };
