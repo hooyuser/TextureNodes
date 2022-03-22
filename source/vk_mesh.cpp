@@ -194,7 +194,7 @@ namespace engine {
 					return mesh;
 				}
 			}
-			mesh->pMaterial = engine->loadedMaterials[glTFPrimitive.material];  //Does not support different materials for different primitives 
+			mesh->pMaterial = engine->loaded_materials[glTFPrimitive.material];  //Does not support different materials for different primitives 
 		}
 		return mesh;
 	}

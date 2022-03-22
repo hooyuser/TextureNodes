@@ -1,9 +1,8 @@
-#include "gui/gui_node_editor.h"
 #include "vk_engine.h"
+#include "gui/gui_node_editor.h"
 #include "vk_initializers.h"
 #include "vk_shader.h"
 #include "vk_mesh.h"
-#include "vk_util.h"
 #include "vk_pipeline.h"
 #include "vk_image.h"
 #include "vk_buffer.h"
@@ -12,15 +11,12 @@
 #include "vk_gui.h"
 #include "gui/ImGuiFileDialog.h"
 
-#include "gui/imgui_color_gradient.h"
-
 #include <cstring>
 #include <array>
 #include <set>
 #include <filesystem>
 #include <chrono>
 #include <algorithm>
-#include <string_view>
 
 #include <IconsFontAwesome5.h>
 
@@ -38,12 +34,9 @@ using json = nlohmann::json;
 
 #include <imgui.h>
 #include <imgui_internal.h>
-#include <imgui_impl_glfw.h>
 #include <imgui_impl_vulkan.h>
 
 using namespace engine;
-
-#include <imgui_node_editor.h>
 
 constexpr uint32_t WIDTH = 1200;
 constexpr uint32_t HEIGHT = 900;
@@ -52,8 +45,7 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr double MAX_FPS = 200.0;
 constexpr double MAX_PERIOD = 1.0 / MAX_FPS;
 
-
-const std::vector<const char*> validationLayers = {
+const std::vector validationLayers = {
 	"VK_LAYER_KHRONOS_validation",
 	"VK_LAYER_KHRONOS_synchronization2",
 };
@@ -84,14 +76,12 @@ VkResult CreateDebugUtilsMessengerEXT(VkInstance instance, const VkDebugUtilsMes
 	}
 }
 
-
 void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
 	auto func = (PFN_vkDestroyDebugUtilsMessengerEXT)vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
 	if (func != nullptr) {
 		func(instance, debugMessenger, pAllocator);
 	}
 }
-
 
 struct SwapChainSupportDetails {
 	VkSurfaceCapabilitiesKHR capabilities;
@@ -116,7 +106,7 @@ void VulkanEngine::init_window() {
 
 	window = glfwCreateWindow(WIDTH, HEIGHT, "Vulkan", nullptr, nullptr);
 	glfwSetWindowUserPointer(window, this);
-	glfwSetFramebufferSizeCallback(window, framebufferResizeCallback);
+	glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
 
 	double xpos, ypos;
 	glfwGetCursorPos(window, &xpos, &ypos);
@@ -127,9 +117,9 @@ void VulkanEngine::init_window() {
 	glfwSetScrollCallback(window, mouseScrollCallback);
 }
 
-void VulkanEngine::framebufferResizeCallback(GLFWwindow* window, int width, int height) {
+void VulkanEngine::framebuffer_resize_callback(GLFWwindow* window, int width, int height) {
 	auto app = reinterpret_cast<VulkanEngine*>(glfwGetWindowUserPointer(window));
-	app->framebufferResized = true;
+	app->framebuffer_resized = true;
 }
 
 
@@ -163,7 +153,7 @@ void VulkanEngine::init_vulkan() {
 
 	init_imgui();
 
-	isInitialized = true;
+	is_initialized = true;
 }
 
 
@@ -188,10 +178,10 @@ void VulkanEngine::main_loop() {
 
 void VulkanEngine::cleanup() {
 
-	if (isInitialized) {
+	if (is_initialized) {
 		vkDeviceWaitIdle(device);
 
-		swapChainDeletionQueue.flush();
+		swap_chain_deletion_queue.flush();
 		main_deletion_queue.flush();
 
 		vkDestroyDevice(device, nullptr);
@@ -215,7 +205,7 @@ void VulkanEngine::recreate_swap_chain() {
 
 	vkDeviceWaitIdle(device);
 
-	swapChainDeletionQueue.flush();
+	swap_chain_deletion_queue.flush();
 
 	create_swap_chain();
 	create_swap_chain_image_views();
@@ -404,35 +394,37 @@ void VulkanEngine::create_swap_chain() {
 		swapchain_image_count = swapChainSupport.capabilities.maxImageCount;
 	}
 
-	VkSwapchainCreateInfoKHR createInfo{};
-	createInfo.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR;
-	createInfo.surface = surface;
-
-	createInfo.minImageCount = swapchain_image_count;
-	createInfo.imageFormat = surfaceFormat.format;
-	createInfo.imageColorSpace = surfaceFormat.colorSpace;
-	createInfo.imageExtent = swapChainExtent;
-	createInfo.imageArrayLayers = 1;
-	createInfo.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT;
-
-
-	uint32_t queueFamilyIndexArray[] = { queueFamilyIndices.graphicsFamily.value(), queueFamilyIndices.presentFamily.value() };
+	VkSwapchainCreateInfoKHR create_info{
+		.sType = VK_STRUCTURE_TYPE_SWAPCHAIN_CREATE_INFO_KHR,
+		.surface = surface,
+		.minImageCount = swapchain_image_count,
+		.imageFormat = surfaceFormat.format,
+		.imageColorSpace = surfaceFormat.colorSpace,
+		.imageExtent = swapChainExtent,
+		.imageArrayLayers = 1,
+		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+	};
+	
+	const std::array queue_family_index_array {
+		queueFamilyIndices.graphicsFamily.value(),
+		queueFamilyIndices.presentFamily.value()
+	};
 
 	if (queueFamilyIndices.graphicsFamily != queueFamilyIndices.presentFamily) {
-		createInfo.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-		createInfo.queueFamilyIndexCount = 2;
-		createInfo.pQueueFamilyIndices = queueFamilyIndexArray;
+		create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+		create_info.queueFamilyIndexCount = queue_family_index_array.size();
+		create_info.pQueueFamilyIndices = queue_family_index_array.data();
 	}
 	else {
-		createInfo.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
+		create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	}
 
-	createInfo.preTransform = swapChainSupport.capabilities.currentTransform;
-	createInfo.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
-	createInfo.presentMode = presentMode;
-	createInfo.clipped = VK_TRUE;
+	create_info.preTransform = swapChainSupport.capabilities.currentTransform;
+	create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
+	create_info.presentMode = presentMode;
+	create_info.clipped = VK_TRUE;
 
-	if (vkCreateSwapchainKHR(device, &createInfo, nullptr, &swapChain) != VK_SUCCESS) {
+	if (vkCreateSwapchainKHR(device, &create_info, nullptr, &swapChain) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create swap chain!");
 	}
 
@@ -442,7 +434,7 @@ void VulkanEngine::create_swap_chain() {
 
 	swapChainImageFormat = surfaceFormat.format;
 
-	swapChainDeletionQueue.push_function([=]() {
+	swap_chain_deletion_queue.push_function([=]() {
 		vkDestroySwapchainKHR(device, swapChain, nullptr);
 		});
 }
@@ -528,7 +520,7 @@ void VulkanEngine::create_swap_chain_image_views() {
 //		throw std::runtime_error("failed to create render pass!");
 //	}
 //
-//	swapChainDeletionQueue.push_function([=]() {
+//	swap_chain_deletion_queue.push_function([=]() {
 //		vkDestroyRenderPass(device, renderPass, nullptr);
 //		});
 //}
@@ -539,13 +531,12 @@ void VulkanEngine::load_gltf() {
 	tinygltf::TinyGLTF gltfContext;
 	std::string error, warning;
 
-	bool fileLoaded = gltfContext.LoadASCIIFromFile(&glTFModel, &error, &warning, filename);
+	const bool file_loaded = gltfContext.LoadASCIIFromFile(&glTFModel, &error, &warning, filename);
 
-	if (fileLoaded) {
-
+	if (file_loaded) {
 		for (size_t i = 0; i < glTFModel.images.size(); i++) {
 			tinygltf::Image& glTFImage = glTFModel.images[i];
-			loadedTexture2Ds.emplace_back(engine::Texture::load2DTextureFromHost(this, glTFImage.image.data(), glTFImage.width, glTFImage.height, glTFImage.component));
+			loaded_2d_textures.emplace_back(engine::Texture::load2DTextureFromHost(this, glTFImage.image.data(), glTFImage.width, glTFImage.height, glTFImage.component));
 		}
 
 		std::array<std::string, 2> shaderFilePaths{
@@ -569,12 +560,12 @@ void VulkanEngine::load_gltf() {
 			paras.roughnessFactor = glTFMaterial.pbrMetallicRoughness.roughnessFactor;
 			paras.metallicRoughnessTextureId = glTFMaterial.pbrMetallicRoughness.metallicRoughnessTexture.index;
 
-			loadedMaterials.emplace_back(material);
+			loaded_materials.emplace_back(material);
 			materials.try_emplace(glTFMaterial.name, std::move(material));
 		}
 
 		for (auto& glTFMesh : glTFModel.meshes) {
-			loadedMeshes.emplace_back(engine::Mesh::load_from_gltf(this, glTFModel, glTFMesh));
+			loaded_meshes.emplace_back(engine::Mesh::load_from_gltf(this, glTFModel, glTFMesh));
 		}
 
 		// Only support one scene
@@ -583,7 +574,7 @@ void VulkanEngine::load_gltf() {
 
 			if (node.mesh > -1) {
 				RenderObject renderobject;
-				renderobject.mesh = loadedMeshes[node.mesh];
+				renderobject.mesh = loaded_meshes[node.mesh];
 				if (node.translation.size() == 3) {
 					renderobject.transformMatrix = glm::translate(renderobject.transformMatrix, glm::vec3(glm::make_vec3(node.translation.data())));
 				}
@@ -686,35 +677,34 @@ void VulkanEngine::parse_material_info() {
 			"assets/shaders/env_cubemap.frag.spv"
 		};
 		envMat->pShaders = engine::Shader::createFromSpv(this, std::move(spvFilePaths));
-		envMat->textureArrayIndex.emplace("cubemap", loadedTextureCubemaps.size());
-		envMat->paras.baseColorTextureID = loadedTextureCubemaps.size();
-		loadedTextureCubemaps.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["filePaths"].get<std::vector<std::string>>()));
-		for (auto& mat : loadedMaterials) {
-			mat->paras.irradianceMapId = loadedTextureCubemaps.size();
+		envMat->textureArrayIndex.emplace("cubemap", loaded_cubemap_textures.size());
+		envMat->paras.baseColorTextureID = loaded_cubemap_textures.size();
+		loaded_cubemap_textures.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["filePaths"].get<std::vector<std::string>>()));
+		for (auto& mat : loaded_materials) {
+			mat->paras.irradianceMapId = loaded_cubemap_textures.size();
 		}
-		loadedTextureCubemaps.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["irradianceMapPaths"].get<std::vector<std::string>>()));
+		loaded_cubemap_textures.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["irradianceMapPaths"].get<std::vector<std::string>>()));
 
-		for (auto& mat : loadedMaterials) {
-			mat->paras.prefilteredMapId = loadedTextureCubemaps.size();
+		for (auto& mat : loaded_materials) {
+			mat->paras.prefilteredMapId = loaded_cubemap_textures.size();
 		}
-		loadedTextureCubemaps.emplace_back(engine::Texture::loadPrefilteredMapTexture(this, envMaterialInfoJson["prefilteredMapPaths"].get<std::vector<std::vector<std::string>>>()));
+		loaded_cubemap_textures.emplace_back(engine::Texture::loadPrefilteredMapTexture(this, envMaterialInfoJson["prefilteredMapPaths"].get<std::vector<std::vector<std::string>>>()));
 
-		for (auto& mat : loadedMaterials) {
-			mat->paras.brdfLUTId = loadedTexture2Ds.size();
+		for (auto& mat : loaded_materials) {
+			mat->paras.brdfLUTId = loaded_2d_textures.size();
 		}
-		loadedTexture2Ds.emplace_back(engine::Texture::load2DTexture(this, envMaterialInfoJson["BRDF_2D_LUT"].get<std::string>(), false));
+		loaded_2d_textures.emplace_back(engine::Texture::load2DTexture(this, envMaterialInfoJson["BRDF_2D_LUT"].get<std::string>(), false));
 	}
 
-	for (auto& mat : loadedMaterials) {
-		mat->paras.texture2DArraySize = loadedTexture2Ds.size();
+	for (auto& mat : loaded_materials) {
+		mat->paras.texture2DArraySize = loaded_2d_textures.size();
 	}
 
 	for (auto& [name, mat] : materials) {
 		std::visit([this](auto& obj) {
 			if constexpr (!std::same_as<MaterialPtr, std::decay_t<decltype(obj)>>) {
-				obj->paras.textureCubemapArraySize = loadedTextureCubemaps.size();
+				obj->paras.textureCubemapArraySize = loaded_cubemap_textures.size();
 			}
-
 			}, mat);
 	}
 
@@ -728,8 +718,8 @@ void VulkanEngine::parse_material_info() {
 void VulkanEngine::create_descriptor_set_layouts() {
 
 	auto const cam_ubo_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
-	auto const texture_2d_array_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, loadedTexture2Ds.size());
-	auto const cubemap_array_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2, loadedTextureCubemaps.size());
+	auto const texture_2d_array_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, loaded_2d_textures.size());
+	auto const cubemap_array_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2, loaded_cubemap_textures.size());
 
 	std::array scene_bindings{
 		cam_ubo_layout_binding,
@@ -737,7 +727,7 @@ void VulkanEngine::create_descriptor_set_layouts() {
 		cubemap_array_layout_binding
 	};
 
-	create_descriptor_set_layout(scene_bindings, sceneSetLayout);
+	create_descriptor_set_layout(scene_bindings, scene_set_layout);
 }
 
 void VulkanEngine::create_descriptor_set_layout(std::span<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
@@ -760,7 +750,7 @@ void VulkanEngine::create_mesh_pipeline() {
 
 	PipelineBuilder pipeline_builder(this);
 
-	std::array mesh_descriptor_set_layouts = { sceneSetLayout };
+	std::array mesh_descriptor_set_layouts = { scene_set_layout };
 
 	const VkPipelineLayoutCreateInfo mesh_pipeline_layout_info = vkinit::pipelineLayoutCreateInfo(mesh_descriptor_set_layouts);
 
@@ -768,16 +758,16 @@ void VulkanEngine::create_mesh_pipeline() {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
-	swapChainDeletionQueue.push_function([=]() {
+	swap_chain_deletion_queue.push_function([=]() {
 		vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
 		});
 
-	for (auto const& material : loadedMaterials) {
+	for (auto const& material : loaded_materials) {
 		pipeline_builder.setShaderStages(material);
 
 		pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
-		pipeline_builder.buildPipeline(device, viewport3D.render_pass, meshPipelineLayout, material->pipeline);
+		pipeline_builder.buildPipeline(device, viewport_3d.render_pass, meshPipelineLayout, material->pipeline);
 
 		main_deletion_queue.push_function([=]() {
 			vkDestroyPipeline(device, material->pipeline, nullptr);
@@ -792,7 +782,7 @@ void VulkanEngine::create_env_light_pipeline() {
 
 	pipeline_builder.setShaderStages(std::get<HDRiMaterialPtr>(materials["env_light"]));
 
-	std::array env_descriptor_set_layouts = { sceneSetLayout };
+	std::array env_descriptor_set_layouts = { scene_set_layout };
 
 	const VkPipelineLayoutCreateInfo env_pipeline_layout_info = vkinit::pipelineLayoutCreateInfo(env_descriptor_set_layouts);
 
@@ -802,7 +792,7 @@ void VulkanEngine::create_env_light_pipeline() {
 
 	pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS_OR_EQUAL);
 
-	pipeline_builder.buildPipeline(device, viewport3D.render_pass, envPipelineLayout, envPipeline);
+	pipeline_builder.buildPipeline(device, viewport_3d.render_pass, envPipelineLayout, envPipeline);
 
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipelineLayout = envPipelineLayout;
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipeline = envPipeline;
@@ -864,14 +854,14 @@ void VulkanEngine::create_viewport_attachments() {
 	screen_height = mode->height;
 
 	for (size_t i = 0; i < swapchain_image_count; i++) {
-		viewport3D.color_textures.emplace_back(engine::Texture::create_2D_render_target(this,
+		viewport_3d.color_textures.emplace_back(engine::Texture::create_2D_render_target(this,
 			screen_width,
 			screen_height,
 			swapChainImageFormat,  //color format
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT));
 
-		viewport3D.depth_textures.emplace_back(engine::Texture::create_2D_render_target(this,
+		viewport_3d.depth_textures.emplace_back(engine::Texture::create_2D_render_target(this,
 			screen_width,
 			screen_height,
 			find_depth_format(),  //depth format
@@ -956,47 +946,47 @@ void VulkanEngine::create_viewport_render_pass() {
 		.pDependencies = dependencies.data(),
 	};
 
-	if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &viewport3D.render_pass) != VK_SUCCESS) {
+	if (vkCreateRenderPass(device, &renderPassInfo, nullptr, &viewport_3d.render_pass) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create render pass!");
 	}
 
 	main_deletion_queue.push_function([=]() {
-		vkDestroyRenderPass(device, viewport3D.render_pass, nullptr);
+		vkDestroyRenderPass(device, viewport_3d.render_pass, nullptr);
 		});
 }
 
 
 void VulkanEngine::create_viewport_framebuffers() {
-	viewport3D.framebuffers.resize(swapchain_image_count);
+	viewport_3d.framebuffers.resize(swapchain_image_count);
 
 	for (size_t i = 0; i < swapchain_image_count; i++) {
 		std::array attachments = {
-			viewport3D.color_textures[i]->imageView,
-			viewport3D.depth_textures[i]->imageView,
+			viewport_3d.color_textures[i]->imageView,
+			viewport_3d.depth_textures[i]->imageView,
 		};
 
-		VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(viewport3D.render_pass, VkExtent2D{ screen_width , screen_height }, attachments);
+		VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(viewport_3d.render_pass, VkExtent2D{ screen_width , screen_height }, attachments);
 
-		if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &viewport3D.framebuffers[i]) != VK_SUCCESS) {
+		if (vkCreateFramebuffer(device, &framebufferInfo, nullptr, &viewport_3d.framebuffers[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create framebuffer!");
 		}
 
 		main_deletion_queue.push_function([=]() {
-			vkDestroyFramebuffer(device, viewport3D.framebuffers[i], nullptr);
+			vkDestroyFramebuffer(device, viewport_3d.framebuffers[i], nullptr);
 			});
 	}
 }
 
 void VulkanEngine::create_viewport_cmd_buffers() {
-	viewport3D.cmd_buffers.resize(swapchain_image_count);
-	auto const cmd_alloc_info = vkinit::commandBufferAllocateInfo(commandPool, static_cast<uint32_t>(viewport3D.cmd_buffers.size()));
+	viewport_3d.cmd_buffers.resize(swapchain_image_count);
+	auto const cmd_alloc_info = vkinit::commandBufferAllocateInfo(commandPool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()));
 
-	if (vkAllocateCommandBuffers(device, &cmd_alloc_info, viewport3D.cmd_buffers.data()) != VK_SUCCESS) {
+	if (vkAllocateCommandBuffers(device, &cmd_alloc_info, viewport_3d.cmd_buffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
 	main_deletion_queue.push_function([=]() {
-		vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(viewport3D.cmd_buffers.size()), viewport3D.cmd_buffers.data());
+		vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()), viewport_3d.cmd_buffers.data());
 		});
 }
 
@@ -1065,7 +1055,7 @@ VkImageView VulkanEngine::create_image_view(VkImage image, VkFormat format, VkIm
 	}
 
 	if (imageViewDescription == SWAPCHAIN_DEPENDENT_BIT) {
-		swapChainDeletionQueue.push_function([=]() {
+		swap_chain_deletion_queue.push_function([=]() {
 			vkDestroyImageView(device, imageView, nullptr);
 			});
 	}
@@ -1082,10 +1072,10 @@ VkImageView VulkanEngine::create_image_view(VkImage image, VkFormat format, VkIm
 }
 
 void VulkanEngine::create_uniform_buffers() {
-	pUniformBuffers.resize(swapchain_image_count);
+	uniform_buffers.resize(swapchain_image_count);
 
 	for (size_t i = 0; i < swapchain_image_count; i++) {
-		pUniformBuffers[i] = engine::Buffer::create_buffer(this,
+		uniform_buffers[i] = engine::Buffer::create_buffer(this,
 			sizeof(UniformBufferObject),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -1144,40 +1134,40 @@ void VulkanEngine::create_descriptor_sets() {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 		.descriptorPool = descriptorPool,
 		.descriptorSetCount = 1,
-		.pSetLayouts = &sceneSetLayout,
+		.pSetLayouts = &scene_set_layout,
 	};
 
-	sceneDescriptorSets.resize(swapchain_image_count);
+	scene_descriptor_sets.resize(swapchain_image_count);
 
 	for (size_t i = 0; i < swapchain_image_count; i++) {
 
-		if (vkAllocateDescriptorSets(device, &alloc_scene_info, &sceneDescriptorSets[i]) != VK_SUCCESS) {
+		if (vkAllocateDescriptorSets(device, &alloc_scene_info, &scene_descriptor_sets[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
 		VkDescriptorBufferInfo uniformBufferInfo{
-			.buffer = pUniformBuffers[i]->buffer,
+			.buffer = uniform_buffers[i]->buffer,
 			.offset = 0,
 			.range = sizeof(UniformBufferObject),
 		};
 
-		std::vector<VkDescriptorImageInfo> textureDescriptors(loadedTexture2Ds.size());
-		for (size_t j = 0; j < loadedTexture2Ds.size(); j++) {
+		std::vector<VkDescriptorImageInfo> textureDescriptors(loaded_2d_textures.size());
+		for (size_t j = 0; j < loaded_2d_textures.size(); j++) {
 			textureDescriptors[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureDescriptors[j].sampler = loadedTexture2Ds[j]->sampler;;
-			textureDescriptors[j].imageView = loadedTexture2Ds[j]->imageView;
+			textureDescriptors[j].sampler = loaded_2d_textures[j]->sampler;;
+			textureDescriptors[j].imageView = loaded_2d_textures[j]->imageView;
 		}
 
-		std::vector<VkDescriptorImageInfo> cubemapDescriptors(loadedTextureCubemaps.size());
-		for (size_t j = 0; j < loadedTextureCubemaps.size(); j++) {
+		std::vector<VkDescriptorImageInfo> cubemapDescriptors(loaded_cubemap_textures.size());
+		for (size_t j = 0; j < loaded_cubemap_textures.size(); j++) {
 			cubemapDescriptors[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			cubemapDescriptors[j].sampler = loadedTextureCubemaps[j]->sampler;;
-			cubemapDescriptors[j].imageView = loadedTextureCubemaps[j]->imageView;
+			cubemapDescriptors[j].sampler = loaded_cubemap_textures[j]->sampler;;
+			cubemapDescriptors[j].imageView = loaded_cubemap_textures[j]->imageView;
 		}
 
 		std::array descriptorWrites{
 			VkWriteDescriptorSet{
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.dstSet = sceneDescriptorSets[i],
+				.dstSet = scene_descriptor_sets[i],
 				.dstBinding = 0,
 				.dstArrayElement = 0,
 				.descriptorCount = 1,
@@ -1186,7 +1176,7 @@ void VulkanEngine::create_descriptor_sets() {
 			},
 			VkWriteDescriptorSet{
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.dstSet = sceneDescriptorSets[i],
+				.dstSet = scene_descriptor_sets[i],
 				.dstBinding = 1,
 				.dstArrayElement = 0,
 				.descriptorCount = static_cast<uint32_t>(textureDescriptors.size()),
@@ -1195,7 +1185,7 @@ void VulkanEngine::create_descriptor_sets() {
 			},
 			VkWriteDescriptorSet{
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.dstSet = sceneDescriptorSets[i],
+				.dstSet = scene_descriptor_sets[i],
 				.dstBinding = 2,
 				.dstArrayElement = 0,
 				.descriptorCount = static_cast<uint32_t>(cubemapDescriptors.size()),
@@ -1209,39 +1199,39 @@ void VulkanEngine::create_descriptor_sets() {
 }
 
 void VulkanEngine::create_command_buffers() {
-	viewport3D.cmd_buffers.resize(swapchain_image_count);
-	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)viewport3D.cmd_buffers.size());
+	viewport_3d.cmd_buffers.resize(swapchain_image_count);
+	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)viewport_3d.cmd_buffers.size());
 
-	if (vkAllocateCommandBuffers(device, &cmdAllocInfo, viewport3D.cmd_buffers.data()) != VK_SUCCESS) {
+	if (vkAllocateCommandBuffers(device, &cmdAllocInfo, viewport_3d.cmd_buffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
-	swapChainDeletionQueue.push_function([=]() {
-		vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(viewport3D.cmd_buffers.size()), viewport3D.cmd_buffers.data());
+	swap_chain_deletion_queue.push_function([=]() {
+		vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()), viewport_3d.cmd_buffers.data());
 		});
 }
 
-void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
-	auto const i = commandBufferIndex;
+void VulkanEngine::record_viewport_cmd_buffer(const int command_buffer_index) {
+	auto const i = command_buffer_index;
 
 	VkCommandBufferBeginInfo beginInfo{};
 	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
 
-	if (vkBeginCommandBuffer(viewport3D.cmd_buffers[i], &beginInfo) != VK_SUCCESS) {
+	if (vkBeginCommandBuffer(viewport_3d.cmd_buffers[i], &beginInfo) != VK_SUCCESS) {
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
 
-	VkExtent2D viewport_extent{ static_cast<uint32_t>(viewport3D.width), static_cast<uint32_t>(viewport3D.height) };
+	VkExtent2D viewport_extent{ static_cast<uint32_t>(viewport_3d.width), static_cast<uint32_t>(viewport_3d.height) };
 
-	VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(viewport3D.render_pass, viewport_extent, viewport3D.framebuffers[i]);
+	VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(viewport_3d.render_pass, viewport_extent, viewport_3d.framebuffers[i]);
 
-	vkCmdBeginRenderPass(viewport3D.cmd_buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(viewport_3d.cmd_buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
 
 	VkViewport viewport{
 		.x = 0.0f,
-		.y = viewport3D.height,
-		.width = viewport3D.width,
-		.height = -viewport3D.height,    // flip y axis
+		.y = viewport_3d.height,
+		.width = viewport_3d.width,
+		.height = -viewport_3d.height,    // flip y axis
 		.minDepth = 0.0f,
 		.maxDepth = 1.0f,
 	};
@@ -1251,19 +1241,19 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 		.extent = viewport_extent,
 	};
 
-	vkCmdSetViewport(viewport3D.cmd_buffers[i], 0, 1, &viewport);
-	vkCmdSetScissor(viewport3D.cmd_buffers[i], 0, 1, &scissor);
+	vkCmdSetViewport(viewport_3d.cmd_buffers[i], 0, 1, &viewport);
+	vkCmdSetScissor(viewport_3d.cmd_buffers[i], 0, 1, &scissor);
 
 	MeshPtr lastMesh = nullptr;
 	MaterialPtrV lastMaterial;
 
-	auto cmd = viewport3D.cmd_buffers[i];
+	auto cmd = viewport_3d.cmd_buffers[i];
 
 	for (int k = 0; k < renderables.size(); k++)
 	{
 		RenderObject& object = renderables[k];
 
-		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, envPipelineLayout, 0, 1, &sceneDescriptorSets[i], 0, nullptr);
+		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, envPipelineLayout, 0, 1, &scene_descriptor_sets[i], 0, nullptr);
 
 		//only bind the pipeline if it doesn't match with the already bound one
 
@@ -1287,9 +1277,9 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 		vkCmdDrawIndexed(cmd, static_cast<uint32_t>(object.mesh->_indices.size()), 1, 0, 0, 0);
 	}
 
-	vkCmdEndRenderPass(viewport3D.cmd_buffers[i]);
+	vkCmdEndRenderPass(viewport_3d.cmd_buffers[i]);
 
-	if (vkEndCommandBuffer(viewport3D.cmd_buffers[i]) != VK_SUCCESS) {
+	if (vkEndCommandBuffer(viewport_3d.cmd_buffers[i]) != VK_SUCCESS) {
 		throw std::runtime_error("failed to record command buffer!");
 	}
 }
@@ -1297,10 +1287,10 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 void VulkanEngine::load_obj() {
 	using namespace std::string_view_literals;
 
-	loadedMeshes.emplace_back(engine::Mesh::load_from_obj(this, "assets/obj_models/rounded_cube.obj"));
+	loaded_meshes.emplace_back(engine::Mesh::load_from_obj(this, "assets/obj_models/rounded_cube.obj"));
 
 
-	auto& mesh = loadedMeshes.back();
+	auto& mesh = loaded_meshes.back();
 	auto material = std::make_shared<Material<>>();
 	auto const spv_file_paths = std::array{
 		"assets/shaders/pbr_texture.vert.spv"sv,
@@ -1315,23 +1305,23 @@ void VulkanEngine::load_obj() {
 }
 
 void VulkanEngine::create_sync_objects() {
-	frameData.resize(MAX_FRAMES_IN_FLIGHT);
+	frame_data.resize(MAX_FRAMES_IN_FLIGHT);
 	imagesInFlight.resize(swapchain_image_count, VK_NULL_HANDLE);
 
 	const VkSemaphoreCreateInfo semaphore_info = vkinit::semaphoreCreateInfo();
 	const VkFenceCreateInfo fence_info = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		if (vkCreateSemaphore(device, &semaphore_info, nullptr, &frameData[i].imageAvailableSemaphore) != VK_SUCCESS ||
-			vkCreateSemaphore(device, &semaphore_info, nullptr, &frameData[i].renderFinishedSemaphore) != VK_SUCCESS ||
-			vkCreateFence(device, &fence_info, nullptr, &frameData[i].inFlightFence) != VK_SUCCESS) {
+		if (vkCreateSemaphore(device, &semaphore_info, nullptr, &frame_data[i].imageAvailableSemaphore) != VK_SUCCESS ||
+			vkCreateSemaphore(device, &semaphore_info, nullptr, &frame_data[i].renderFinishedSemaphore) != VK_SUCCESS ||
+			vkCreateFence(device, &fence_info, nullptr, &frame_data[i].inFlightFence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create synchronization objects for a frame!");
 		}
 
 		main_deletion_queue.push_function([=]() {
-			vkDestroyFence(device, frameData[i].inFlightFence, nullptr);
-			vkDestroySemaphore(device, frameData[i].renderFinishedSemaphore, nullptr);
-			vkDestroySemaphore(device, frameData[i].imageAvailableSemaphore, nullptr);
+			vkDestroyFence(device, frame_data[i].inFlightFence, nullptr);
+			vkDestroySemaphore(device, frame_data[i].renderFinishedSemaphore, nullptr);
+			vkDestroySemaphore(device, frame_data[i].imageAvailableSemaphore, nullptr);
 			});
 	}
 
@@ -1365,16 +1355,16 @@ void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
 		.pos = camera.get_position(),
 	};
 
-	pUniformBuffers[currentImage]->copy_from_host(&ubo);
+	uniform_buffers[currentImage]->copy_from_host(&ubo);
 }
 
 void VulkanEngine::draw_frame() {
 	//drawFrame will first acquire the index of the available swapchain image, then render into this image, and finally request to prensent this image
 
-	vkWaitForFences(device, 1, &frameData[currentFrame].inFlightFence, VK_TRUE, VULKAN_WAIT_TIMEOUT); // begin draw i+2 frame if we've complete rendering at frame i
+	vkWaitForFences(device, 1, &frame_data[current_frame].inFlightFence, VK_TRUE, VULKAN_WAIT_TIMEOUT); // begin draw i+2 frame if we've complete rendering at frame i
 
 	uint32_t image_index;
-	VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frameData[currentFrame].imageAvailableSemaphore, VK_NULL_HANDLE, &image_index);
+	VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frame_data[current_frame].imageAvailableSemaphore, VK_NULL_HANDLE, &image_index);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 		recreate_swap_chain();
@@ -1411,8 +1401,8 @@ void VulkanEngine::draw_frame() {
 
 		// DockSpace
 		ImGui::Begin("DockSpace", nullptr, window_flags);
-		ImGuiID dockspace_id = ImGui::GetID("MyDockSpace");
-		ImGui::DockSpace(dockspace_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
+		ImGuiID dock_space_id = ImGui::GetID("MyDockSpace");
+		ImGui::DockSpace(dock_space_id, ImVec2(0.0f, 0.0f), ImGuiDockNodeFlags_PassthruCentralNode);
 
 		static bool first_time = true;
 		if (first_time) {
@@ -1478,20 +1468,20 @@ void VulkanEngine::draw_frame() {
 			ImGuiID dock_id_right_p;
 			const ImGuiID dock_id_right = ImGui::GetID("3D Viewport");
 
-			ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
-			ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
-			ImGui::DockBuilderSetNodeSize(dockspace_id, viewport->Size);
+			ImGui::DockBuilderRemoveNode(dock_space_id); // clear any previous layout
+			ImGui::DockBuilderAddNode(dock_space_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
+			ImGui::DockBuilderSetNodeSize(dock_space_id, viewport->Size);
 			//auto dockspace_id_Node = ImGui::DockBuilderGetNode(dockspace_id);
 
 			// split the dockspace into 2 nodes -- DockBuilderSplitNode takes in the following args in the following order
 			//   window ID to split, direction, fraction (between 0 and 1), the final two setting let's us choose which id we want (which ever one we DON'T set as NULL, will be returned by the function)
 			//                                                              out_id_at_dir is the id of the node in the direction we specified earlier, out_id_at_opposite_dir is in the opposite direction
 
-			const ImGuiID dock_id_down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.5f, nullptr, &dockspace_id);
-			auto const up_node = ImGui::DockBuilderGetNode(dockspace_id);
+			const ImGuiID dock_id_down = ImGui::DockBuilderSplitNode(dock_space_id, ImGuiDir_Down, 0.5f, nullptr, &dock_space_id);
+			auto const up_node = ImGui::DockBuilderGetNode(dock_space_id);
 
 
-			const ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.5f, nullptr, &dock_id_right_p);
+			const ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dock_space_id, ImGuiDir_Left, 0.5f, nullptr, &dock_id_right_p);
 			auto const dock_id_right_p_node = ImGui::DockBuilderGetNode(dock_id_right_p);
 
 			auto const size = dock_id_right_p_node->Size;
@@ -1508,7 +1498,7 @@ void VulkanEngine::draw_frame() {
 			ImGui::DockBuilderDockWindow("Node Editor", dock_id_down);
 			ImGui::DockBuilderDockWindow("Texture Viewer", dock_id_left);
 			ImGui::DockBuilderDockWindow("3D Viewport", dock_id_right);
-			ImGui::DockBuilderFinish(dockspace_id);
+			ImGui::DockBuilderFinish(dock_space_id);
 		}
 		ImGui::End();
 
@@ -1549,12 +1539,12 @@ void VulkanEngine::draw_frame() {
 		//::PopStyleColor(2);
 		//ImGui::Text("io.WantCaptureMouse = %d", ImGui::IsItemHovered());
 
-		viewport3D.width = viewport_panel_size.x;
-		viewport3D.height = viewport_panel_size.y;
+		viewport_3d.width = viewport_panel_size.x;
+		viewport_3d.height = viewport_panel_size.y;
 		update_uniform_buffer(image_index);
 		const ImVec2 uv{ viewport_panel_size.x / screen_width , viewport_panel_size.y / screen_height };
 
-		ImGui::Image(static_cast<ImTextureID>(viewport3D.gui_textures[image_index]), viewport_panel_size, ImVec2{ 0, 0 }, uv);
+		ImGui::Image(static_cast<ImTextureID>(viewport_3d.gui_textures[image_index]), viewport_panel_size, ImVec2{ 0, 0 }, uv);
 		mouse_hover_viewport = ImGui::IsItemHovered() ? true : false;
 		ImGui::End();
 
@@ -1565,38 +1555,38 @@ void VulkanEngine::draw_frame() {
 
 	record_viewport_cmd_buffer(image_index);
 
-	std::array submit_command_buffers = { viewport3D.cmd_buffers[image_index], gui->command_buffers[image_index] };
+	std::array submit_command_buffers = { viewport_3d.cmd_buffers[image_index], gui->command_buffers[image_index] };
 
 	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
 	const VkSubmitInfo submit_info{
 		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 
 		.waitSemaphoreCount = 1,
-		.pWaitSemaphores = &frameData[currentFrame].imageAvailableSemaphore,
+		.pWaitSemaphores = &frame_data[current_frame].imageAvailableSemaphore,
 		.pWaitDstStageMask = wait_stages,
 
 		.commandBufferCount = static_cast<uint32_t>(submit_command_buffers.size()),
 		.pCommandBuffers = submit_command_buffers.data(),
 
 		.signalSemaphoreCount = 1,
-		.pSignalSemaphores = &frameData[currentFrame].renderFinishedSemaphore,
+		.pSignalSemaphores = &frame_data[current_frame].renderFinishedSemaphore,
 	};
 
 	if (imagesInFlight[image_index] != VK_NULL_HANDLE) {
 		vkWaitForFences(device, 1, &imagesInFlight[image_index], VK_TRUE, VULKAN_WAIT_TIMEOUT);  //start to render into this image if we've complete the last rendering of this image
 	}
-	imagesInFlight[image_index] = frameData[currentFrame].inFlightFence;  //update the fence of this image
+	imagesInFlight[image_index] = frame_data[current_frame].inFlightFence;  //update the fence of this image
 
-	vkResetFences(device, 1, &frameData[currentFrame].inFlightFence);
+	vkResetFences(device, 1, &frame_data[current_frame].inFlightFence);
 
-	if (vkQueueSubmit(graphicsQueue, 1, &submit_info, frameData[currentFrame].inFlightFence) != VK_SUCCESS) {
+	if (vkQueueSubmit(graphicsQueue, 1, &submit_info, frame_data[current_frame].inFlightFence) != VK_SUCCESS) {
 		throw std::runtime_error("failed to submit draw command buffer!");
 	}
 
 	const VkPresentInfoKHR present_info{
 		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 		.waitSemaphoreCount = 1,
-		.pWaitSemaphores = &frameData[currentFrame].renderFinishedSemaphore,
+		.pWaitSemaphores = &frame_data[current_frame].renderFinishedSemaphore,
 		.swapchainCount = 1,
 		.pSwapchains = &swapChain,
 		.pImageIndices = &image_index,
@@ -1604,15 +1594,15 @@ void VulkanEngine::draw_frame() {
 
 	result = vkQueuePresentKHR(presentQueue, &present_info);
 
-	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
-		framebufferResized = false;
+	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebuffer_resized) {
+		framebuffer_resized = false;
 		recreate_swap_chain();
 	}
 	else if (result != VK_SUCCESS) {
 		throw std::runtime_error("failed to present swap chain image!");
 	}
 
-	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
+	current_frame = (current_frame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
 VkSurfaceFormatKHR VulkanEngine::choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
@@ -1828,7 +1818,7 @@ void VulkanEngine::mouseScrollCallback(GLFWwindow* window, double xoffset, doubl
 }
 
 void VulkanEngine::set_camera() {
-	camera.set_aspect_ratio(viewport3D.width / viewport3D.height);
+	camera.set_aspect_ratio(viewport_3d.width / viewport_3d.height);
 }
 
 VulkanEngine::~VulkanEngine() {}

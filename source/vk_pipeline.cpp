@@ -27,14 +27,14 @@ namespace engine {
 		}
 		else if (dynamic_viewport == DISABLE_DYNAMIC_VIEWPORT) {
 			/*viewport.x = 0.0f;
-			viewport.y = engine->viewport3D.height;
-			viewport.width = engine->viewport3D.width;
-			viewport.height = -engine->viewport3D.height;
+			viewport.y = engine->viewport_3d.height;
+			viewport.width = engine->viewport_3d.width;
+			viewport.height = -engine->viewport_3d.height;
 			viewport.minDepth = 0.0f;
 			viewport.maxDepth = 1.0f;
 
 			scissor.offset = { 0, 0 };
-			scissor.extent = { static_cast<uint32_t>(engine->viewport3D.width), static_cast<uint32_t>(engine->viewport3D.height) };
+			scissor.extent = { static_cast<uint32_t>(engine->viewport_3d.width), static_cast<uint32_t>(engine->viewport_3d.height) };
 
 			viewportState = vkinit::viewportStateCreateInfo(&viewport, &scissor);*/
 		}

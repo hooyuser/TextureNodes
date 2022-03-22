@@ -44,9 +44,9 @@ using NodeTypeList = TypeList<
 
 //All Image Node Types
 template <typename T>
-struct PredImageBase : std::bool_constant<std::derived_from<T, NodeTypeImageBase>> {};
+struct ImageBasePredicate : std::bool_constant<std::derived_from<T, NodeTypeImageBase>> {};
 
-using ImageNodeTypeList = NodeTypeList::filtered_by<PredImageBase>;
+using ImageNodeTypeList = NodeTypeList::filtered_by<ImageBasePredicate>;
 
 //Cast node types to their data types
 using NodeDataTypeList = to_data_type<NodeTypeList>;
@@ -99,8 +99,8 @@ struct Pin {
 
 
 	template<typename T> requires std::constructible_from<PinVariant, T>
-	Pin(ed::PinId id, std::string name, const T&) :
-		id(id), name(name), default_value(T()) {
+	Pin(const ed::PinId id, const uint32_t node_index, std::string name, const T&) :
+		id(id), node_index(node_index), name(name), default_value(T()) {
 	}
 
 	bool operator==(const Pin& pin) const noexcept {
@@ -212,6 +212,7 @@ namespace engine {
 
 		template<typename NodeType>
 		uint32_t create_node() {
+			auto const node_index = nodes.size();
 			nodes.emplace_back(get_next_id(), NodeType::name(), NodeType{}, engine);
 			auto& node = nodes.back();
 
@@ -223,7 +224,7 @@ namespace engine {
 			for (size_t index = 0; index < UboT::Class::TotalFields; ++index) {
 				UboT::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
 					using PinType = typename std::decay_t<decltype(field)>::Type;
-					node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
+					node.inputs.emplace_back(get_next_id(), node_index, first_letter_to_upper(field.name), std::in_place_type<PinType>);
 					auto& pin_value = node.inputs[index].default_value;
 
 					if constexpr (std::same_as<PinType, ColorRampData>) {
@@ -250,7 +251,7 @@ namespace engine {
 			}
 
 			if constexpr (ImageDataConcept<NodeDataType>) {
-				node.outputs.emplace_back(get_next_id(), "Result", std::in_place_type<TextureIdData>);
+				node.outputs.emplace_back(get_next_id(), node_index, "Result", std::in_place_type<TextureIdData>);
 				auto& node_data = std::get<NodeDataType>(node.data);
 				node.outputs[0].default_value = TextureIdData{ .value = node_data->node_texture_id };
 				if constexpr (!has_field_type_v<UboT, ColorRampData>) {
@@ -260,12 +261,10 @@ namespace engine {
 			else {
 				NodeDataType::ResultType::Class::ForEachField([&](auto& field) {
 					using PinType = std::decay_t<decltype(field)>::Type;
-					node.outputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
+					node.outputs.emplace_back(get_next_id(), node_index, first_letter_to_upper(field.name), std::in_place_type<PinType>);
 					});
 			}
-
-			const uint32_t node_index = nodes.size() - 1;
-
+			
 			build_node(node_index);
 
 			return node_index;

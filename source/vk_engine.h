@@ -7,13 +7,11 @@
 #include <iostream>
 #include <stdexcept>
 #include <vector>
-#include <cstdlib>
 #include <cstdint>
 #include <deque>
 #include <variant>
 #include <span>
 #include <unordered_map>
-#include <unordered_set>
 
 struct FrameData {
 	VkFence inFlightFence;
@@ -93,7 +91,7 @@ class VulkanEngine {
 public:
 	~VulkanEngine();
 
-	bool isInitialized{ false };
+	bool is_initialized{ false };
 
 	void run() {
 		init_window();
@@ -127,7 +125,7 @@ public:
 	std::vector<VkImageView> swapChainImageViews;
 
 	VkRenderPass renderPass;
-	VkDescriptorSetLayout sceneSetLayout;
+	VkDescriptorSetLayout scene_set_layout;
 	VkDescriptorSetLayout material_preview_set_layout;
 	VkPipelineLayout meshPipelineLayout;
 	VkPipelineLayout envPipelineLayout;
@@ -138,25 +136,25 @@ public:
 
 	std::vector<RenderObject> renderables;
 	std::unordered_map<std::string, engine::MaterialPtrV> materials;
-	std::vector<engine::PbrMaterialPtr> loadedMaterials;
-	std::vector<MeshPtr> loadedMeshes;
-	std::vector<TexturePtr> loadedTexture2Ds;
-	std::vector<TexturePtr> loadedTextureCubemaps;
+	std::vector<engine::PbrMaterialPtr> loaded_materials;
+	std::vector<MeshPtr> loaded_meshes;
+	std::vector<TexturePtr> loaded_2d_textures;
+	std::vector<TexturePtr> loaded_cubemap_textures;
 
-	std::vector<BufferPtr> pUniformBuffers;
+	std::vector<BufferPtr> uniform_buffers;
 
 	VkDescriptorPool descriptorPool;
-	std::vector<VkDescriptorSet> sceneDescriptorSets;
+	std::vector<VkDescriptorSet> scene_descriptor_sets;
 
 	VkCommandPool commandPool;
 	
 	std::vector<VkFence> imagesInFlight;
-	std::vector<FrameData> frameData;
-	size_t currentFrame = 0;
-	bool framebufferResized = false;
+	std::vector<FrameData> frame_data;
+	size_t current_frame = 0;
+	bool framebuffer_resized = false;
 
 	DeletionQueue main_deletion_queue;
-	DeletionQueue swapChainDeletionQueue;
+	DeletionQueue swap_chain_deletion_queue;
 
 	static Camera camera;
 	static glm::vec2 mouse_previous_pos;
@@ -166,7 +164,7 @@ public:
 	std::shared_ptr<engine::GUI> gui;
 	std::shared_ptr<engine::NodeEditor> node_editor;
 
-	ViewportUI viewport3D;
+	ViewportUI viewport_3d;
 
 	uint32_t swapchain_image_count;
 
@@ -180,7 +178,7 @@ public:
 
 	void init_window();
 
-	static void framebufferResizeCallback(GLFWwindow* window, int width, int height);
+	static void framebuffer_resize_callback(GLFWwindow* window, int width, int height);
 
 	void init_vulkan();
 
@@ -228,7 +226,7 @@ public:
 
 	void create_command_pool();
 
-	void record_viewport_cmd_buffer(const int commandBufferIndex);
+	void record_viewport_cmd_buffer(int command_buffer_index);
 
 	void create_window_attachments();
 

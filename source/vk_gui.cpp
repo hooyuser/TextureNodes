@@ -73,7 +73,7 @@ namespace engine {
 				throw std::runtime_error("failed to create framebuffer!");
 			}
 
-			engine->swapChainDeletionQueue.push_function([=]() {
+			engine->swap_chain_deletion_queue.push_function([=]() {
 				vkDestroyFramebuffer(engine->device, framebuffers[i], nullptr);
 				});
 		}
@@ -195,9 +195,9 @@ namespace engine {
 		//clear font textures from cpu data
 		ImGui_ImplVulkan_DestroyFontUploadObjects();
 
-		//init engine->viewport3D.gui_textures
+		//init engine->viewport_3d.gui_textures
 		for (size_t i = 0; i < engine->swapchain_image_count; i++) {
-			engine->viewport3D.gui_textures.emplace_back(ImGui_ImplVulkan_AddTexture(engine->viewport3D.color_textures[i]->sampler, engine->viewport3D.color_textures[i]->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
+			engine->viewport_3d.gui_textures.emplace_back(ImGui_ImplVulkan_AddTexture(engine->viewport_3d.color_textures[i]->sampler, engine->viewport_3d.color_textures[i]->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL));
 		}
 
 		//add the destroy the imgui created structures

@@ -178,12 +178,10 @@ namespace engine {
 
 	void NodeEditor::build_node(uint32_t node_index) {
 		for (auto&& input : nodes[node_index].inputs) {
-			input.node_index = node_index;
 			input.flow_direction = PinInOut::INPUT;
 		}
 
 		for (auto&& output : nodes[node_index].outputs) {
-			output.node_index = node_index;
 			output.flow_direction = PinInOut::OUTPUT;
 		}
 	}
