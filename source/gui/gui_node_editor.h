@@ -231,7 +231,7 @@ namespace engine {
 						pin_value = std::move(ColorRampData(engine));
 
 						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
-						VkSubmitInfo submit_info{
+						const VkSubmitInfo submit_info{
 							.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 							.commandBufferCount = 1,
 							.pCommandBuffers = &(std::get<ColorRampData>(pin_value).ubo_value->command_buffer),
@@ -260,7 +260,7 @@ namespace engine {
 			}
 			else {
 				NodeDataType::ResultType::Class::ForEachField([&](auto& field) {
-					using PinType = std::decay_t<decltype(field)>::Type;
+					using PinType = typename std::decay_t<decltype(field)>::Type;
 					node.outputs.emplace_back(get_next_id(), node_index, first_letter_to_upper(field.name), std::in_place_type<PinType>);
 					});
 			}
