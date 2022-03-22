@@ -1,12 +1,11 @@
 #include "vk_gui.h"
-#include "vk_engine.h"
 #include "vk_initializers.h"
 #include "imgui_impl_vulkan.h"
 #include "imgui_impl_glfw.h"
 #include "vk_util.h"
 #include "vk_image.h"
-#include <IconsFontAwesome5.h>
 
+#include <IconsFontAwesome5.h>
 #include <filesystem>
 #include <array>
 

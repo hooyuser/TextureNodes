@@ -1,6 +1,5 @@
 #pragma once
 
-#include "vk_types.h"
 #include "vk_material.h"
 
 class VulkanEngine;

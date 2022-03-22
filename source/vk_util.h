@@ -1,42 +1,43 @@
 #pragma once
 #include "vk_types.h"
 #include "vk_engine.h"
-
-#include <functional>
+#include "util/util.h"
 
 class VulkanEngine;
 
 uint32_t find_memory_type(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
 
-void immediate_submit(VkDevice device, VkCommandPool commandPool, VkQueue queue, VkFence fence, std::invocable<VkCommandBuffer> auto&& function) {
-	VkCommandBufferAllocateInfo allocInfo{};
-	allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
-	allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
-	allocInfo.commandPool = commandPool;
-	allocInfo.commandBufferCount = 1;
+void immediate_submit(VkDevice device, VkCommandPool command_pool, VkQueue queue, VkFence fence, std::invocable<VkCommandBuffer> auto&& function) {
+	const VkCommandBufferAllocateInfo alloc_info{
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
+		.commandPool = command_pool,
+		.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY,
+		.commandBufferCount = 1,
+	};
 
-	VkCommandBuffer commandBuffer;
-	vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer);
+	VkCommandBuffer command_buffer;
+	vkAllocateCommandBuffers(device, &alloc_info, &command_buffer);
 
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
-	beginInfo.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT;
+	constexpr VkCommandBufferBeginInfo begin_info{
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
+	};
 
-	vkBeginCommandBuffer(commandBuffer, &beginInfo);
-	std::invoke(FWD(function), commandBuffer);
-	vkEndCommandBuffer(commandBuffer);
+	vkBeginCommandBuffer(command_buffer, &begin_info);
+	std::invoke(FWD(function), command_buffer);
+	vkEndCommandBuffer(command_buffer);
 
-	VkSubmitInfo submitInfo{
+	const VkSubmitInfo submit_info{
 		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 		.commandBufferCount = 1,
-		.pCommandBuffers = &commandBuffer,
+		.pCommandBuffers = &command_buffer,
 	};
 
 	vkResetFences(device, 1, &fence);
-	vkQueueSubmit(queue, 1, &submitInfo, fence);
+	vkQueueSubmit(queue, 1, &submit_info, fence);
 	vkWaitForFences(device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 
-	vkFreeCommandBuffers(device, commandPool, 1, &commandBuffer);
+	vkFreeCommandBuffers(device, command_pool, 1, &command_buffer);
 }
 
 namespace engine {

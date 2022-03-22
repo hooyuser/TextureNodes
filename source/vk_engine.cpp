@@ -1,5 +1,4 @@
 #include "vk_engine.h"
-#include "gui/gui_node_editor.h"
 #include "vk_initializers.h"
 #include "vk_shader.h"
 #include "vk_mesh.h"
@@ -7,8 +6,8 @@
 #include "vk_image.h"
 #include "vk_buffer.h"
 #include "vk_camera.h"
-#include "vk_material.h"
 #include "vk_gui.h"
+#include "gui/gui_node_editor.h"
 #include "gui/ImGuiFileDialog.h"
 
 #include <cstring>
@@ -17,10 +16,8 @@
 #include <filesystem>
 #include <chrono>
 #include <algorithm>
-
 #include <IconsFontAwesome5.h>
 
-#define GLFW_INCLUDE_VULKAN
 #include <GLFW/glfw3.h>
 
 #define TINYGLTF_IMPLEMENTATION
@@ -32,9 +29,9 @@
 #include <json.hpp>
 using json = nlohmann::json;
 
-#include <imgui.h>
-#include <imgui_internal.h>
 #include <imgui_impl_vulkan.h>
+#include <imgui_internal.h>
+
 
 using namespace engine;
 

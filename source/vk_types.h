@@ -9,9 +9,7 @@
 #include <glm/gtx/hash.hpp>
 
 #include <optional>
-#include <any>
 
-#include "util/util.h"
 #include "util/flag_bit_enum.h"
 
 inline constexpr uint64_t VULKAN_WAIT_TIMEOUT = 3000000000;
@@ -52,11 +50,6 @@ struct UniformBufferObject {
 	alignas(16) glm::mat4 proj;
 	alignas(16) glm::vec3 pos;
 };
-
-//struct AllocatedBuffer {
-//    VkBuffer _buffer;
-//    VkDeviceMemory _bufferMemory;
-//};
 
 struct AllocatedImage {
 	VkImage _image;

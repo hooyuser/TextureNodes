@@ -264,7 +264,7 @@ namespace engine {
 					node.outputs.emplace_back(get_next_id(), node_index, first_letter_to_upper(field.name), std::in_place_type<PinType>);
 					});
 			}
-			
+
 			build_node(node_index);
 
 			return node_index;
@@ -288,16 +288,25 @@ namespace engine {
 
 		void clear();
 
+		static bool hold_image_data(const NodeDataVariant& node_data) {
+			return std::visit([&](const NodeDataVariant& data) {
+				using NodeDataT = std::decay_t<decltype(data)>;
+				if constexpr (is_image_data<NodeDataT>) {
+					return true;
+				}
+				else {
+					return false;
+				}
+				}, node_data);
+		}
+
 		template<std::invocable<uint32_t> Func>
 		void for_each_connected_image_node(Func&& func, uint32_t node_index) {  //node_index is the index of current node
 			for (auto& pin : nodes[node_index].outputs) {
-				for (auto connected_pin : pin.connected_pins) {
-					std::visit([&](auto&& connected_node_data) {
-						using NodeDataT = std::decay_t<decltype(connected_node_data)>;
-						if constexpr (is_image_data<NodeDataT>) {
-							std::invoke(FWD(func), (connected_pin->node_index));
-						}
-						}, nodes[connected_pin->node_index].data);
+				for (const Pin* connected_pin : pin.connected_pins) {
+					if (hold_image_data(nodes[connected_pin->node_index].data)) {
+						std::invoke(FWD(func), connected_pin->node_index);
+					}
 				}
 			}
 		}
@@ -317,13 +326,8 @@ namespace engine {
 			return ubo_index - node.inputs.begin();
 		}
 
-		static size_t get_input_pin_index(const Node& node, const Pin& pin) {
-			auto const ubo_index = std::ranges::find(node.inputs, pin);
-			assert(("get_input_pin_index() error: vector access violation!", ubo_index != node.inputs.end()));
-			return ubo_index - node.inputs.begin();
-		}
-
-		static size_t get_output_pin_index(const Node& node, const Pin& pin) {
+		size_t get_output_pin_index(const Pin& pin) const {
+			const Node& node = nodes[pin.node_index];
 			auto const ubo_index = std::ranges::find(node.outputs, pin);
 			assert(("get_output_pin_index() error: vector access violation!", ubo_index != node.outputs.end()));
 			return ubo_index - node.outputs.begin();

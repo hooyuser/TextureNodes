@@ -1,6 +1,5 @@
 #include "vk_buffer.h"
 #include "vk_util.h"
-#include "vk_engine.h"
 
 #include <stdexcept>
 

@@ -1,7 +1,6 @@
 #include "gui_node_editor.h"
 #include <imgui_internal.h>
 
-#include "../vk_engine.h"
 #include "../vk_initializers.h"
 #include "../vk_shader.h"
 #include <IconsFontAwesome5.h>
@@ -124,7 +123,7 @@ namespace engine {
 							std::visit([&](auto&& connected_node_data) {
 								using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
 								if constexpr (is_image_data<NodeDataT>) {
-									connected_node_data->update_ubo(output.default_value, get_input_pin_index(connected_node, *connected_pin));
+									connected_node_data->update_ubo(output.default_value, get_input_pin_index(*connected_pin));
 								}
 								}, connected_node.data);
 						}
@@ -850,9 +849,9 @@ namespace engine {
 		}
 		for (auto& link : links) {
 			auto start_node_index = link.start_pin->node_index;
-			auto start_pin_index = get_output_pin_index(nodes[start_node_index], *link.start_pin);
+			auto start_pin_index = get_output_pin_index(*link.start_pin);
 			auto end_node_index = link.end_pin->node_index;
-			auto end_pin_index = get_input_pin_index(nodes[end_node_index], *link.end_pin);
+			auto end_pin_index = get_input_pin_index(*link.end_pin);
 
 			json_file["links"].emplace_back(json{
 				{"start_node_index", start_node_index},

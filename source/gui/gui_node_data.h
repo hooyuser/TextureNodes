@@ -7,8 +7,8 @@
 #include "../vk_engine.h"
 #include "../util/type_list.h"
 #include "gui_node_texture_manager.h"
-
 #include "imgui_color_gradient.h"
+
 #include <imgui_impl_vulkan.h>
 
 
