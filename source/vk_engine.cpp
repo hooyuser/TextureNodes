@@ -574,7 +574,7 @@ void VulkanEngine::load_gltf() {
 		}
 
 		for (auto& glTFMesh : glTFModel.meshes) {
-			loadedMeshes.emplace_back(engine::Mesh::loadFromGLTF(this, glTFModel, glTFMesh));
+			loadedMeshes.emplace_back(engine::Mesh::load_from_gltf(this, glTFModel, glTFMesh));
 		}
 
 		// Only support one scene
@@ -719,7 +719,7 @@ void VulkanEngine::parse_material_info() {
 	}
 
 	RenderObject skyBoxObject;
-	skyBoxObject.mesh = Mesh::loadFromObj(this, "assets/obj_models/skybox.obj");
+	skyBoxObject.mesh = Mesh::load_from_obj(this, "assets/obj_models/skybox.obj");
 	skyBoxObject.mesh->pMaterial = std::get<HDRiMaterialPtr>(materials["env_light"]);
 	skyBoxObject.transformMatrix = glm::mat4{ 1.0f };
 	renderables.emplace_back(std::move(skyBoxObject));
@@ -838,7 +838,7 @@ void VulkanEngine::create_window_attachments() {
 		swapChainExtent.height,
 		1,
 		msaaSamples,
-		swapChainImageFormat,  
+		swapChainImageFormat,
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -850,7 +850,7 @@ void VulkanEngine::create_window_attachments() {
 		swapChainExtent.height,
 		1,
 		msaaSamples,
-		find_depth_format(), 
+		find_depth_format(),
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -1085,7 +1085,7 @@ void VulkanEngine::create_uniform_buffers() {
 	pUniformBuffers.resize(swapchain_image_count);
 
 	for (size_t i = 0; i < swapchain_image_count; i++) {
-		pUniformBuffers[i] = engine::Buffer::createBuffer(this,
+		pUniformBuffers[i] = engine::Buffer::create_buffer(this,
 			sizeof(UniformBufferObject),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -1140,7 +1140,7 @@ void VulkanEngine::create_descriptor_pool() {
 }
 
 void VulkanEngine::create_descriptor_sets() {
-	VkDescriptorSetAllocateInfo allocSceneInfo{
+	const VkDescriptorSetAllocateInfo alloc_scene_info{
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 		.descriptorPool = descriptorPool,
 		.descriptorSetCount = 1,
@@ -1151,7 +1151,7 @@ void VulkanEngine::create_descriptor_sets() {
 
 	for (size_t i = 0; i < swapchain_image_count; i++) {
 
-		if (vkAllocateDescriptorSets(device, &allocSceneInfo, &sceneDescriptorSets[i]) != VK_SUCCESS) {
+		if (vkAllocateDescriptorSets(device, &alloc_scene_info, &sceneDescriptorSets[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
 		VkDescriptorBufferInfo uniformBufferInfo{
@@ -1161,17 +1161,17 @@ void VulkanEngine::create_descriptor_sets() {
 		};
 
 		std::vector<VkDescriptorImageInfo> textureDescriptors(loadedTexture2Ds.size());
-		for (size_t i = 0; i < loadedTexture2Ds.size(); i++) {
-			textureDescriptors[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			textureDescriptors[i].sampler = loadedTexture2Ds[i]->sampler;;
-			textureDescriptors[i].imageView = loadedTexture2Ds[i]->imageView;
+		for (size_t j = 0; j < loadedTexture2Ds.size(); j++) {
+			textureDescriptors[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			textureDescriptors[j].sampler = loadedTexture2Ds[j]->sampler;;
+			textureDescriptors[j].imageView = loadedTexture2Ds[j]->imageView;
 		}
 
 		std::vector<VkDescriptorImageInfo> cubemapDescriptors(loadedTextureCubemaps.size());
-		for (size_t i = 0; i < loadedTextureCubemaps.size(); i++) {
-			cubemapDescriptors[i].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
-			cubemapDescriptors[i].sampler = loadedTextureCubemaps[i]->sampler;;
-			cubemapDescriptors[i].imageView = loadedTextureCubemaps[i]->imageView;
+		for (size_t j = 0; j < loadedTextureCubemaps.size(); j++) {
+			cubemapDescriptors[j].imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
+			cubemapDescriptors[j].sampler = loadedTextureCubemaps[j]->sampler;;
+			cubemapDescriptors[j].imageView = loadedTextureCubemaps[j]->imageView;
 		}
 
 		std::array descriptorWrites{
@@ -1265,7 +1265,7 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, envPipelineLayout, 0, 1, &sceneDescriptorSets[i], 0, nullptr);
 
-		//only bind the pipeline if it doesnt match with the already bound one
+		//only bind the pipeline if it doesn't match with the already bound one
 
 		//only bind the mesh if its a different one from last bind
 		if (object.mesh != lastMesh) {
@@ -1276,9 +1276,9 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 				lastMaterial = object.mesh->pMaterial;
 			}
 			//bind the mesh vertex buffer with offset 0
-			VkBuffer vertexBuffers[] = { object.mesh->pVertexBuffer->buffer };
-			VkDeviceSize offsets[] = { 0 };
-			vkCmdBindVertexBuffers(cmd, 0, 1, vertexBuffers, offsets);
+			VkBuffer vertexBuffers{ object.mesh->pVertexBuffer->buffer };
+			VkDeviceSize offsets{ 0 };
+			vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffers, &offsets);
 
 			vkCmdBindIndexBuffer(cmd, object.mesh->pIndexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 			lastMesh = object.mesh;
@@ -1297,7 +1297,7 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 void VulkanEngine::load_obj() {
 	using namespace std::string_view_literals;
 
-	loadedMeshes.emplace_back(engine::Mesh::loadFromObj(this, "assets/obj_models/rounded_cube.obj"));
+	loadedMeshes.emplace_back(engine::Mesh::load_from_obj(this, "assets/obj_models/rounded_cube.obj"));
 
 
 	auto& mesh = loadedMeshes.back();
@@ -1318,13 +1318,13 @@ void VulkanEngine::create_sync_objects() {
 	frameData.resize(MAX_FRAMES_IN_FLIGHT);
 	imagesInFlight.resize(swapchain_image_count, VK_NULL_HANDLE);
 
-	VkSemaphoreCreateInfo semaphoreInfo = vkinit::semaphoreCreateInfo();
-	VkFenceCreateInfo fenceInfo = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+	const VkSemaphoreCreateInfo semaphore_info = vkinit::semaphoreCreateInfo();
+	const VkFenceCreateInfo fence_info = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
-		if (vkCreateSemaphore(device, &semaphoreInfo, nullptr, &frameData[i].imageAvailableSemaphore) != VK_SUCCESS ||
-			vkCreateSemaphore(device, &semaphoreInfo, nullptr, &frameData[i].renderFinishedSemaphore) != VK_SUCCESS ||
-			vkCreateFence(device, &fenceInfo, nullptr, &frameData[i].inFlightFence) != VK_SUCCESS) {
+		if (vkCreateSemaphore(device, &semaphore_info, nullptr, &frameData[i].imageAvailableSemaphore) != VK_SUCCESS ||
+			vkCreateSemaphore(device, &semaphore_info, nullptr, &frameData[i].renderFinishedSemaphore) != VK_SUCCESS ||
+			vkCreateFence(device, &fence_info, nullptr, &frameData[i].inFlightFence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create synchronization objects for a frame!");
 		}
 
@@ -1335,7 +1335,7 @@ void VulkanEngine::create_sync_objects() {
 			});
 	}
 
-	if (vkCreateFence(device, &fenceInfo, nullptr, &immediate_submit_fence) != VK_SUCCESS) {
+	if (vkCreateFence(device, &fence_info, nullptr, &immediate_submit_fence) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create synchronization objects for a frame!");
 	}
 	main_deletion_queue.push_function([=]() {
@@ -1352,10 +1352,9 @@ void VulkanEngine::init_imgui() {
 }
 
 void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
-	static auto start_time = std::chrono::high_resolution_clock::now();
-
+	/*static auto start_time = std::chrono::high_resolution_clock::now();
 	auto const current_time = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
+	float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();*/
 
 	set_camera();
 	UniformBufferObject ubo{
@@ -1366,7 +1365,7 @@ void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
 		.pos = camera.get_position(),
 	};
 
-	pUniformBuffers[currentImage]->copyFromHost(&ubo);
+	pUniformBuffers[currentImage]->copy_from_host(&ubo);
 }
 
 void VulkanEngine::draw_frame() {
@@ -1562,7 +1561,7 @@ void VulkanEngine::draw_frame() {
 		ImGui::PopStyleVar(3);
 	}
 
-	gui->end_render(this, image_index);
+	gui->end_render(image_index);
 
 	record_viewport_cmd_buffer(image_index);
 

@@ -1,6 +1,5 @@
 #include "vk_mesh.h"
 #include "vk_engine.h"
-#include "util/class_field_counter.h"
 
 #define TINYOBJLOADER_IMPLEMENTATION
 #include <tiny_obj_loader.h>
@@ -13,59 +12,59 @@
 #include <iostream>
 
 namespace std {
-	template<> struct hash<Vertex> {
-		size_t operator()(Vertex const& vertex) const {
+	template<>
+	struct hash<Vertex> {
+		size_t operator()(Vertex const& vertex) const noexcept {
 			return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
 		}
 	};
 }
 
 std::vector<VkVertexInputBindingDescription> Vertex::getBindingDescriptions() {
-	std::vector<VkVertexInputBindingDescription> bindingDescriptions{};
+	constexpr VkVertexInputBindingDescription binding_description{
+		.binding = 0,
+		.stride = sizeof(Vertex),
+		.inputRate = VK_VERTEX_INPUT_RATE_VERTEX,
+	};
 
-	VkVertexInputBindingDescription bindingDescription{};
-	bindingDescription.binding = 0;
-	bindingDescription.stride = sizeof(Vertex);
-	bindingDescription.inputRate = VK_VERTEX_INPUT_RATE_VERTEX;
-	bindingDescriptions.emplace_back(bindingDescription);
-	return bindingDescriptions;
+	return { binding_description };
 }
 
 std::vector<VkVertexInputAttributeDescription> Vertex::getAttributeDescriptions() {
-	std::vector<VkVertexInputAttributeDescription> attributeDescriptions{};
-	attributeDescriptions.reserve(CountMember<Vertex>::value);
 
+	constexpr VkVertexInputAttributeDescription pos_attribute_description{
+		.location = 0,
+		.binding = 0,
+		.format = VK_FORMAT_R32G32B32_SFLOAT,
+		.offset = offsetof(Vertex, pos),
+	};
 
-	VkVertexInputAttributeDescription posAttributeDescription = {};
-	posAttributeDescription.binding = 0;
-	posAttributeDescription.location = 0;
-	posAttributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
-	posAttributeDescription.offset = offsetof(Vertex, pos);
+	constexpr VkVertexInputAttributeDescription normal_attribute_description{
+		.location = 1,
+		.binding = 0,
+		.format = VK_FORMAT_R32G32B32_SFLOAT,
+		.offset = offsetof(Vertex, normal),
+	};
 
-	VkVertexInputAttributeDescription normalAttributeDescription = {};
-	normalAttributeDescription.binding = 0;
-	normalAttributeDescription.location = 1;
-	normalAttributeDescription.format = VK_FORMAT_R32G32B32_SFLOAT;
-	normalAttributeDescription.offset = offsetof(Vertex, normal);
+	constexpr VkVertexInputAttributeDescription tex_coordinate_attribute_description{
+		.location = 2,
+		.binding = 0,
+		.format = VK_FORMAT_R32G32_SFLOAT,
+		.offset = offsetof(Vertex, texCoord),
+	};
 
-	VkVertexInputAttributeDescription texCoordAttributeDescription = {};
-	texCoordAttributeDescription.binding = 0;
-	texCoordAttributeDescription.location = 2;
-	texCoordAttributeDescription.format = VK_FORMAT_R32G32_SFLOAT;
-	texCoordAttributeDescription.offset = offsetof(Vertex, texCoord);
-
-	attributeDescriptions.emplace_back(posAttributeDescription);
-	attributeDescriptions.emplace_back(normalAttributeDescription);
-	attributeDescriptions.emplace_back(texCoordAttributeDescription);
-
-	return attributeDescriptions;
+	return {
+		pos_attribute_description ,
+		normal_attribute_description,
+		tex_coordinate_attribute_description
+	};
 }
 
 
 namespace engine {
 	using MeshPtr = std::shared_ptr<Mesh>;
 
-	MeshPtr Mesh::createFromObj(const char* filename) {
+	MeshPtr Mesh::create_from_obj(const char* filename) {
 		auto mesh = std::make_shared<Mesh>();
 		tinyobj::attrib_t attrib;
 		std::vector<tinyobj::shape_t> shapes;
@@ -111,13 +110,13 @@ namespace engine {
 		return mesh;
 	}
 
-	MeshPtr Mesh::createFromGLTF(VulkanEngine* engine, const tinygltf::Model& model, const tinygltf::Mesh& glTFMesh) {
+	MeshPtr Mesh::create_from_gltf(VulkanEngine* engine, const tinygltf::Model& model, const tinygltf::Mesh& glTFMesh) {
 		auto mesh = std::make_shared<Mesh>();
 		for (auto& glTFPrimitive : glTFMesh.primitives) {
 			//const tinygltf::Primitive& glTFPrimitive = glTFMesh.primitives[i];
-			uint32_t firstIndex = static_cast<uint32_t>(mesh->_indices.size());
-			uint32_t vertexStart = static_cast<uint32_t>(mesh->_vertices.size());
-			uint32_t indexCount = 0;
+			//auto firstIndex = static_cast<uint32_t>(mesh->_indices.size());
+			auto const vertex_start = static_cast<uint32_t>(mesh->_vertices.size());
+
 			// Vertices
 			{
 				const float* positionBuffer = nullptr;
@@ -158,34 +157,35 @@ namespace engine {
 			// Indices
 			{
 				const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.indices];
-				const tinygltf::BufferView& bufferView = model.bufferViews[accessor.bufferView];
-				const tinygltf::Buffer& buffer = model.buffers[bufferView.buffer];
+				const tinygltf::BufferView& buffer_view = model.bufferViews[accessor.bufferView];
+				const tinygltf::Buffer& buffer = model.buffers[buffer_view.buffer];
 
-				indexCount += static_cast<uint32_t>(accessor.count);
+				//uint32_t indexCount = 0;
+				//indexCount += static_cast<uint32_t>(accessor.count);
 
 				// glTF supports different component types of indices
 				switch (accessor.componentType) {
 				case TINYGLTF_PARAMETER_TYPE_UNSIGNED_INT: {
-					uint32_t* buf = new uint32_t[accessor.count];
-					memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint32_t));
+					auto* buf = new uint32_t[accessor.count];
+					memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint32_t));
 					for (size_t index = 0; index < accessor.count; index++) {
-						mesh->_indices.push_back(buf[index] + vertexStart);
+						mesh->_indices.push_back(buf[index] + vertex_start);
 					}
 					break;
 				}
 				case TINYGLTF_PARAMETER_TYPE_UNSIGNED_SHORT: {
-					uint16_t* buf = new uint16_t[accessor.count];
-					memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint16_t));
+					auto* buf = new uint16_t[accessor.count];
+					memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint16_t));
 					for (size_t index = 0; index < accessor.count; index++) {
-						mesh->_indices.push_back(buf[index] + vertexStart);
+						mesh->_indices.push_back(buf[index] + vertex_start);
 					}
 					break;
 				}
 				case TINYGLTF_PARAMETER_TYPE_UNSIGNED_BYTE: {
-					uint8_t* buf = new uint8_t[accessor.count];
-					memcpy(buf, &buffer.data[accessor.byteOffset + bufferView.byteOffset], accessor.count * sizeof(uint8_t));
+					auto* buf = new uint8_t[accessor.count];
+					memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint8_t));
 					for (size_t index = 0; index < accessor.count; index++) {
-						mesh->_indices.push_back(buf[index] + vertexStart);
+						mesh->_indices.push_back(buf[index] + vertex_start);
 					}
 					break;
 				}
@@ -200,16 +200,16 @@ namespace engine {
 	}
 
 
-	MeshPtr Mesh::loadFromObj(VulkanEngine* engine, const char* filename) {
-		auto mesh = Mesh::createFromObj(filename);
+	MeshPtr Mesh::load_from_obj(VulkanEngine* engine, const char* filename) {
+		auto mesh = Mesh::create_from_obj(filename);
 
 		mesh->upload(engine);
 
 		return mesh;
 	}
 
-	MeshPtr Mesh::loadFromGLTF(VulkanEngine* engine, const tinygltf::Model& model, const tinygltf::Mesh& glTFMesh) {
-		auto mesh = Mesh::createFromGLTF(engine, model, glTFMesh);
+	MeshPtr Mesh::load_from_gltf(VulkanEngine* engine, const tinygltf::Model& model, const tinygltf::Mesh& glTFMesh) {
+		auto mesh = Mesh::create_from_gltf(engine, model, glTFMesh);
 
 		mesh->upload(engine);
 
@@ -217,40 +217,40 @@ namespace engine {
 	}
 
 	void Mesh::upload(VulkanEngine* engine) {
-		VkDeviceSize vertexbufferSize = sizeof(_vertices[0]) * _vertices.size();
+		const VkDeviceSize vertex_buffer_size = sizeof(_vertices[0]) * _vertices.size();
 
-		auto pStagingVertexBuffer = engine::Buffer::createBuffer(engine,
-			vertexbufferSize,
+		auto const pStagingVertexBuffer = engine::Buffer::create_buffer(engine,
+			vertex_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			TEMP_BIT);
 
-		pStagingVertexBuffer->copyFromHost(_vertices.data());
+		pStagingVertexBuffer->copy_from_host(_vertices.data());
 
-		pVertexBuffer = engine::Buffer::createBuffer(engine,
-			vertexbufferSize,
+		pVertexBuffer = engine::Buffer::create_buffer(engine,
+			vertex_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT);
 
-		pVertexBuffer->copyFromBuffer(engine, pStagingVertexBuffer->buffer);
+		pVertexBuffer->copy_from_buffer(engine, pStagingVertexBuffer->buffer);
 
-		VkDeviceSize indexBufferSize = sizeof(_indices[0]) * _indices.size();
+		const VkDeviceSize index_buffer_size = sizeof(_indices[0]) * _indices.size();
 
-		auto pStagingIndexBuffer = engine::Buffer::createBuffer(engine,
-			indexBufferSize,
+		auto pStagingIndexBuffer = engine::Buffer::create_buffer(engine,
+			index_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			TEMP_BIT);
 
-		pStagingIndexBuffer->copyFromHost(_indices.data());
+		pStagingIndexBuffer->copy_from_host(_indices.data());
 
-		pIndexBuffer = engine::Buffer::createBuffer(engine,
-			indexBufferSize,
+		pIndexBuffer = engine::Buffer::create_buffer(engine,
+			index_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT);
 
-		pIndexBuffer->copyFromBuffer(engine, pStagingIndexBuffer->buffer);
+		pIndexBuffer->copy_from_buffer(engine, pStagingIndexBuffer->buffer);
 	}
 }

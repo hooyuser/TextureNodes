@@ -18,7 +18,7 @@ namespace vk_base {
 
 		~Buffer();
 	private:
-		Buffer() {}
+		Buffer() = default;
 	};
 }
 
@@ -28,10 +28,10 @@ namespace engine {
 		using Base::Base;
 		using BufferPtr = std::shared_ptr<Buffer>;
 	public:
-		static BufferPtr createBuffer(VulkanEngine* engine, VkDeviceSize size, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, CreateResourceFlagBits bufferDescription = SWAPCHAIN_INDEPENDENT_BIT);
-		void copyFromHost(void* hostData);
-		void copyFromHost(const void* host_data, size_t data_size, size_t offset = 0);
-		void copyFromBuffer(VulkanEngine* engine, VkBuffer srcBuffer);
+		static BufferPtr create_buffer(VulkanEngine* engine, VkDeviceSize device_size, VkBufferUsageFlags buffer_usage, VkMemoryPropertyFlags memory_properties, CreateResourceFlagBits buffer_description = SWAPCHAIN_INDEPENDENT_BIT);
+		void copy_from_host(void const* host_data) const;
+		void copy_from_host(void const* host_data, size_t data_size, size_t offset = 0) const;
+		void copy_from_buffer(VulkanEngine* engine, VkBuffer src_buffer) const;
 	};
 }
 

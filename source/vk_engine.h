@@ -25,11 +25,11 @@ struct DeletionQueue
 {
 	std::deque<std::function<void()>> deletors;
 
-	inline void push_function(std::function<void()>&& function) {
+	void push_function(std::function<void()>&& function) {
 		deletors.emplace_back(function);
 	}
 
-	inline void flush() {
+	void flush() {
 		// reverse iterate the deletion queue to execute all the functions
 		for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
 			(*it)(); //call the function

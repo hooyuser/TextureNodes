@@ -1,9 +1,9 @@
 #include "vk_engine.h"
 
 int main() {
-    VulkanEngine app;
 
     try {
+        VulkanEngine app;
         app.run();
     }
     catch (const std::exception& e) {

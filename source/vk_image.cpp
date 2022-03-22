@@ -22,29 +22,29 @@
 namespace vk_init {
 	VkSamplerCreateInfo samplerCreateInfo(VkPhysicalDevice physicalDevice, VkFilter filters, uint32_t mipLevels,
 		VkSamplerAddressMode samplerAdressMode /*= VK_SAMPLER_ADDRESS_MODE_REPEAT*/) {
+
 		VkPhysicalDeviceProperties properties{};
 		vkGetPhysicalDeviceProperties(physicalDevice, &properties);
 
-		VkSamplerCreateInfo samplerInfo{ VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO };
-
-		samplerInfo.pNext = nullptr;
-		samplerInfo.magFilter = filters;
-		samplerInfo.minFilter = filters;
-		samplerInfo.addressModeU = samplerAdressMode;
-		samplerInfo.addressModeV = samplerAdressMode;
-		samplerInfo.addressModeW = samplerAdressMode;
-		samplerInfo.anisotropyEnable = VK_TRUE;
-		samplerInfo.maxAnisotropy = properties.limits.maxSamplerAnisotropy;
-		samplerInfo.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK;
-		samplerInfo.unnormalizedCoordinates = VK_FALSE;
-		samplerInfo.compareEnable = VK_FALSE;
-		samplerInfo.compareOp = VK_COMPARE_OP_ALWAYS;
-		samplerInfo.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-		samplerInfo.minLod = 0.0f;
-		samplerInfo.maxLod = static_cast<float>(mipLevels);
-		samplerInfo.mipLodBias = 0.0f;
-
-		return samplerInfo;
+		return VkSamplerCreateInfo{
+			.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+			.pNext = nullptr,
+			.magFilter = filters,
+			.minFilter = filters,
+			.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+			.addressModeU = samplerAdressMode,
+			.addressModeV = samplerAdressMode,
+			.addressModeW = samplerAdressMode,
+			.mipLodBias = 0.0f,
+			.anisotropyEnable = VK_TRUE,
+			.maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+			.compareEnable = VK_FALSE,
+			.compareOp = VK_COMPARE_OP_ALWAYS,
+			.minLod = 0.0f,
+			.maxLod = static_cast<float>(mipLevels),
+			.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+			.unnormalizedCoordinates = VK_FALSE,
+		};
 	}
 }
 
@@ -71,7 +71,7 @@ namespace engine {
 			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 		};
-		
+
 		if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create image!");
 		}
@@ -196,7 +196,7 @@ namespace engine {
 	}
 
 	void Image::transitionImageLayout(VulkanEngine* engine, VkImageLayout oldLayout, VkImageLayout newLayout) {
-		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
+		immediate_submit(engine, [&](VkCommandBuffer commandBuffer) {
 			VkImageMemoryBarrier barrier{
 				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 				.oldLayout = oldLayout,
@@ -273,7 +273,7 @@ namespace engine {
 			});
 	}
 
-	void Image::generateMipmaps(VulkanEngine* engine){
+	void Image::generateMipmaps(VulkanEngine* engine) {
 		// Check if image format supports linear blitting
 		VkFormatProperties formatProperties;
 		vkGetPhysicalDeviceFormatProperties(engine->physicalDevice, format, &formatProperties);
@@ -583,16 +583,16 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::load2DTextureFromHost(VulkanEngine* engine, void* hostPixels, int texWidth, int texHeight, int texChannels, bool enableMipmap/*= true*/, VkFormat format/*= VK_FORMAT_R8G8B8A8_SRGB*/){
-		
+	TexturePtr Texture::load2DTextureFromHost(VulkanEngine* engine, void* hostPixels, int texWidth, int texHeight, int texChannels, bool enableMipmap/*= true*/, VkFormat format/*= VK_FORMAT_R8G8B8A8_SRGB*/) {
+
 		VkDeviceSize imageSize = static_cast<uint64_t>(texWidth) * texHeight * texChannels;
-		
-		auto pStagingBuffer = engine::Buffer::createBuffer(engine,
+
+		auto pStagingBuffer = engine::Buffer::create_buffer(engine,
 			imageSize,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			TEMP_BIT);
-		pStagingBuffer->copyFromHost(hostPixels);
+		pStagingBuffer->copy_from_host(hostPixels);
 
 		engine::TexturePtr pTexture;
 
@@ -611,10 +611,10 @@ namespace engine {
 
 
 		pTexture->generateMipmaps(engine);
-		
+
 
 		return pTexture;
-	} 
+	}
 
 	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const char* filePath, bool enableMipmap/*= true*/, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
 		int texWidth, texHeight, texChannels;
@@ -661,7 +661,7 @@ namespace engine {
 		const VkDeviceSize layerSize = static_cast<uint64_t>(texWidth) * texHeight * 4 * sizeof(float);
 		VkDeviceSize imageSize = layerSize * 6;
 
-		auto pStagingBuffer = engine::Buffer::createBuffer(engine,
+		auto pStagingBuffer = engine::Buffer::create_buffer(engine,
 			imageSize,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -721,7 +721,7 @@ namespace engine {
 			const VkDeviceSize layerSize = static_cast<uint64_t>(texWidth) * texHeight * 4 * sizeof(float);
 			VkDeviceSize imageSize = layerSize * 6;
 
-			auto pStagingBuffer = engine::Buffer::createBuffer(engine,
+			auto pStagingBuffer = engine::Buffer::create_buffer(engine,
 				imageSize,
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -740,7 +740,7 @@ namespace engine {
 
 			pTexture->copyFromBuffer(engine, pStagingBuffer->buffer, mipLevel);
 		}
-		
+
 		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
 			//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 			VkImageMemoryBarrier barrier{};
@@ -763,7 +763,7 @@ namespace engine {
 				0, nullptr,
 				0, nullptr,
 				1, &barrier);
-		});
+			});
 		return pTexture;
 	}
 }

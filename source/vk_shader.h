@@ -21,7 +21,7 @@ namespace engine {
 	class Shader {
 		using ShaderPtr = std::shared_ptr<Shader>;
 	public:
-		
+
 		VkDevice device = VK_NULL_HANDLE;
 		std::vector<ShaderModule> shaderModules;
 
@@ -47,7 +47,7 @@ namespace engine {
 				else {
 					throw std::runtime_error("Illegal shader name! Please specify the stage!");
 				}
-				
+
 				if (vkCreateShaderModule(engine->device, &createInfo, nullptr, &shaderModule.shader) != VK_SUCCESS) {
 					throw std::runtime_error("failed to create shader module!");
 				}
@@ -60,7 +60,7 @@ namespace engine {
 			}
 			return std::make_shared<Shader>(engine->device, std::move(shaderModuleVector));
 		}
-	};	
+	};
 }
 
 using ShaderPtr = std::shared_ptr<engine::Shader>;

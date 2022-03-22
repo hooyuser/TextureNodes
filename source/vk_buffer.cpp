@@ -7,27 +7,27 @@
 
 namespace vk_base {
 	Buffer::Buffer(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, VkDeviceSize size) : device(device), size(size) {
-		VkBufferCreateInfo bufferInfo{
+		const VkBufferCreateInfo buffer_info{
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			.size = size,
 			.usage = bufferUsage,
 			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		};
 
-		if (vkCreateBuffer(device, &bufferInfo, nullptr, &buffer) != VK_SUCCESS) {
+		if (vkCreateBuffer(device, &buffer_info, nullptr, &buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create buffer!");
 		}
 
-		VkMemoryRequirements memRequirements;
-		vkGetBufferMemoryRequirements(device, buffer, &memRequirements);
+		VkMemoryRequirements memory_requirements;
+		vkGetBufferMemoryRequirements(device, buffer, &memory_requirements);
 
-		VkMemoryAllocateInfo allocInfo{
+		const VkMemoryAllocateInfo allocate_info{
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-			.allocationSize = memRequirements.size,
-			.memoryTypeIndex = find_memory_type(physicalDevice, memRequirements.memoryTypeBits, memoryProperties),
+			.allocationSize = memory_requirements.size,
+			.memoryTypeIndex = find_memory_type(physicalDevice, memory_requirements.memoryTypeBits, memoryProperties),
 		};
 
-		if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
+		if (vkAllocateMemory(device, &allocate_info, nullptr, &memory) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate buffer memory!");
 		}
 
@@ -36,7 +36,7 @@ namespace vk_base {
 		if (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT & memoryProperties) {
 			vkMapMemory(device, memory, 0, size, 0, &mapped_buffer);
 		}
-		
+
 	}
 
 	Buffer::~Buffer() {
@@ -58,32 +58,33 @@ namespace vk_base {
 namespace engine {
 	using BufferPtr = std::shared_ptr<Buffer>;
 
-	BufferPtr Buffer::createBuffer(VulkanEngine* engine, VkDeviceSize size, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, CreateResourceFlagBits bufferDescription) {
-		auto pBuffer = std::make_shared<Buffer>(engine->device, engine->physicalDevice, bufferUsage, memoryProperties, size);
-		if (bufferDescription & 0x00000001) {
-			((bufferDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
-				vkDestroyBuffer(pBuffer->device, pBuffer->buffer, nullptr);
-				vkFreeMemory(pBuffer->device, pBuffer->memory, nullptr);
-				pBuffer->buffer = VK_NULL_HANDLE;
-				pBuffer->memory = VK_NULL_HANDLE;
+	BufferPtr Buffer::create_buffer(VulkanEngine* engine, VkDeviceSize device_size, VkBufferUsageFlags buffer_usage, VkMemoryPropertyFlags memory_properties, CreateResourceFlagBits buffer_description) {
+		auto p_buffer = std::make_shared<Buffer>(engine->device, engine->physicalDevice, buffer_usage, memory_properties, device_size);
+		if (buffer_description & 0x00000001) {
+			((buffer_description == SWAPCHAIN_DEPENDENT_BIT) ? engine->swapChainDeletionQueue : engine->main_deletion_queue).push_function([=]() {
+				vkDestroyBuffer(p_buffer->device, p_buffer->buffer, nullptr);
+				vkFreeMemory(p_buffer->device, p_buffer->memory, nullptr);
+				p_buffer->buffer = VK_NULL_HANDLE;
+				p_buffer->memory = VK_NULL_HANDLE;
 				});
 		}
-		return pBuffer;
+		return p_buffer;
 	}
 
-	void Buffer::copyFromHost(void* hostData) {
-		memcpy(mapped_buffer, hostData, (size_t)size);
+	void Buffer::copy_from_host(void const* host_data) const {
+		memcpy(mapped_buffer, host_data, (size_t)size);
 	}
 
-	void Buffer::copyFromHost(const void* host_data, size_t data_size, size_t offset) {
+	void Buffer::copy_from_host(void const* host_data, size_t data_size, size_t offset) const {
 		memcpy(static_cast<char*>(mapped_buffer) + offset, host_data, data_size);
 	}
 
-	void Buffer::copyFromBuffer(VulkanEngine* engine, VkBuffer srcBuffer) {
-		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
-			VkBufferCopy copyRegion{};
-			copyRegion.size = size;
-			vkCmdCopyBuffer(commandBuffer, srcBuffer, buffer, 1, &copyRegion);
+	void Buffer::copy_from_buffer(VulkanEngine* engine, VkBuffer src_buffer) const {
+		immediate_submit(engine, [&](VkCommandBuffer command_buffer) {
+			const VkBufferCopy copy_region{
+				.size = size
+			};
+			vkCmdCopyBuffer(command_buffer, src_buffer, buffer, 1, &copy_region);
 			});
 	}
 }

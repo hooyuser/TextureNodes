@@ -11,7 +11,7 @@
 
 using json = nlohmann::json;
 
-constexpr bool show_imgui_demo = false;
+constexpr bool SHOW_IMGUI_DEMO = false;
 
 void to_json(json& j, const ImVec2& p) {
 	j = std::array{ p.x, p.y };
@@ -211,7 +211,7 @@ namespace engine {
 			ImGui::EndMenuBar();
 		}
 
-		if constexpr (show_imgui_demo) {
+		if constexpr (SHOW_IMGUI_DEMO) {
 			ImGui::ShowDemoWindow();
 		}
 
@@ -240,7 +240,7 @@ namespace engine {
 		ed::Resume();
 
 		//Set display node
-		if (auto node_id = ed::GetDoubleClickedNode(); node_id != ed::NodeId::Invalid) {
+		if (auto const node_id = ed::GetDoubleClickedNode(); node_id != ed::NodeId::Invalid) {
 			display_node_id = node_id;
 		}
 
@@ -264,7 +264,7 @@ namespace engine {
 			ImGui::GetWindowDrawList()->AddRectFilled(node_rect.GetTL(), node_rect.GetBR(), ImColor(68, 129, 196, 160));
 			//ImGui::BeginVertical("delegates", ImVec2(0, 28));
 
-			const float radius = 5.8f;
+			constexpr float radius = 5.8f;
 
 			//loop over output pins
 			for (auto& pin : node.outputs) {
@@ -272,13 +272,13 @@ namespace engine {
 				ed::BeginPin(pin.id, ed::PinKind::Output);
 				//auto rect = imgui_get_item_rect();
 
-				auto str = pin.name.c_str();
+				auto const str = pin.name.c_str();
 				ImGui::SetCursorPosX(node_rect.Max.x - ImGui::CalcTextSize(str).x);
 				ImGui::Text(str);
 
 				auto rect = imgui_get_item_rect();
-				auto draw_list = ImGui::GetWindowDrawList();
-				ImVec2 pin_center = ImVec2(node_rect.Max.x + 8.0f, rect.GetCenter().y);
+				auto const draw_list = ImGui::GetWindowDrawList();
+				auto const pin_center = ImVec2(node_rect.Max.x + 8.0f, rect.GetCenter().y);
 
 				draw_list->AddCircleFilled(pin_center, radius, ImColor(68, 129, 196, 160), 24);
 				draw_list->AddCircle(ImVec2(node_rect.Max.x + 8.0f, rect.GetCenter().y), radius, ImColor(68, 129, 196, 255), 24, 1.8);
@@ -564,13 +564,13 @@ namespace engine {
 						if constexpr (is_image_data<NodeDataT>) {
 							node_data->update_ubo(color_ramp_pin.default_value, *color_ramp_pin_index);
 							if (vkGetFenceStatus(engine->device, fence) == VK_SUCCESS) {
-								VkSubmitInfo submitInfo{
+								const VkSubmitInfo submit_info{
 									.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 									.commandBufferCount = 1,
 									.pCommandBuffers = &color_ramp_data.ubo_value->command_buffer,
 								};
 								vkResetFences(engine->device, 1, &fence);
-								vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
+								vkQueueSubmit(engine->graphicsQueue, 1, &submit_info, fence);
 								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 								update_from(*color_ramp_node_index);
 							}
@@ -676,7 +676,7 @@ namespace engine {
 						ImGui::TextUnformatted(label);
 					};
 
-					if (start_pin->id == end_pin->id) {
+					if (start_pin == end_pin) {
 						ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
 					}
 					else if (start_pin->flow_direction == end_pin->flow_direction) {
@@ -748,7 +748,7 @@ namespace engine {
 				// If you agree that link can be deleted, accept deletion.
 				if (ed::AcceptDeletedItem()) {
 					// Then remove link from your data.
-					auto deleted_link = std::find_if(links.begin(), links.end(), [=](auto& link) {
+					auto deleted_link = std::ranges::find_if(links, [=](auto& link) {
 						return link.id == deleted_link_id;
 						});
 
@@ -787,7 +787,7 @@ namespace engine {
 			{
 				if (ed::AcceptDeletedItem())
 				{
-					auto deleted_node = std::find_if(nodes.begin(), nodes.end(), [=](auto& node) {
+					auto deleted_node = std::ranges::find_if(nodes, [=](auto& node) {
 						return node.id == deleted_node_id;
 						});
 
@@ -813,8 +813,8 @@ namespace engine {
 	}
 
 	void NodeEditor::create_fence() {
-		auto fenceInfo = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-		if (vkCreateFence(engine->device, &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
+		auto const fence_info = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+		if (vkCreateFence(engine->device, &fence_info, nullptr, &fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create fence!");
 		}
 	}
@@ -833,11 +833,11 @@ namespace engine {
 
 		create_fence();
 
-		engine->main_deletion_queue.push_function([=]() {
+		engine->main_deletion_queue.push_function([&nodes = nodes, device = engine->device, fence = fence, context = context]() {
 			nodes.clear();
-			vkDestroyFence(engine->device, fence, nullptr);
+			vkDestroyFence(device, fence, nullptr);
 			ed::DestroyEditor(context);
-			});
+		});
 	}
 
 	void NodeEditor::serialize(std::string_view file_path) {

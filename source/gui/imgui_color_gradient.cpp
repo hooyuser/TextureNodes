@@ -227,7 +227,7 @@ namespace ImGui
 	static void DrawGradientMarks(ImGradient* gradient,
 		ImGradientMark*& draggingMark,
 		ImGradientMark*& selectedMark,
-		struct ImVec2 const& bar_pos,
+		ImVec2 const& bar_pos,
 		float maxWidth,
 		float height)
 	{

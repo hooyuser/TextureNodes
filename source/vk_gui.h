@@ -17,7 +17,7 @@ namespace engine {
 		void init(VulkanEngine* engine);
 		void create_framebuffers();
 		void begin_render();
-		void end_render(VulkanEngine* engine, const uint32_t imageIndex);
+		void end_render(uint32_t image_index);
 
 	protected:
 		void init_command_pool();

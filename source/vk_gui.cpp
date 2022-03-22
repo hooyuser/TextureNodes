@@ -12,24 +12,26 @@
 
 namespace engine {
 	void GUI::init_render_pass() {
-		VkAttachmentDescription colorAttachment{};
-		colorAttachment.format = engine->swapChainImageFormat;
-		colorAttachment.samples = VK_SAMPLE_COUNT_1_BIT;
-		colorAttachment.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR;
-		colorAttachment.storeOp = VK_ATTACHMENT_STORE_OP_STORE;
-		colorAttachment.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE;
-		colorAttachment.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE;
-		colorAttachment.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		colorAttachment.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
+		const VkAttachmentDescription color_attachment{
+			.format = engine->swapChainImageFormat,
+			.samples = VK_SAMPLE_COUNT_1_BIT,
+			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
+			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+			.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+			.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+			.finalLayout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR,
+		};
 
-		VkAttachmentReference colorAttachmentRef{};
-		colorAttachmentRef.attachment = 0;
-		colorAttachmentRef.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL;
+		constexpr VkAttachmentReference color_attachment_ref{
+			.attachment = 0,
+			.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+		};
 
 		VkSubpassDescription subpass{};
 		subpass.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS;
 		subpass.colorAttachmentCount = 1;
-		subpass.pColorAttachments = &colorAttachmentRef;
+		subpass.pColorAttachments = &color_attachment_ref;
 
 		VkSubpassDependency dependency = {};
 		dependency.srcSubpass = VK_SUBPASS_EXTERNAL;
@@ -42,7 +44,7 @@ namespace engine {
 		VkRenderPassCreateInfo renderPassInfo{};
 		renderPassInfo.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO;
 		renderPassInfo.attachmentCount = 1;
-		renderPassInfo.pAttachments = &colorAttachment;
+		renderPassInfo.pAttachments = &color_attachment;
 		renderPassInfo.subpassCount = 1;
 		renderPassInfo.pSubpasses = &subpass;
 		renderPassInfo.dependencyCount = 1;
@@ -111,7 +113,7 @@ namespace engine {
 		create_framebuffers();
 		init_command_buffers();
 
-		constexpr size_t descriptor_pool_size  = 2000;
+		constexpr size_t descriptor_pool_size = 2000;
 
 		VkDescriptorPoolSize pool_sizes[] =
 		{
@@ -214,24 +216,23 @@ namespace engine {
 	}
 
 
-	void GUI::end_render(VulkanEngine* engine, const uint32_t imageIndex)
-	{
+	void GUI::end_render(const uint32_t image_index) {
 		ImGui::Render();
 
-		VkCommandBufferBeginInfo commandBufferBeginInfo = {
+		const VkCommandBufferBeginInfo command_buffer_begin_info{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 			.flags = VK_COMMAND_BUFFER_USAGE_ONE_TIME_SUBMIT_BIT,
 		};
-		vkBeginCommandBuffer(command_buffers[imageIndex], &commandBufferBeginInfo);
+		vkBeginCommandBuffer(command_buffers[image_index], &command_buffer_begin_info);
 
-		VkClearValue clearValues{
-			.color = { 1.0f, 0.0f, 0.0f, 1.0f }
+		constexpr VkClearValue clearValues{
+			.color = { {1.0f, 0.0f, 0.0f, 1.0f} }
 		};
 
-		VkRenderPassBeginInfo renderPassBeginInfo{
+		const VkRenderPassBeginInfo render_pass_begin_info{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 			.renderPass = renderPass,
-			.framebuffer = framebuffers[imageIndex],
+			.framebuffer = framebuffers[image_index],
 			.renderArea = {
 				.offset = {0, 0},
 				.extent = engine->swapChainExtent,
@@ -240,11 +241,11 @@ namespace engine {
 			.pClearValues = &clearValues,
 
 		};
-		
-		vkCmdBeginRenderPass(command_buffers[imageIndex], &renderPassBeginInfo, VK_SUBPASS_CONTENTS_INLINE);
-		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffers[imageIndex]);
-		vkCmdEndRenderPass(command_buffers[imageIndex]);
-		vkEndCommandBuffer(command_buffers[imageIndex]);
+
+		vkCmdBeginRenderPass(command_buffers[image_index], &render_pass_begin_info, VK_SUBPASS_CONTENTS_INLINE);
+		ImGui_ImplVulkan_RenderDrawData(ImGui::GetDrawData(), command_buffers[image_index]);
+		vkCmdEndRenderPass(command_buffers[image_index]);
+		vkEndCommandBuffer(command_buffers[image_index]);
 	}
 
 }

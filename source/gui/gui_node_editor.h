@@ -103,11 +103,11 @@ struct Pin {
 		id(id), name(name), default_value(T()) {
 	}
 
-	bool operator==(const Pin& pin) const {
+	bool operator==(const Pin& pin) const noexcept {
 		return (this->id == pin.id);
 	}
 
-	Pin* connected_pin() const {
+	Pin* connected_pin() const noexcept {
 		return *(connected_pins.begin());
 	}
 };
@@ -162,7 +162,7 @@ struct Link {
 	Link(const ed::LinkId id, Pin* start_pin, Pin* end_pin) :
 		id(id), start_pin(start_pin), end_pin(end_pin) {}
 
-	bool operator==(const Link& link) const {
+	bool operator==(const Link& link) const noexcept {
 		return this->id == link.id;
 	}
 };
@@ -254,7 +254,7 @@ namespace engine {
 				auto& node_data = std::get<NodeDataType>(node.data);
 				node.outputs[0].default_value = TextureIdData{ .value = node_data->node_texture_id };
 				if constexpr (!has_field_type_v<UboT, ColorRampData>) {
-					node_data->uniform_buffer->copyFromHost(&ubo);
+					node_data->uniform_buffer->copy_from_host(&ubo);
 				}
 			}
 			else {
@@ -277,7 +277,7 @@ namespace engine {
 	public:
 		NodeEditor(VulkanEngine* engine);
 
-		void* get_gui_display_texture_handle() const {
+		void* get_gui_display_texture_handle() const noexcept {
 			return gui_display_texture_handle;
 		}
 

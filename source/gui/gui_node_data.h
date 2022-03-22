@@ -210,15 +210,6 @@ struct NonImageData : public NodeData {
 	using ResultType = ResultT;
 
 	inline static decltype(function) calculate = function;
-
-	//UboType ubo;
-
-	//void update_ubo(const PinVariant& value, size_t index) {
-	//	UboType::Class::FieldAt(ubo, index, [&](auto& field, auto& ubo_value) {
-	//		using PinT = std::decay_t<decltype(field)>::Type;
-	//		ubo_value = std::get<PinT>(value);
-	//		});
-	//}
 };
 
 template<typename UniformBufferType, StringLiteral ...Shaders>
@@ -233,8 +224,8 @@ struct ImageData : public NodeData {
 	void* gui_preview_texture;
 
 	VkDescriptorSet ubo_descriptor_set;
-	VkFramebuffer image_pocessing_framebuffer;
-	VkCommandBuffer image_pocessing_cmd_buffer;
+	VkFramebuffer image_processing_framebuffer;
+	VkCommandBuffer image_processing_cmd_buffer;
 	VkCommandBuffer generate_preview_cmd_buffer;
 
 	VkSemaphore semaphore;
@@ -258,9 +249,9 @@ struct ImageData : public NodeData {
 	uint32_t height = 1024;
 
 	inline static VkDescriptorSetLayout ubo_descriptor_set_layout = nullptr;
-	inline static VkPipelineLayout image_pocessing_pipeline_layout = nullptr;
-	inline static VkPipeline image_pocessing_pipeline = nullptr;
-	inline static VkRenderPass image_pocessing_render_pass = nullptr;
+	inline static VkPipelineLayout image_processing_pipeline_layout = nullptr;
+	inline static VkPipeline image_processing_pipeline = nullptr;
+	inline static VkRenderPass image_processing_render_pass = nullptr;
 
 	ImageData(VulkanEngine* engine) :engine(engine) {
 
@@ -268,7 +259,7 @@ struct ImageData : public NodeData {
 
 		create_texture();
 
-		uniform_buffer = engine::Buffer::createBuffer(engine,
+		uniform_buffer = engine::Buffer::create_buffer(engine,
 			sizeof(UboType),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -282,15 +273,15 @@ struct ImageData : public NodeData {
 
 		update_descriptor_sets();
 
-		if (image_pocessing_render_pass == nullptr) {
-			create_image_pocessing_render_pass();
-			create_image_pocessing_pipeline_layout();
-			create_image_pocessing_pipeline();
+		if (image_processing_render_pass == nullptr) {
+			create_image_processing_render_pass();
+			create_image_processing_pipeline_layout();
+			create_image_processing_pipeline();
 		}
 
 		create_framebuffer();
 
-		create_image_pocessing_command_buffer();
+		create_image_processing_command_buffer();
 
 		create_preview_command_buffer();
 
@@ -299,28 +290,28 @@ struct ImageData : public NodeData {
 
 	~ImageData() {
 		engine->node_texture_2d_manager->delete_id(node_texture_id);
-		std::array cmd_buffers{ image_pocessing_cmd_buffer, generate_preview_cmd_buffer };
+		const std::array cmd_buffers{ image_processing_cmd_buffer, generate_preview_cmd_buffer };
 		vkFreeCommandBuffers(engine->device, engine->commandPool, cmd_buffers.size(), cmd_buffers.data());
-		vkDestroyFramebuffer(engine->device, image_pocessing_framebuffer, nullptr);
+		vkDestroyFramebuffer(engine->device, image_processing_framebuffer, nullptr);
 		vkFreeDescriptorSets(engine->device, engine->node_descriptor_pool, 1, &ubo_descriptor_set);
 		vkDestroySemaphore(engine->device, semaphore, nullptr);
 	}
 
 	void create_semaphore() {
-		VkSemaphoreTypeCreateInfo timeline_semaphore_create_info{
+		constexpr VkSemaphoreTypeCreateInfo timeline_semaphore_create_info{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
 			.pNext = nullptr,
 			.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
 			.initialValue = 0,
 		};
 
-		VkSemaphoreCreateInfo semaphore_create_info{
+		constexpr VkSemaphoreCreateInfo semaphore_create_info{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 			.pNext = &timeline_semaphore_create_info,
 			.flags = 0,
 		};
 
-		vkCreateSemaphore(engine->device, &semaphore_create_info, NULL, &semaphore);
+		vkCreateSemaphore(engine->device, &semaphore_create_info, nullptr, &semaphore);
 	}
 
 	void create_texture() {
@@ -369,19 +360,19 @@ struct ImageData : public NodeData {
 	}
 
 	void update_descriptor_sets() {
-		VkDescriptorBufferInfo uniform_buffer_info{
+		const VkDescriptorBufferInfo uniform_buffer_info{
 			.buffer = uniform_buffer->buffer,
 			.offset = 0,
 			.range = sizeof(UboType)
 		};
 
-		VkDescriptorImageInfo image_info{
+		const VkDescriptorImageInfo image_info{
 			.sampler = texture->sampler,
 			.imageView = texture->imageView,
 			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 		};
 
-		std::array descriptor_writes{
+		const std::array descriptor_writes{
 			VkWriteDescriptorSet {
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				.dstSet = ubo_descriptor_set,
@@ -406,8 +397,8 @@ struct ImageData : public NodeData {
 
 	}
 
-	void create_image_pocessing_render_pass() {
-		VkAttachmentDescription colorAttachment{
+	void create_image_processing_render_pass() {
+		constexpr VkAttachmentDescription color_attachment{
 			.format = VK_FORMAT_R8G8B8A8_UNORM,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -418,17 +409,16 @@ struct ImageData : public NodeData {
 			.finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 		};
 
-		VkAttachmentReference colorAttachmentRef{
+		constexpr VkAttachmentReference colorAttachmentRef{
 			.attachment = 0,
 			.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 		};
 
-		VkSubpassDescription subpass{
+		constexpr VkSubpassDescription subpass{
 			.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 			.colorAttachmentCount = 1,
 			.pColorAttachments = &colorAttachmentRef,
 		};
-
 
 		//std::array dependencies{
 		//	VkSubpassDependency {
@@ -451,30 +441,29 @@ struct ImageData : public NodeData {
 		//	}
 		//};
 
-		std::array attachments = { colorAttachment };
+		constexpr std::array attachments { color_attachment };
 
-		VkRenderPassCreateInfo render_pass_info{
+		constexpr VkRenderPassCreateInfo render_pass_info{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 			.pNext = nullptr,
 			.attachmentCount = static_cast<uint32_t>(attachments.size()),
 			.pAttachments = attachments.data(),
 			.subpassCount = 1,
 			.pSubpasses = &subpass,
-			.dependencyCount = 0,
-			//.dependencyCount = static_cast<uint32_t>(dependencies.size()),
-			.pDependencies = nullptr,//dependencies.data(),
+			.dependencyCount = 0, //.dependencyCount = static_cast<uint32_t>(dependencies.size()),
+			.pDependencies = nullptr, //dependencies.data(),
 		};
 
-		if (vkCreateRenderPass(engine->device, &render_pass_info, nullptr, &image_pocessing_render_pass) != VK_SUCCESS) {
+		if (vkCreateRenderPass(engine->device, &render_pass_info, nullptr, &image_processing_render_pass) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create render pass!");
 		}
 
-		engine->main_deletion_queue.push_function([device = engine->device, render_pass = image_pocessing_render_pass]() {
+		engine->main_deletion_queue.push_function([device = engine->device, render_pass = image_processing_render_pass]() {
 			vkDestroyRenderPass(device, render_pass, nullptr);
 		});
 	}
 
-	void create_image_pocessing_pipeline_layout() {
+	void create_image_processing_pipeline_layout() {
 
 		auto descriptor_set_layouts = [&]() {
 			if constexpr (has_field_type_v<UboType, ColorRampData> && has_field_type_v<UboType, TextureIdData>) {
@@ -495,18 +484,18 @@ struct ImageData : public NodeData {
 			}
 		}();
 
-		VkPipelineLayoutCreateInfo image_pocessing_pipeline_info = vkinit::pipelineLayoutCreateInfo(descriptor_set_layouts);
+		const VkPipelineLayoutCreateInfo image_processing_pipeline_info = vkinit::pipelineLayoutCreateInfo(descriptor_set_layouts);
 
-		if (vkCreatePipelineLayout(engine->device, &image_pocessing_pipeline_info, nullptr, &image_pocessing_pipeline_layout) != VK_SUCCESS) {
+		if (vkCreatePipelineLayout(engine->device, &image_processing_pipeline_info, nullptr, &image_processing_pipeline_layout) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create pipeline layout!");
 		}
 
-		engine->main_deletion_queue.push_function([device = engine->device, pipeline_layout = image_pocessing_pipeline_layout]() {
+		engine->main_deletion_queue.push_function([device = engine->device, pipeline_layout = image_processing_pipeline_layout]() {
 			vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
 		});
 	}
 
-	void create_image_pocessing_pipeline() {
+	void create_image_processing_pipeline() {
 		engine::PipelineBuilder pipeline_builder(engine, engine::ENABLE_DYNAMIC_VIEWPORT, engine::DISABLE_VERTEX_INPUT);
 		std::array<std::string, sizeof...(Shaders)> shader_files;;
 		size_t i = 0;
@@ -524,9 +513,9 @@ struct ImageData : public NodeData {
 			pipeline_builder.shaderStages.emplace_back(std::move(shader_info));
 		}
 
-		pipeline_builder.buildPipeline(engine->device, image_pocessing_render_pass, image_pocessing_pipeline_layout, image_pocessing_pipeline);
+		pipeline_builder.buildPipeline(engine->device, image_processing_render_pass, image_processing_pipeline_layout, image_processing_pipeline);
 
-		engine->main_deletion_queue.push_function([device = engine->device, pipeline = image_pocessing_pipeline]() {
+		engine->main_deletion_queue.push_function([device = engine->device, pipeline = image_processing_pipeline]() {
 			vkDestroyPipeline(device, pipeline, nullptr);
 		});
 	}
@@ -534,35 +523,35 @@ struct ImageData : public NodeData {
 	void create_framebuffer() {
 		std::array framebuffer_attachments = { texture->imageView };
 
-		VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(image_pocessing_render_pass, VkExtent2D{ width , height }, framebuffer_attachments);
+		const VkFramebufferCreateInfo framebuffer_info = vkinit::framebufferCreateInfo(image_processing_render_pass, VkExtent2D{ width , height }, framebuffer_attachments);
 
-		if (vkCreateFramebuffer(engine->device, &framebufferInfo, nullptr, &image_pocessing_framebuffer) != VK_SUCCESS) {
+		if (vkCreateFramebuffer(engine->device, &framebuffer_info, nullptr, &image_processing_framebuffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create framebuffer!");
 		}
 	}
 
-	void create_image_pocessing_command_buffer() {
-		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
+	void create_image_processing_command_buffer() {
+		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
 
-		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &image_pocessing_cmd_buffer) != VK_SUCCESS) {
+		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &image_processing_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
 
-		VkCommandBufferBeginInfo beginInfo{
+		const VkCommandBufferBeginInfo begin_info{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
 		};
 
-		if (vkBeginCommandBuffer(image_pocessing_cmd_buffer, &beginInfo) != VK_SUCCESS) {
+		if (vkBeginCommandBuffer(image_processing_cmd_buffer, &begin_info) != VK_SUCCESS) {
 			throw std::runtime_error("failed to begin recording command buffer!");
 		}
 
 		VkExtent2D image_extent{ width, height };
 
-		VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(image_pocessing_render_pass, image_extent, image_pocessing_framebuffer);
+		const VkRenderPassBeginInfo render_pass_info = vkinit::renderPassBeginInfo(image_processing_render_pass, image_extent, image_processing_framebuffer);
 
-		vkCmdBeginRenderPass(image_pocessing_cmd_buffer, &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+		vkCmdBeginRenderPass(image_processing_cmd_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
-		VkViewport viewport{
+		const VkViewport viewport{
 			.x = 0.0f,
 			.y = 0.0f,
 			.width = static_cast<float>(width),
@@ -571,7 +560,7 @@ struct ImageData : public NodeData {
 			.maxDepth = 1.0f,
 		};
 
-		VkRect2D scissor{
+		const VkRect2D scissor{
 			.offset = { 0, 0 },
 			.extent = image_extent,
 		};
@@ -595,14 +584,14 @@ struct ImageData : public NodeData {
 			}
 		}();
 
-		vkCmdSetViewport(image_pocessing_cmd_buffer, 0, 1, &viewport);
-		vkCmdSetScissor(image_pocessing_cmd_buffer, 0, 1, &scissor);
-		vkCmdBindDescriptorSets(image_pocessing_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline_layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
-		vkCmdBindPipeline(image_pocessing_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_pocessing_pipeline);
-		vkCmdDraw(image_pocessing_cmd_buffer, 3, 1, 0, 0);
-		vkCmdEndRenderPass(image_pocessing_cmd_buffer);
+		vkCmdSetViewport(image_processing_cmd_buffer, 0, 1, &viewport);
+		vkCmdSetScissor(image_processing_cmd_buffer, 0, 1, &scissor);
+		vkCmdBindDescriptorSets(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_processing_pipeline_layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
+		vkCmdBindPipeline(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_processing_pipeline);
+		vkCmdDraw(image_processing_cmd_buffer, 3, 1, 0, 0);
+		vkCmdEndRenderPass(image_processing_cmd_buffer);
 
-		if (vkEndCommandBuffer(image_pocessing_cmd_buffer) != VK_SUCCESS) {
+		if (vkEndCommandBuffer(image_processing_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer!");
 		}
 	}
@@ -749,7 +738,7 @@ struct ImageData : public NodeData {
 
 		cmd_buffer_submit_info1 = VkCommandBufferSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-			.commandBuffer = image_pocessing_cmd_buffer,
+			.commandBuffer = image_processing_cmd_buffer,
 		};
 
 		signal_semaphore_submit_info1 = VkSemaphoreSubmitInfo{
@@ -806,25 +795,25 @@ struct ImageData : public NodeData {
 			typename UboType::value_t::Class::FieldAt(index, [&](auto& field_v) {
 				using PinValueT = typename std::decay_t<decltype(field_v)>::Type;
 				UboType::Class::FieldAt(index, [&](auto& field) {
-					using PinT = std::decay_t<decltype(field)>::Type;
-					uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinValueT), field_v.getOffset());
+					using PinT = typename std::decay_t<decltype(field)>::Type;
+					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinValueT), field_v.getOffset());
 					});
 				});
 		}
 		else {
 			UboType::Class::FieldAt(index, [&](auto& field) {
-				using PinT = std::decay_t<decltype(field)>::Type;
+				using PinT = typename std::decay_t<decltype(field)>::Type;
 				if constexpr (std::same_as<PinT, FloatTextureIdData>) {
 					std::visit([&](auto&& v) {
 						using StartPinT = std::decay_t<decltype(v)>;
 						if (std::same_as<StartPinT, FloatData>) {
-							uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(FloatData), field.getOffset());
+							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatData), field.getOffset());
 						}
 						else if (std::same_as<StartPinT, TextureIdData>) {
-							uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(FloatData));
+							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(FloatData));
 						}
 						else if (std::same_as<StartPinT, FloatTextureIdData>) {
-							uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(FloatTextureIdData), field.getOffset());
+							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatTextureIdData), field.getOffset());
 						}
 						else {
 							assert((false, "Error occurs when updating ubo. Pin type is FloatTextureIdData"));
@@ -832,7 +821,7 @@ struct ImageData : public NodeData {
 						}, value);
 				}
 				else {
-					uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
+					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
 				}
 				});
 		}
@@ -841,18 +830,18 @@ struct ImageData : public NodeData {
 	template<PinDataConcept StartPinT>
 	void update_ubo_by_value(const StartPinT& value, size_t index) {
 		UboType::Class::FieldAt(index, [&](auto& field) {
-			using PinT = std::decay_t<decltype(field)>::Type;
+			using PinT = typename std::decay_t<decltype(field)>::Type;
 			if constexpr (std::same_as<PinT, FloatTextureIdData>) {
 				std::visit([&](auto&& v) {
 					using StartPinT = std::decay_t<decltype(v)>;
 					if (std::same_as<StartPinT, FloatData>) {
-						uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(FloatData), field.getOffset());
+						uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatData), field.getOffset());
 					}
 					else if (std::same_as<StartPinT, TextureIdData>) {
-						uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(FloatData));
+						uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(FloatData));
 					}
 					else if (std::same_as<StartPinT, FloatTextureIdData>) {
-						uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&v), sizeof(FloatTextureIdData), field.getOffset());
+						uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatTextureIdData), field.getOffset());
 					}
 					else {
 						assert((false, "Error occurs when updating ubo. Pin type is FloatTextureIdData"));
@@ -860,7 +849,7 @@ struct ImageData : public NodeData {
 					}, value);
 			}
 			else if constexpr (std::same_as<PinT, StartPinT>) {
-				uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
+				uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
 			}
 			});
 	}

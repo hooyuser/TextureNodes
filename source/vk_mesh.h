@@ -3,7 +3,6 @@
 #include "vk_types.h"
 #include "vk_buffer.h"
 #include "vk_material.h"
-#include <glm/vec3.hpp>
 #include <vector>
 #include <variant>
 
@@ -37,10 +36,10 @@ namespace engine {
         BufferPtr pIndexBuffer;
         MaterialPtrV pMaterial;
 
-        static MeshPtr createFromObj(const char* filename);
-        static MeshPtr loadFromObj(VulkanEngine* engine, const char* filename);
-        static MeshPtr createFromGLTF(VulkanEngine* engine, const tinygltf::Model& model, const tinygltf::Mesh& glTFMesh);
-        static MeshPtr loadFromGLTF(VulkanEngine* engine, const tinygltf::Model& model, const tinygltf::Mesh& glTFMesh);
+        static MeshPtr create_from_obj(const char* filename);
+        static MeshPtr load_from_obj(VulkanEngine* engine, const char* filename);
+        static MeshPtr create_from_gltf(VulkanEngine* engine, const tinygltf::Model& model, const tinygltf::Mesh& glTFMesh);
+        static MeshPtr load_from_gltf(VulkanEngine* engine, const tinygltf::Model& model, const tinygltf::Mesh& glTFMesh);
         void upload(VulkanEngine* engine);
     };
 
