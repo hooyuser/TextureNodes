@@ -4,18 +4,28 @@
 #define PI 3.14159265359
 #define MAX_REFLECTION_LOD 4.0
 
-layout(set = 0, binding = 1) uniform UniformBufferObject {
-    int baseColor_texture_id,
-    int metallic_texture_id,
-    int roughness_texture_id,
-    int normal_texture_id,
-    int irradiance_map_Id, 
-    int brdf_LUT_id,     
-    int prefiltered_map_id
-} ubo;
+layout(set = 0, binding = 0) uniform CameraUniformBufferObject {
+    mat4 model;
+    mat4 view;
+    mat4 proj;
+    vec3 pos;
+} cam_ubo;
 
-layout(set = 0, binding = 2) uniform sampler2D textureArray[];
-layout(set = 0, binding = 3) uniform samplerCube cubemapArray[];
+layout(set = 0, binding = 1) uniform sampler2D textureArray[];
+layout(set = 0, binding = 2) uniform samplerCube cubemapArray[];
+
+layout(set = 1, binding = 0) uniform UniformBufferObject {
+    vec4 base_color;
+    int base_color_texture_id;
+    float metalness;
+    int metalness_texture_id;
+    float roughness;
+    int roughness_texture_id;
+    int normal_texture_id;
+    int irradiance_map_id; 
+    int brdf_LUT_id;    
+    int prefiltered_map_id;
+} ubo;
 
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in vec3 fragNormal;
@@ -39,45 +49,54 @@ vec3 prefilteredReflection(vec3 R, float roughness)
 	float lod = 1.01 + roughness * (MAX_REFLECTION_LOD-1.0);
 	float lodf = floor(lod);
 	float lodc = ceil(lod);
-	vec3 a = textureLod(cubemapArray[prefilteredMapId], R, lodf).rgb;
-	vec3 b = textureLod(cubemapArray[prefilteredMapId], R, lodc).rgb;
+	vec3 a = textureLod(cubemapArray[ubo.prefiltered_map_id], R, lodf).rgb;
+	vec3 b = textureLod(cubemapArray[ubo.prefiltered_map_id], R, lodc).rgb;
 	return mix(a, b, lod - lodf);
 }
 
 void main() {
-    vec3 baseColor;
-    if(baseColorTextureId >= 0) {
-        baseColor = texture(textureArray[baseColorTextureId], fragTexCoord).xyz;
+    vec3 base_color;
+    if(ubo.base_color_texture_id >= 0) {
+        base_color = texture(textureArray[ubo.base_color_texture_id], fragTexCoord).rgb;
     } else {
-        baseColor = vec3(baseColorRed, baseColorGreen, baseColorBlue);
+        base_color = ubo.base_color.rgb;
     }
-    float ao, roughness, metalness;
-    if(metallicRoughnessTextureId >= 0) {
-        ao = texture(textureArray[metallicRoughnessTextureId], fragTexCoord).x;
-        baseColor *= ao;
-        roughness = texture(textureArray[metallicRoughnessTextureId], fragTexCoord).y;
-        metalness = texture(textureArray[metallicRoughnessTextureId], fragTexCoord).z;
+    float metalness;
+    if(ubo.metalness_texture_id >= 0) {
+        metalness = texture(textureArray[ubo.metalness_texture_id], fragTexCoord).r;
     } else {
-        roughness = roughnessFactor;
-        metalness = metalnessFactor;
+        metalness = ubo.metalness;
     }
-    vec3 F0 = mix(vec3(0.16 * 0.5 * 0.5), baseColor, metalness);
+    float roughness;
+    if(ubo.roughness_texture_id >= 0) {
+        roughness = texture(textureArray[ubo.roughness_texture_id], fragTexCoord).r;
+    } else {
+        roughness = ubo.roughness;
+    }
+    vec3 normal;
+    if(ubo.normal_texture_id >= 0) {
+        normal = texture(textureArray[ubo.normal_texture_id], fragTexCoord).rgb;
+    } else {
+        normal = fragNormal;
+    }
+
+    vec3 F0 = mix(vec3(0.16 * 0.5 * 0.5), base_color, metalness);
     vec3 F = max(vec3(1.0) - roughness, F0);
-    vec3 diffuse = baseColor * (1.0 - metalness) * F * texture(cubemapArray[irradianceMapId], fragNormal).xyz / PI;
+    vec3 diffuse = base_color * (1.0 - metalness) * F * texture(cubemapArray[ubo.irradiance_map_id], normal).xyz / PI;
 
     float alpha = roughness * roughness;
-    vec3 wo = normalize(ubo.pos - fragPos.xyz);
+    vec3 wo = normalize(cam_ubo.pos - fragPos.xyz);
 
-    vec3 r = reflect(-wo , fragNormal);
+    vec3 r = reflect(-wo , normal);
 
     //vec3 specular1 = prefilteredReflection(r, roughness);
-    vec3 specular1 = textureLod(cubemapArray[prefilteredMapId], r, roughness * MAX_REFLECTION_LOD).xyz;
+    vec3 specular1 = textureLod(cubemapArray[ubo.prefiltered_map_id], r, roughness * MAX_REFLECTION_LOD).xyz;
 
-    vec2 AB = texture(textureArray[brdfLUTId], vec2(max(dot(wo, fragNormal), 0.0), roughness)).xy;
+    vec2 AB = texture(textureArray[ubo.brdf_LUT_id], vec2(max(dot(wo, normal), 0.0), roughness)).xy;
     vec3 specular2 = AB.x * F0 + AB.y;
 
-    //vec3 color = diffuse + specular1 * specular2;
-    vec3 color = baseColor;
+    vec3 color = diffuse + specular1 * specular2;
+    //vec3 color = baseColor;
 
     // Tone mapping
 	//color = Uncharted2Tonemap(color);

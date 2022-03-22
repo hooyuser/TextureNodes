@@ -111,6 +111,10 @@ struct Pin {
 	inline bool operator==(const Pin& pin) const {
 		return (this->id == pin.id);
 	}
+
+	inline Pin* connected_pin() {
+		return *(connected_pins.begin());
+	}
 };
 
 inline void to_json(json& j, const Pin& p) {
@@ -147,7 +151,7 @@ struct Node {
 
 	inline PinVariant& evaluate_input(uint32_t i) {
 		auto& connect_pins = inputs[i].connected_pins;
-		return (connect_pins.empty()) ? inputs[i].default_value : (*(inputs[i].connected_pins.begin()))->default_value;
+		return (connect_pins.empty()) ? inputs[i].default_value : inputs[i].connected_pin()->default_value;
 	}
 };
 
@@ -226,10 +230,10 @@ namespace engine {
 					using PinType = std::decay_t<decltype(field)>::Type;
 					node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
 					auto& pin_value = node.inputs[index].default_value;
-					
+
 					if constexpr (std::same_as<PinType, ColorRampData>) {
 						pin_value = std::move(ColorRampData(engine));
-						
+
 						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 						VkSubmitInfo submitInfo{
 							.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,

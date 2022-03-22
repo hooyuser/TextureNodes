@@ -27,8 +27,8 @@ static ImRect imgui_get_item_rect() {
 
 std::string first_letter_to_upper(std::string_view str) {
 	auto split = str
-		| std::ranges::views::split('_')
-		| std::ranges::views::transform([](auto&& str) {return std::string_view(&*str.begin(), std::ranges::distance(str)); });
+		| std::views::split('_')
+		| std::views::transform([](auto&& str) {return std::string_view(&*str.begin(), std::ranges::distance(str)); });
 
 	std::string upper_str = "";
 	std::string_view separator = "";
@@ -37,36 +37,6 @@ std::string first_letter_to_upper(std::string_view str) {
 	}
 	return upper_str;
 }
-
-template<typename T>
-class VectorBuffer {
-public:
-	VectorBuffer() :_data(nullptr), _capacity(0) {}
-
-	~VectorBuffer() {
-		if (_data) {
-			delete[] _data;
-		}
-	}
-
-	T* data() const {
-		return _data;
-	}
-
-	void reserve(size_t reserve_capacity) {
-		if (_capacity < reserve_capacity) {
-			if (_data) {
-				delete[] _data;
-			}
-			_data = new T[_capacity = std::bit_ceil(reserve_capacity)];
-		}
-	}
-
-private:
-	T* _data;
-	size_t _capacity;
-};
-
 
 namespace engine {
 	constexpr int NodeEditor::get_next_id() {
@@ -115,7 +85,7 @@ namespace engine {
 				}, nodes[i].data);
 		}
 
-		for (auto i : sorted_nodes | std::ranges::views::reverse) {
+		for (auto i : sorted_nodes | std::views::reverse) {
 			std::visit([&](auto&& node_data) {
 				if constexpr (is_image_data<std::decay_t<decltype(node_data)>>) {
 					uint64_t counter;
@@ -821,16 +791,7 @@ namespace engine {
 					auto deleted_node = std::find_if(nodes.begin(), nodes.end(), [=](auto& node) {
 						return node.id == deleted_node_id;
 						});
-					//for (auto& pin : node.outputs) {
-					//	for (auto connected_pin : pin.connected_pins) {
-					//		connected_pin->connected_pins.erase(&pin);
-					//	}
-					//}
-					//for (auto& pin : node.inputs) {
-					//	for (auto connected_pin : pin.connected_pins) {
-					//		connected_pin->connected_pins.erase(&pin);
-					//	}
-					//}
+
 					if (deleted_node != nodes.end()) {
 						nodes.erase(deleted_node);
 					}

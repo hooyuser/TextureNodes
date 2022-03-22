@@ -50,7 +50,8 @@ namespace engine {
 
 	using ShaderPtr = std::shared_ptr<Shader>;
 
-	template <typename ParaT>
+	struct Empty_Type{};
+	template <typename ParaT = Empty_Type>
 	class Material {
 	public:
 		ShaderPtr pShaders;
@@ -62,11 +63,12 @@ namespace engine {
 
 	using PbrMaterial = Material<Pbr>;
 	using HDRiMaterial = Material<HDRi>;
+	using MaterialPtr = std::shared_ptr<Material<>>;
 	using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
 	using HDRiMaterialPtr = std::shared_ptr<HDRiMaterial>;
 
-	using MaterialV = std::variant<PbrMaterial, HDRiMaterial>;
-	using MaterialPtrV = std::variant<PbrMaterialPtr, HDRiMaterialPtr>;
+	using MaterialV = std::variant<Material<>, PbrMaterial, HDRiMaterial>;
+	using MaterialPtrV = std::variant<MaterialPtr, PbrMaterialPtr, HDRiMaterialPtr>;
 }
 
 

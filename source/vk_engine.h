@@ -53,13 +53,16 @@ namespace engine {
 	class Texture;
 	class GUI;
 	class NodeEditor;
+
+	struct Empty_Type;
 	template <typename ParaT> class Material;
 	
 	using PbrMaterial = Material<Pbr>;
 	using HDRiMaterial = Material<HDRi>;
 	using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
 	using HDRiMaterialPtr = std::shared_ptr<HDRiMaterial>;
-	using MaterialPtrV = std::variant<PbrMaterialPtr, HDRiMaterialPtr>;
+	using MaterialPtr = std::shared_ptr<Material<Empty_Type>>;
+	using MaterialPtrV = std::variant<MaterialPtr, PbrMaterialPtr, HDRiMaterialPtr>;
 }
 
 using MeshPtr = std::shared_ptr<engine::Mesh>;
@@ -125,7 +128,7 @@ public:
 
 	VkRenderPass renderPass;
 	VkDescriptorSetLayout sceneSetLayout;
-	VkDescriptorSetLayout texSetLayout;
+	VkDescriptorSetLayout tex_set_layout;
 	VkPipelineLayout meshPipelineLayout;
 	VkPipelineLayout envPipelineLayout;
 	VkPipeline envPipeline;
@@ -233,7 +236,7 @@ public:
 
 	void load_obj();
 
-	VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features);
+	VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const;
 
 	VkFormat find_depth_format();
 

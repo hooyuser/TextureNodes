@@ -20,6 +20,7 @@
 #include <filesystem>
 #include <chrono>
 #include <algorithm>
+#include <string_view>
 
 #include <IconsFontAwesome5.h>
 
@@ -48,8 +49,8 @@ constexpr uint32_t WIDTH = 1200;
 constexpr uint32_t HEIGHT = 900;
 
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
-constexpr double maxFPS = 200.0;
-constexpr double maxPeriod = 1.0 / maxFPS;
+constexpr double MAX_FPS = 200.0;
+constexpr double MAX_PERIOD = 1.0 / MAX_FPS;
 
 
 const std::vector<const char*> validationLayers = {
@@ -174,7 +175,7 @@ void VulkanEngine::main_loop() {
 	while (!glfwWindowShouldClose(window)) {
 		double time = glfwGetTime();
 		double deltaTime = time - lastTime;
-		if (deltaTime >= maxPeriod) {
+		if (deltaTime >= MAX_PERIOD) {
 			lastTime = time;
 			glfwPollEvents();
 			draw_frame();
@@ -362,7 +363,7 @@ void VulkanEngine::create_logical_device() {
 		.timelineSemaphore = VK_TRUE,
 	};
 
-	VkPhysicalDeviceFeatures deviceFeatures{
+	VkPhysicalDeviceFeatures device_features{
 		.samplerAnisotropy = VK_TRUE,
 	};
 
@@ -373,7 +374,7 @@ void VulkanEngine::create_logical_device() {
 		.pQueueCreateInfos = queueCreateInfos.data(),
 		.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
 		.ppEnabledExtensionNames = deviceExtensions.data(),
-		.pEnabledFeatures = &deviceFeatures,
+		.pEnabledFeatures = &device_features,
 	};
 
 	if constexpr (enableValidationLayers) {
@@ -603,12 +604,7 @@ void VulkanEngine::load_gltf() {
 }
 
 
-void VulkanEngine::load_obj() {
-	loadedMeshes.emplace_back(engine::Mesh::loadFromObj(this, "assets/obj_models/rounded_cube.obj"));
 
-
-	auto ppp = loadedMeshes.back();
-}
 void VulkanEngine::parse_material_info() {
 
 	load_gltf();
@@ -715,7 +711,10 @@ void VulkanEngine::parse_material_info() {
 
 	for (auto& [name, mat] : materials) {
 		std::visit([this](auto& obj) {
-			obj->paras.textureCubemapArraySize = loadedTextureCubemaps.size();
+			if constexpr (!std::same_as<MaterialPtr, std::decay_t<decltype(obj)>>) {
+				obj->paras.textureCubemapArraySize = loadedTextureCubemaps.size();
+			}
+
 			}, mat);
 	}
 
@@ -816,10 +815,10 @@ void VulkanEngine::create_graphics_pipeline() {
 
 void VulkanEngine::create_command_pool() {
 
-	uint32_t queueFamilyIndex = queueFamilyIndices.graphicsFamily.value();
-	VkCommandPoolCreateInfo commandPoolInfo = vkinit::commandPoolCreateInfo(queueFamilyIndex, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+	const uint32_t queue_family_index = queueFamilyIndices.graphicsFamily.value();
+	const VkCommandPoolCreateInfo command_pool_info = vkinit::commandPoolCreateInfo(queue_family_index, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-	if (vkCreateCommandPool(device, &commandPoolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+	if (vkCreateCommandPool(device, &command_pool_info, nullptr, &commandPool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics command pool!");
 	}
 
@@ -829,15 +828,12 @@ void VulkanEngine::create_command_pool() {
 }
 
 void VulkanEngine::create_window_attachments() {
-	VkFormat colorFormat = swapChainImageFormat;
-	VkFormat depthFormat = find_depth_format();
-
 	pColorImage = engine::Image::createImage(this,
 		swapChainExtent.width,
 		swapChainExtent.height,
 		1,
 		msaaSamples,
-		colorFormat,
+		swapChainImageFormat,  //color format
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -849,7 +845,7 @@ void VulkanEngine::create_window_attachments() {
 		swapChainExtent.height,
 		1,
 		msaaSamples,
-		depthFormat,
+		find_depth_format(),  //depth format
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -858,10 +854,7 @@ void VulkanEngine::create_window_attachments() {
 }
 
 void VulkanEngine::create_viewport_attachments() {
-	VkFormat colorFormat = swapChainImageFormat;
-	VkFormat depthFormat = find_depth_format();
-
-	auto mode = glfwGetVideoMode(glfwGetPrimaryMonitor()); //get monitor resolution
+	auto const mode = glfwGetVideoMode(glfwGetPrimaryMonitor()); //get monitor resolution
 	screen_width = mode->width;
 	screen_height = mode->height;
 
@@ -869,21 +862,21 @@ void VulkanEngine::create_viewport_attachments() {
 		viewport3D.color_textures.emplace_back(engine::Texture::create_2D_render_target(this,
 			screen_width,
 			screen_height,
-			colorFormat,
+			swapChainImageFormat,  //color format
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT));
 
 		viewport3D.depth_textures.emplace_back(engine::Texture::create_2D_render_target(this,
 			screen_width,
 			screen_height,
-			depthFormat,
+			find_depth_format(),  //depth format
 			VK_IMAGE_ASPECT_DEPTH_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT));
 	}
 }
 
 void VulkanEngine::create_viewport_render_pass() {
-	VkAttachmentDescription colorAttachment{
+	const VkAttachmentDescription color_attachment{
 		.format = swapChainImageFormat,
 		.samples = VK_SAMPLE_COUNT_1_BIT,
 		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -894,12 +887,12 @@ void VulkanEngine::create_viewport_render_pass() {
 		.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 	};
 
-	VkAttachmentReference colorAttachmentRef{
+	constexpr VkAttachmentReference color_attachment_ref{
 		.attachment = 0,
 		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 	};
 
-	VkAttachmentDescription depthAttachment{
+	const VkAttachmentDescription depth_attachment{
 		.format = find_depth_format(),
 		.samples = VK_SAMPLE_COUNT_1_BIT,
 		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
@@ -910,16 +903,16 @@ void VulkanEngine::create_viewport_render_pass() {
 		.finalLayout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
 	};
 
-	VkAttachmentReference depthAttachmentRef{
+	constexpr VkAttachmentReference depth_attachment_ref{
 		.attachment = 1,
 		.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
 	};
 
-	VkSubpassDescription subpass{
+	const VkSubpassDescription subpass{
 		.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 		.colorAttachmentCount = 1,
-		.pColorAttachments = &colorAttachmentRef,
-		.pDepthStencilAttachment = &depthAttachmentRef,
+		.pColorAttachments = &color_attachment_ref,
+		.pDepthStencilAttachment = &depth_attachment_ref,
 	};
 
 	std::array dependencies{
@@ -946,7 +939,7 @@ void VulkanEngine::create_viewport_render_pass() {
 		},
 	};
 
-	std::array attachments = { colorAttachment, depthAttachment };
+	std::array attachments = { color_attachment, depth_attachment };
 
 	VkRenderPassCreateInfo renderPassInfo{
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
@@ -991,9 +984,9 @@ void VulkanEngine::create_viewport_framebuffers() {
 
 void VulkanEngine::create_viewport_cmd_buffers() {
 	viewport3D.cmd_buffers.resize(swapchain_image_count);
-	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)viewport3D.cmd_buffers.size());
+	auto const cmd_alloc_info = vkinit::commandBufferAllocateInfo(commandPool, static_cast<uint32_t>(viewport3D.cmd_buffers.size()));
 
-	if (vkAllocateCommandBuffers(device, &cmdAllocInfo, viewport3D.cmd_buffers.data()) != VK_SUCCESS) {
+	if (vkAllocateCommandBuffers(device, &cmd_alloc_info, viewport3D.cmd_buffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
@@ -1002,8 +995,8 @@ void VulkanEngine::create_viewport_cmd_buffers() {
 		});
 }
 
-VkFormat VulkanEngine::find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) {
-	for (VkFormat format : candidates) {
+VkFormat VulkanEngine::find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const {
+	for (const VkFormat format : candidates) {
 		VkFormatProperties props;
 		vkGetPhysicalDeviceFormatProperties(physicalDevice, format, &props);
 
@@ -1029,7 +1022,6 @@ VkFormat VulkanEngine::find_depth_format() {
 bool VulkanEngine::hasStencilComponent(VkFormat format) {
 	return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
-
 
 
 VkSampleCountFlagBits VulkanEngine::getMaxUsableSampleCount() {
@@ -1297,6 +1289,26 @@ void VulkanEngine::record_viewport_cmd_buffer(const int commandBufferIndex) {
 	}
 }
 
+void VulkanEngine::load_obj() {
+	using namespace std::string_view_literals;
+
+	loadedMeshes.emplace_back(engine::Mesh::loadFromObj(this, "assets/obj_models/rounded_cube.obj"));
+
+
+	auto& mesh = loadedMeshes.back();
+	auto material = std::make_shared<Material<>>();
+	auto const spv_file_paths = std::array{
+		"assets/shaders/pbr_texture.vert.spv"sv,
+		"assets/shaders/pbr_texture.frag.spv"sv
+	};
+	material->pShaders = engine::Shader::createFromSpv(this, spv_file_paths);
+
+	std::array tex_layout_bindings = {
+		vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
+	};
+	create_descriptor_set_layout(tex_layout_bindings, tex_set_layout);
+}
+
 void VulkanEngine::create_sync_objects() {
 	frameData.resize(MAX_FRAMES_IN_FLIGHT);
 	imagesInFlight.resize(swapchain_image_count, VK_NULL_HANDLE);
@@ -1337,7 +1349,7 @@ void VulkanEngine::init_imgui() {
 void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
 	static auto start_time = std::chrono::high_resolution_clock::now();
 
-	auto current_time = std::chrono::high_resolution_clock::now();
+	auto const current_time = std::chrono::high_resolution_clock::now();
 	float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();
 
 	set_camera();
@@ -1357,8 +1369,8 @@ void VulkanEngine::draw_frame() {
 
 	vkWaitForFences(device, 1, &frameData[currentFrame].inFlightFence, VK_TRUE, VULKAN_WAIT_TIMEOUT); // begin draw i+2 frame if we've complete rendering at frame i
 
-	uint32_t imageIndex;
-	VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frameData[currentFrame].imageAvailableSemaphore, VK_NULL_HANDLE, &imageIndex);
+	uint32_t image_index;
+	VkResult result = vkAcquireNextImageKHR(device, swapChain, UINT64_MAX, frameData[currentFrame].imageAvailableSemaphore, VK_NULL_HANDLE, &image_index);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR) {
 		recreate_swap_chain();
@@ -1368,18 +1380,18 @@ void VulkanEngine::draw_frame() {
 		throw std::runtime_error("failed to acquire swap chain image!");
 	}
 
-	ImGuiIO& io = ImGui::GetIO();
+	const ImGuiIO& io = ImGui::GetIO();
 
 	// IMGUI RENDERING
 	gui->begin_render();
 
 	{
-		ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking |
+		constexpr ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking |
 			ImGuiWindowFlags_NoTitleBar | ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoResize |
 			ImGuiWindowFlags_NoMove | ImGuiWindowFlags_NoBringToFrontOnFocus | ImGuiWindowFlags_NoNavFocus |
 			ImGuiWindowFlags_NoBackground;
 
-		ImGuiViewport* viewport = ImGui::GetMainViewport();
+		const ImGuiViewport* viewport = ImGui::GetMainViewport();
 		ImGui::SetNextWindowPos(viewport->Pos);
 		ImGui::SetNextWindowSize(viewport->Size);
 		ImGui::SetNextWindowViewport(viewport->ID);
@@ -1437,12 +1449,11 @@ void VulkanEngine::draw_frame() {
 		ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 		ImGui::PushStyleColor(ImGuiCol_ResizeGrip, 0);
 		if (ImGuiFileDialog::Instance()->Display("OpenFileDlgKey", ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking, ImVec2{ file_dialog_min_x, file_dialog_min_y })) {
-			
+
 			// action if OK
 			if (ImGuiFileDialog::Instance()->IsOk()) {
-				std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
 				node_editor->clear();
-				node_editor->deserialize(filePathName);
+				node_editor->deserialize(ImGuiFileDialog::Instance()->GetFilePathName());
 				// action
 			}
 			// close
@@ -1451,8 +1462,7 @@ void VulkanEngine::draw_frame() {
 
 		if (ImGuiFileDialog::Instance()->Display("SaveFileDlgKey", ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_NoDocking, ImVec2{ file_dialog_min_x, file_dialog_min_y })) {
 			if (ImGuiFileDialog::Instance()->IsOk()) {
-				std::string filePathName = ImGuiFileDialog::Instance()->GetFilePathName();
-				node_editor->serialize(filePathName);
+				node_editor->serialize(ImGuiFileDialog::Instance()->GetFilePathName());
 			}
 			ImGuiFileDialog::Instance()->Close();
 		}
@@ -1461,8 +1471,8 @@ void VulkanEngine::draw_frame() {
 
 		if (first_time) {
 			first_time = false;
-			ImGuiID dock_id_right_p, dock_id_down, dock_id_left;
-			ImGuiID dock_id_right = ImGui::GetID("3D Viewport");
+			ImGuiID dock_id_right_p;
+			const ImGuiID dock_id_right = ImGui::GetID("3D Viewport");
 
 			ImGui::DockBuilderRemoveNode(dockspace_id); // clear any previous layout
 			ImGui::DockBuilderAddNode(dockspace_id, ImGuiDockNodeFlags_PassthruCentralNode | ImGuiDockNodeFlags_DockSpace);
@@ -1473,19 +1483,19 @@ void VulkanEngine::draw_frame() {
 			//   window ID to split, direction, fraction (between 0 and 1), the final two setting let's us choose which id we want (which ever one we DON'T set as NULL, will be returned by the function)
 			//                                                              out_id_at_dir is the id of the node in the direction we specified earlier, out_id_at_opposite_dir is in the opposite direction
 
-			dock_id_down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.5f, nullptr, &dockspace_id);
-			auto up_node = ImGui::DockBuilderGetNode(dockspace_id);
+			const ImGuiID dock_id_down = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Down, 0.5f, nullptr, &dockspace_id);
+			auto const up_node = ImGui::DockBuilderGetNode(dockspace_id);
 
 
-			dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.5f, nullptr, &dock_id_right_p);
-			auto dock_id_right_p_Node = ImGui::DockBuilderGetNode(dock_id_right_p);
+			const ImGuiID dock_id_left = ImGui::DockBuilderSplitNode(dockspace_id, ImGuiDir_Left, 0.5f, nullptr, &dock_id_right_p);
+			auto const dock_id_right_p_node = ImGui::DockBuilderGetNode(dock_id_right_p);
 
-			auto size = dock_id_right_p_Node->Size;
-			auto pos = dock_id_right_p_Node->Pos;
+			auto const size = dock_id_right_p_node->Size;
+			auto const pos = dock_id_right_p_node->Pos;
 			ImGui::DockBuilderAddNode(dock_id_right, ImGuiDockNodeFlags_PassthruCentralNode);
 			ImGui::DockBuilderSetNodeSize(dock_id_right, size);
 			ImGui::DockBuilderSetNodePos(dock_id_right, pos);
-			auto right_node = ImGui::DockBuilderGetNode(dock_id_right);
+			auto const right_node = ImGui::DockBuilderGetNode(dock_id_right);
 			up_node->ChildNodes[0] = ImGui::DockBuilderGetNode(dock_id_left);
 			up_node->ChildNodes[1] = right_node;
 			right_node->ParentNode = up_node;
@@ -1509,12 +1519,12 @@ void VulkanEngine::draw_frame() {
 		ImGui::Begin("Texture Viewer");
 		ImGui::PopStyleColor();
 		{
-			if (auto handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
-				ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
-				ImVec2 viewer_size = ImGui::GetContentRegionAvail();
+			if (auto const handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
+				const ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
+				const ImVec2 viewer_size = ImGui::GetContentRegionAvail();
 				constexpr static float scale_factor = 0.975;
-				float image_width = std::min(viewer_size.x, viewer_size.y) * scale_factor;
-				ImVec2 image_size = ImVec2{ image_width, image_width };
+				const float image_width = std::min(viewer_size.x, viewer_size.y) * scale_factor;
+				const ImVec2 image_size{ image_width, image_width };
 				ImGui::SetCursorPos((viewer_size - image_size) * 0.5f + ImVec2{ 0, window_size.y - viewer_size.y });
 				ImGui::Image(handle, image_size, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
 			}
@@ -1530,65 +1540,65 @@ void VulkanEngine::draw_frame() {
 
 		ImGui::Begin("3D Viewport", nullptr, ImGuiDockNodeFlags_PassthruCentralNode & ~ImGuiWindowFlags_NoInputs & ~ImGuiWindowFlags_NoBringToFrontOnFocus);
 
-		ImVec2 viewportPanelSize = ImGui::GetContentRegionAvail();
+		const ImVec2 viewport_panel_size = ImGui::GetContentRegionAvail();
 
 		//::PopStyleColor(2);
 		//ImGui::Text("io.WantCaptureMouse = %d", ImGui::IsItemHovered());
 
-		viewport3D.width = viewportPanelSize.x;
-		viewport3D.height = viewportPanelSize.y;
-		update_uniform_buffer(imageIndex);
-		ImVec2 uv{ viewportPanelSize.x / screen_width , viewportPanelSize.y / screen_height };
+		viewport3D.width = viewport_panel_size.x;
+		viewport3D.height = viewport_panel_size.y;
+		update_uniform_buffer(image_index);
+		const ImVec2 uv{ viewport_panel_size.x / screen_width , viewport_panel_size.y / screen_height };
 
-		ImGui::Image(static_cast<ImTextureID>(viewport3D.gui_textures[imageIndex]), viewportPanelSize, ImVec2{ 0, 0 }, uv);
+		ImGui::Image(static_cast<ImTextureID>(viewport3D.gui_textures[image_index]), viewport_panel_size, ImVec2{ 0, 0 }, uv);
 		mouse_hover_viewport = ImGui::IsItemHovered() ? true : false;
 		ImGui::End();
 
 		ImGui::PopStyleVar(3);
 	}
 
-	gui->end_render(this, imageIndex);
+	gui->end_render(this, image_index);
 
-	record_viewport_cmd_buffer(imageIndex);
+	record_viewport_cmd_buffer(image_index);
 
-	std::array submitCommandBuffers = { viewport3D.cmd_buffers[imageIndex], gui->command_buffers[imageIndex] };
+	std::array submit_command_buffers = { viewport3D.cmd_buffers[image_index], gui->command_buffers[image_index] };
 
-	VkPipelineStageFlags waitStages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
-	VkSubmitInfo submitInfo{
+	VkPipelineStageFlags wait_stages[] = { VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT };
+	const VkSubmitInfo submit_info{
 		.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 
 		.waitSemaphoreCount = 1,
 		.pWaitSemaphores = &frameData[currentFrame].imageAvailableSemaphore,
-		.pWaitDstStageMask = waitStages,
+		.pWaitDstStageMask = wait_stages,
 
-		.commandBufferCount = static_cast<uint32_t>(submitCommandBuffers.size()),
-		.pCommandBuffers = submitCommandBuffers.data(),
+		.commandBufferCount = static_cast<uint32_t>(submit_command_buffers.size()),
+		.pCommandBuffers = submit_command_buffers.data(),
 
 		.signalSemaphoreCount = 1,
 		.pSignalSemaphores = &frameData[currentFrame].renderFinishedSemaphore,
 	};
 
-	if (imagesInFlight[imageIndex] != VK_NULL_HANDLE) {
-		vkWaitForFences(device, 1, &imagesInFlight[imageIndex], VK_TRUE, VULKAN_WAIT_TIMEOUT);  //start to render into this image if we've complete the last rendering of this image
+	if (imagesInFlight[image_index] != VK_NULL_HANDLE) {
+		vkWaitForFences(device, 1, &imagesInFlight[image_index], VK_TRUE, VULKAN_WAIT_TIMEOUT);  //start to render into this image if we've complete the last rendering of this image
 	}
-	imagesInFlight[imageIndex] = frameData[currentFrame].inFlightFence;  //update the fence of this image
+	imagesInFlight[image_index] = frameData[currentFrame].inFlightFence;  //update the fence of this image
 
 	vkResetFences(device, 1, &frameData[currentFrame].inFlightFence);
 
-	if (vkQueueSubmit(graphicsQueue, 1, &submitInfo, frameData[currentFrame].inFlightFence) != VK_SUCCESS) {
+	if (vkQueueSubmit(graphicsQueue, 1, &submit_info, frameData[currentFrame].inFlightFence) != VK_SUCCESS) {
 		throw std::runtime_error("failed to submit draw command buffer!");
 	}
 
-	VkPresentInfoKHR presentInfo{
+	const VkPresentInfoKHR present_info{
 		.sType = VK_STRUCTURE_TYPE_PRESENT_INFO_KHR,
 		.waitSemaphoreCount = 1,
 		.pWaitSemaphores = &frameData[currentFrame].renderFinishedSemaphore,
 		.swapchainCount = 1,
 		.pSwapchains = &swapChain,
-		.pImageIndices = &imageIndex,
+		.pImageIndices = &image_index,
 	};
 
-	result = vkQueuePresentKHR(presentQueue, &presentInfo);
+	result = vkQueuePresentKHR(presentQueue, &present_info);
 
 	if (result == VK_ERROR_OUT_OF_DATE_KHR || result == VK_SUBOPTIMAL_KHR || framebufferResized) {
 		framebufferResized = false;

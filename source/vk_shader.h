@@ -30,7 +30,7 @@ namespace engine {
 		static ShaderPtr createFromSpv(VulkanEngine* engine, Matrix<char> auto const& spvFilePaths) {
 			std::vector<ShaderModule> shaderModuleVector;
 			for (auto const& spvFilePath : spvFilePaths) {
-				auto spvCode = readFile(spvFilePath);
+				auto spvCode = readFile(std::string{ spvFilePath });
 				VkShaderModuleCreateInfo createInfo{};
 				createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 				createInfo.codeSize = spvCode.size();
