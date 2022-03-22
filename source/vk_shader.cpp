@@ -19,11 +19,11 @@ namespace engine {
 			throw std::runtime_error("failed to open file!");
 		}
 
-		size_t fileSize = (size_t)file.tellg();
-		std::vector<char> buffer(fileSize);
+		auto const file_size = static_cast<size_t>(file.tellg());
+		std::vector<char> buffer(file_size);
 
 		file.seekg(0);
-		file.read(buffer.data(), fileSize);
+		file.read(buffer.data(), file_size);
 
 		file.close();
 

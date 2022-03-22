@@ -6,30 +6,25 @@
 #define IMGUI_DEFINE_MATH_OPERATORS
 
 #include <imgui_node_editor.h>
-#include <imgui_internal.h>
 #include <imgui_impl_vulkan.h>
 
 #include "all_node_headers.h"
 #include "../util/class_field_type_list.h"
 
-#if NDEBUG
-#else
-#include "../util/debug_type.h"
-#endif
-
 namespace ed = ax::NodeEditor;
 
-//using namespace std::literals;
 static std::string first_letter_to_upper(std::string_view str);
-
 
 template <typename T>
 concept std_variant = requires (T t) {
 	[] <typename... Ts> (std::variant<Ts...>) {}(t);
 };
 
-template <template<typename ...> typename TypeList, typename ...Ts>
-consteval auto to_data_type(TypeList<Ts...>)->TypeList<typename Ts::data_type...>;
+template <typename T>
+using to_data_type = std::invoke_result_t<
+	decltype([] <template<typename ...> typename TypeList, typename ...Ts>
+		(TypeList<Ts...>) consteval -> TypeList<typename Ts::data_type...> {}),
+	T > ;
 
 enum class PinInOut {
 	INPUT,
@@ -54,9 +49,9 @@ struct PredImageBase : std::bool_constant<std::derived_from<T, NodeTypeImageBase
 using ImageNodeTypeList = NodeTypeList::filtered_by<PredImageBase>;
 
 //Cast node types to their data types
-using NodeDataTypeList = decltype(to_data_type(std::declval<NodeTypeList>()));
+using NodeDataTypeList = to_data_type<NodeTypeList>;
 
-using ImageNodeDataTypeList = decltype(to_data_type(std::declval<ImageNodeTypeList>()));
+using ImageNodeDataTypeList = to_data_type<ImageNodeTypeList>;
 
 //Generate aliases for std::variant
 using NodeVariant = NodeTypeList::cast_to<std::variant>;
@@ -80,16 +75,16 @@ template <typename T>
 concept NonImageDataConcept = NodeDataTypeList::has_type<T> && !is_image_data<T>;
 
 template <ImageDataConcept T>
-auto get_ubo(T)->ref_t<T>::UboType;
+auto get_ubo(T)->typename ref_t<T>::UboType;
 
 template <NonImageDataConcept T>
-auto get_ubo(T)->T::UboType;
+auto get_ubo(T)->typename T::UboType;
 
 template <typename NodeDataT>
 using UboOf = std::decay_t<decltype(get_ubo(std::declval<NodeDataT>()))>;
 
 template <typename UboT>
-using FieldTypeList = TypeList<>::from<decltype(class_field_to_tuple(std::declval<UboT>()))>::remove_ref;
+using FieldTypeList = typename TypeList<>::from<FieldTypeTuple<UboT>>::remove_ref;
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -108,11 +103,11 @@ struct Pin {
 		id(id), name(name), default_value(T()) {
 	}
 
-	inline bool operator==(const Pin& pin) const {
+	bool operator==(const Pin& pin) const {
 		return (this->id == pin.id);
 	}
 
-	inline Pin* connected_pin() {
+	Pin* connected_pin() const {
 		return *(connected_pins.begin());
 	}
 };
@@ -142,16 +137,16 @@ struct Node {
 	Node(int id, std::string name, const T&, VulkanEngine* engine) :
 		id(id), name(name) {
 		if constexpr (std::derived_from<T, NodeTypeImageBase>) {
-			data = std::make_shared<ref_t<T::data_type>>(engine);
+			data = std::make_shared<ref_t<typename T::data_type>>(engine);
 		}
 		else {
-			data = NodeDataVariant(std::in_place_type<T::data_type>);
+			data = NodeDataVariant(std::in_place_type<typename T::data_type>);
 		}
 	}
 
-	inline PinVariant& evaluate_input(uint32_t i) {
-		auto& connect_pins = inputs[i].connected_pins;
-		return (connect_pins.empty()) ? inputs[i].default_value : inputs[i].connected_pin()->default_value;
+	PinVariant& evaluate_input(const uint32_t i) {
+		auto const& connect_pins = inputs[i].connected_pins;
+		return connect_pins.empty() ? inputs[i].default_value : inputs[i].connected_pin()->default_value;
 	}
 };
 
@@ -164,17 +159,17 @@ struct Link {
 
 	//ImColor Color;
 
-	Link(ed::LinkId id, Pin* start_pin, Pin* end_pin) :
+	Link(const ed::LinkId id, Pin* start_pin, Pin* end_pin) :
 		id(id), start_pin(start_pin), end_pin(end_pin) {}
 
 	bool operator==(const Link& link) const {
-		return (this->id == link.id);
+		return this->id == link.id;
 	}
 };
 
 namespace std {
 	template <> struct hash<Link> {
-		size_t operator()(const Link& link) const {
+		size_t operator()(const Link& link) const noexcept {
 			return reinterpret_cast<size_t>(link.id.AsPointer());
 		}
 	};
@@ -220,14 +215,14 @@ namespace engine {
 			nodes.emplace_back(get_next_id(), NodeType::name(), NodeType{}, engine);
 			auto& node = nodes.back();
 
-			using NodeDataType = NodeType::data_type;
+			using NodeDataType = typename NodeType::data_type;
 			using UboT = UboOf<NodeDataType>;
 			UboT ubo{};
 
 			node.inputs.reserve(UboT::Class::TotalFields);
 			for (size_t index = 0; index < UboT::Class::TotalFields; ++index) {
 				UboT::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
-					using PinType = std::decay_t<decltype(field)>::Type;
+					using PinType = typename std::decay_t<decltype(field)>::Type;
 					node.inputs.emplace_back(get_next_id(), first_letter_to_upper(field.name), std::in_place_type<PinType>);
 					auto& pin_value = node.inputs[index].default_value;
 
@@ -235,13 +230,13 @@ namespace engine {
 						pin_value = std::move(ColorRampData(engine));
 
 						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
-						VkSubmitInfo submitInfo{
+						VkSubmitInfo submit_info{
 							.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 							.commandBufferCount = 1,
 							.pCommandBuffers = &(std::get<ColorRampData>(pin_value).ubo_value->command_buffer),
 						};
 						vkResetFences(engine->device, 1, &fence);
-						vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
+						vkQueueSubmit(engine->graphicsQueue, 1, &submit_info, fence);
 						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 					}
 					else {
@@ -269,7 +264,7 @@ namespace engine {
 					});
 			}
 
-			uint32_t node_index = nodes.size() - 1;
+			const uint32_t node_index = nodes.size() - 1;
 
 			build_node(node_index);
 
@@ -282,7 +277,7 @@ namespace engine {
 	public:
 		NodeEditor(VulkanEngine* engine);
 
-		void* get_gui_display_texture_handle() {
+		void* get_gui_display_texture_handle() const {
 			return gui_display_texture_handle;
 		}
 
@@ -312,25 +307,25 @@ namespace engine {
 
 		void update_all_nodes();
 
-		void topological_sort(uint32_t index, std::vector<char>& visited_nodes, std::vector<uint32_t>& sorted_nodes);
+		void topological_sort(uint32_t index, std::vector<char>& visited_nodes, std::vector<uint32_t>& sorted_nodes) const;
 
-		void excute_graph(const std::vector<uint32_t>& sorted_nodes);
+		void execute_graph(const std::vector<uint32_t>& sorted_nodes);
 
-		inline size_t get_input_pin_index(const Pin& pin) {
+		size_t get_input_pin_index(const Pin& pin) const {
 			const Node& node = nodes[pin.node_index];
-			auto ubo_index = std::find(node.inputs.begin(), node.inputs.end(), pin);
+			auto const ubo_index = std::ranges::find(node.inputs, pin);
 			assert(("get_input_pin_index() error: vector access violation!", ubo_index != node.inputs.end()));
 			return ubo_index - node.inputs.begin();
 		}
 
-		inline size_t get_input_pin_index(const Node& node, const Pin& pin) {
-			auto ubo_index = std::find(node.inputs.begin(), node.inputs.end(), pin);
+		static size_t get_input_pin_index(const Node& node, const Pin& pin) {
+			auto const ubo_index = std::ranges::find(node.inputs, pin);
 			assert(("get_input_pin_index() error: vector access violation!", ubo_index != node.inputs.end()));
 			return ubo_index - node.inputs.begin();
 		}
 
-		inline size_t get_output_pin_index(const Node& node, const Pin& pin) {
-			auto ubo_index = std::find(node.outputs.begin(), node.outputs.end(), pin);
+		static size_t get_output_pin_index(const Node& node, const Pin& pin) {
+			auto const ubo_index = std::ranges::find(node.outputs, pin);
 			assert(("get_output_pin_index() error: vector access violation!", ubo_index != node.outputs.end()));
 			return ubo_index - node.outputs.begin();
 		}

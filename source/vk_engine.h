@@ -128,7 +128,7 @@ public:
 
 	VkRenderPass renderPass;
 	VkDescriptorSetLayout sceneSetLayout;
-	VkDescriptorSetLayout tex_set_layout;
+	VkDescriptorSetLayout material_preview_set_layout;
 	VkPipelineLayout meshPipelineLayout;
 	VkPipelineLayout envPipelineLayout;
 	VkPipeline envPipeline;
@@ -222,9 +222,9 @@ public:
 
 	void create_graphics_pipeline();
 
-	void createMeshPipeline();
+	void create_mesh_pipeline();
 
-	void createEnvLightPipeline();
+	void create_env_light_pipeline();
 
 	void create_command_pool();
 
@@ -262,7 +262,7 @@ public:
 
 	void draw_frame();
 
-	VkSurfaceFormatKHR chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats);
+	VkSurfaceFormatKHR choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& availableFormats);
 
 	VkPresentModeKHR chooseSwapPresentMode(const std::vector<VkPresentModeKHR>& availablePresentModes);
 

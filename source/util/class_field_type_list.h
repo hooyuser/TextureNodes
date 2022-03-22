@@ -1,5 +1,4 @@
 #pragma once
-#include <iostream>
 #include <tuple>
 
 #define MACRO_BUILD0(x)
@@ -181,3 +180,6 @@ constexpr auto class_field_to_tuple(S&& s) noexcept {
 		MACRO_ELSE_IF_FIELD_COUNT(1)
 		MACRO_ELSE_IF_FIELD_COUNT(0)
 }
+
+template<typename Class>
+using FieldTypeTuple = decltype(class_field_to_tuple(std::declval<Class>()));

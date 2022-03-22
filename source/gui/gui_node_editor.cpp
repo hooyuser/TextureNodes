@@ -1,4 +1,5 @@
 #include "gui_node_editor.h"
+#include <imgui_internal.h>
 
 #include "../vk_engine.h"
 #include "../vk_initializers.h"
@@ -43,7 +44,7 @@ namespace engine {
 		return next_id++;
 	}
 
-	void NodeEditor::topological_sort(uint32_t index, std::vector<char>& visited_nodes, std::vector<uint32_t>& sorted_nodes) {
+	void NodeEditor::topological_sort(const uint32_t index, std::vector<char>& visited_nodes, std::vector<uint32_t>& sorted_nodes) const {
 		std::stack<int64_t> topo_sort_stack;
 		int64_t idx;
 
@@ -60,8 +61,8 @@ namespace engine {
 			else {
 				topo_sort_stack.push(~idx);
 				for (auto& pin : nodes[idx].outputs) {
-					for (Pin* connected_pin : pin.connected_pins) {
-						auto connected_node_idx = connected_pin->node_index;
+					for (const Pin* connected_pin : pin.connected_pins) {
+						auto const connected_node_idx = connected_pin->node_index;
 						if (visited_nodes[connected_node_idx] == 0) {
 							visited_nodes[connected_node_idx] = 1;
 							topo_sort_stack.push(connected_node_idx);
@@ -72,11 +73,11 @@ namespace engine {
 		}
 	}
 
-	void NodeEditor::excute_graph(const std::vector<uint32_t>& sorted_nodes) {
+	void NodeEditor::execute_graph(const std::vector<uint32_t>& sorted_nodes) {
 		std::vector<VkSubmitInfo2> submits;
 		submits.reserve(sorted_nodes.size() * 2);
 
-		for (auto i : sorted_nodes) {
+		for (auto const i : sorted_nodes) {
 			std::visit([&](auto&& node_data) {
 				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
 				if constexpr (is_image_data<NodeDataT>) {
@@ -94,8 +95,7 @@ namespace engine {
 					node_data->wait_semaphore_submit_info2.value = counter + 1;
 					node_data->signal_semaphore_submit_info2.value = counter + 2;
 					for (auto& pin : nodes[i].outputs) {
-						for (auto connected_pin : pin.connected_pins) {
-							auto connected_node_idx = connected_pin->node_index;
+						for (auto const connected_pin : pin.connected_pins) {
 
 							std::visit([&](auto&& connected_node_data) {
 								if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
@@ -153,7 +153,7 @@ namespace engine {
 		sorted_nodes.reserve(nodes.size());
 
 		topological_sort(updated_node_index, visited_nodes, sorted_nodes);
-		excute_graph(sorted_nodes);
+		execute_graph(sorted_nodes);
 	}
 
 	void NodeEditor::update_all_nodes() {
@@ -172,7 +172,7 @@ namespace engine {
 			}
 		}
 
-		excute_graph(sorted_nodes);
+		execute_graph(sorted_nodes);
 		vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 	}
 
@@ -423,7 +423,7 @@ namespace engine {
 							if constexpr (is_image_data<NodeDataT>) {
 								UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
 									field.forEachAnnotation([&](auto& items) {
-										using T = typename std::remove_cvref_t<decltype(items)>;
+										using T = std::remove_cvref_t<decltype(items)>;
 										if constexpr (std_array<T, const char*>) {
 											ImGui::PushItemWidth(50.f);
 											if (ImGui::Button((items[default_value.value] + std::string("##") + std::to_string(pin->id.Get())).c_str())) {
@@ -570,7 +570,6 @@ namespace engine {
 									.pCommandBuffers = &color_ramp_data.ubo_value->command_buffer,
 								};
 								vkResetFences(engine->device, 1, &fence);
-								bool debug = true;
 								vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
 								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 								update_from(*color_ramp_node_index);
@@ -599,7 +598,7 @@ namespace engine {
 					if constexpr (is_image_data<NodeDataT>) {
 						UboOf<NodeDataT>::Class::FieldAt(*enum_pin_index, [&](auto& field) {
 							field.forEachAnnotation([&](auto& items) {
-								using T = typename std::remove_cvref_t<decltype(items)>;
+								using T = std::remove_cvref_t<decltype(items)>;
 								if constexpr (std_array<T, const char*>) {
 									for (size_t i = 0; i < items.size(); ++i) {
 										if (ImGui::MenuItem(items[i])) {
@@ -630,8 +629,8 @@ namespace engine {
 			if (ed::QueryNewLink(&start_pin_id, &end_pin_id)) {
 				if (start_pin_id && end_pin_id) {
 					// ed::AcceptNewItem() return true when user release mouse button.
-					Pin* start_pin;
-					Pin* end_pin;
+					Pin* start_pin = nullptr;
+					Pin* end_pin = nullptr;
 					int start_pin_index = -1;
 					int end_pin_index = -1;
 
@@ -661,35 +660,35 @@ namespace engine {
 						}
 					}
 
-					auto showLabel = [](const char* label, ImColor color) {
+					auto show_label = [](const char* label, const ImColor color) {
 						ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetTextLineHeight());
-						auto size = ImGui::CalcTextSize(label);
+						auto const size = ImGui::CalcTextSize(label);
 
-						auto padding = ImGui::GetStyle().FramePadding;
-						auto spacing = ImGui::GetStyle().ItemSpacing;
+						auto const padding = ImGui::GetStyle().FramePadding;
+						auto const spacing = ImGui::GetStyle().ItemSpacing;
 
 						ImGui::SetCursorPos(ImGui::GetCursorPos() + ImVec2(spacing.x, -spacing.y));
 
-						auto rectMin = ImGui::GetCursorScreenPos() - padding;
-						auto rectMax = ImGui::GetCursorScreenPos() + size + padding;
+						auto const rect_min = ImGui::GetCursorScreenPos() - padding;
+						auto const rect_max = ImGui::GetCursorScreenPos() + size + padding;
 
-						auto drawList = ImGui::GetWindowDrawList();
-						drawList->AddRectFilled(rectMin, rectMax, color, size.y * 0.15f);
+						ImGui::GetWindowDrawList()->AddRectFilled(rect_min, rect_max, color, size.y * 0.15f);
 						ImGui::TextUnformatted(label);
 					};
+
 					if (start_pin->id == end_pin->id) {
 						ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
 					}
 					else if (start_pin->flow_direction == end_pin->flow_direction) {
-						auto hint = (start_pin->flow_direction == PinInOut::INPUT) ?
+						auto const hint = (start_pin->flow_direction == PinInOut::INPUT) ?
 							"Input Can Only Be Connected To Output" : "Output Can Only Be Connected To Input";
-						showLabel(hint, ImColor(45, 32, 32, 180));
+						show_label(hint, ImColor(45, 32, 32, 180));
 						ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
 					}
 					else if (start_pin->flow_direction == PinInOut::INPUT && !is_pin_connection_valid(end_pin->default_value, start_pin->default_value)
 						|| start_pin->flow_direction == PinInOut::OUTPUT && !is_pin_connection_valid(start_pin->default_value, end_pin->default_value)) {
 
-						showLabel("Incompatible Pin Type", ImColor(45, 32, 32, 180));
+						show_label("Incompatible Pin Type", ImColor(45, 32, 32, 180));
 						ed::RejectNewItem(ImColor(255, 128, 128), 1.0f);
 					}
 					else if (ed::AcceptNewItem()) {
@@ -702,7 +701,7 @@ namespace engine {
 
 						start_pin->connected_pins.emplace(end_pin);
 						if (!end_pin->connected_pins.empty()) {
-							auto deleted_link = std::find_if(links.begin(), links.end(), [=](auto& link) {
+							auto const deleted_link = std::ranges::find_if(links, [=](auto& link) {
 								return link.end_pin->id == end_pin->id;
 								});
 							if (deleted_link != links.end()) {
@@ -823,11 +822,11 @@ namespace engine {
 	NodeEditor::NodeEditor(VulkanEngine* engine) :engine(engine) {
 		ed::Config config;
 		//disable writing json
-		config.SaveSettings = [](const char* data, size_t size, ed::SaveReasonFlags reason, void* userPointer) {
+		config.SaveSettings = [](const char*, size_t, ed::SaveReasonFlags, void*) {
 			return false;
 		};
 
-		config.SaveNodeSettings = [](ed::NodeId nodeId, const char* data, size_t size, ed::SaveReasonFlags reason, void* userPointer) {
+		config.SaveNodeSettings = [](ed::NodeId, const char*, size_t, ed::SaveReasonFlags, void*) {
 			return false;
 		};
 		context = ed::CreateEditor(&config);
@@ -894,30 +893,30 @@ namespace engine {
 					using NodeType = NodeTypeList::at<type_index>;
 					create_node<NodeType>();
 
-					using NodeDataType = NodeType::data_type;
+					using NodeDataType = typename NodeType::data_type;
 					using UboT = UboOf<NodeDataType>;
 					using FieldTypes = FieldTypeList<UboT>;
 
 					UNROLL<FieldTypes::size>([&] <std::size_t pin_index>() {
-						using PinType = FieldTypeList<UboT>::template at<pin_index>;
+						using PinType = typename FieldTypeList<UboT>::template at<pin_index>;
 						auto& node = nodes[node_index];
 						auto& pin_value = node.inputs[pin_index].default_value;
 
 						if constexpr (std::same_as<PinType, ColorRampData>) {
-							auto& ramp_ui_value = std::get<ColorRampData>(pin_value).ui_value;
+							auto const& ramp_ui_value = std::get<ColorRampData>(pin_value).ui_value;
 							ramp_ui_value->clear_marks();
 							for (auto& json_mark : json_node["pins"][pin_index]) {
 								ramp_ui_value->insert_mark(json_mark["position"].get<float>(), json_mark["color"].get<ImColor>());
 							}
 							ramp_ui_value->refreshCache();
 							vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
-							VkSubmitInfo submitInfo{
+							const VkSubmitInfo submit_info{
 								.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 								.commandBufferCount = 1,
 								.pCommandBuffers = &(std::get<ColorRampData>(pin_value).ubo_value->command_buffer),
 							};
 							vkResetFences(engine->device, 1, &fence);
-							vkQueueSubmit(engine->graphicsQueue, 1, &submitInfo, fence);
+							vkQueueSubmit(engine->graphicsQueue, 1, &submit_info, fence);
 							vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 						}
 						else if constexpr (!std::same_as<PinType, TextureIdData>) {
@@ -934,10 +933,10 @@ namespace engine {
 		}
 
 		for (auto& json_link : json_file["links"]) {
-			auto start_node_index = json_link["start_node_index"].get<int>();
-			auto start_pin_index = json_link["start_pin_index"].get<int>();
-			auto end_node_index = json_link["end_node_index"].get<int>();
-			auto end_pin_index = json_link["end_pin_index"].get<int>();
+			auto const start_node_index = json_link["start_node_index"].get<int>();
+			auto const start_pin_index = json_link["start_pin_index"].get<int>();
+			auto const end_node_index = json_link["end_node_index"].get<int>();
+			auto const end_pin_index = json_link["end_pin_index"].get<int>();
 
 			auto& start_pin = nodes[start_node_index].outputs[start_pin_index];
 			auto& end_pin = nodes[end_node_index].inputs[end_pin_index];
@@ -966,7 +965,7 @@ namespace engine {
 		ed::SetCurrentEditor(nullptr);
 	}
 
-	void NodeEditor::recalculate_node(size_t index) {
+	void NodeEditor::recalculate_node(const size_t index) {
 		std::visit([=](auto&& node_data) {
 			using NodeDataT = std::decay_t<decltype(node_data)>;
 			if constexpr (NonImageDataConcept<NodeDataT>) {
@@ -974,7 +973,7 @@ namespace engine {
 				using FieldTypes = FieldTypeList<UboT>;
 				nodes[index].outputs[0].default_value = [&] <std::size_t... I> (std::index_sequence<I...>) {
 					return NodeDataT::calculate(
-						std::get<FieldTypes::at<I>>(nodes[index].evaluate_input(I))...);
+						std::get<FieldTypes::template at<I>>(nodes[index].evaluate_input(I))...);
 				}(std::make_index_sequence<UboT::Class::TotalFields>{});
 			}
 			}, nodes[index].data);

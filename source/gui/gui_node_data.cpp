@@ -1,21 +1,23 @@
 #include "gui_node_data.h"
 #include "../vk_util.h"
 
-constexpr uint32_t texture_width = 256;
+constexpr uint32_t TEXTURE_WIDTH = 256;
 
 RampTexture::RampTexture(VulkanEngine* engine) :
 	engine(engine),
-	staging_buffer(engine::Buffer(engine->device, engine->physicalDevice,
+	staging_buffer(engine::Buffer(
+		engine->device,
+		engine->physicalDevice,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		texture_width * 4 * sizeof(float))) {
+		TEXTURE_WIDTH * 4 * sizeof(float))) {
 
-	VkImageCreateInfo imageInfo{
+	const VkImageCreateInfo imageInfo{
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.imageType = VK_IMAGE_TYPE_1D,
 		.format = VK_FORMAT_R32G32B32A32_SFLOAT,//VK_FORMAT_R8G8B8A8_UNORM, //VK_FORMAT_R32G32B32A32_SFLOAT,
 		.extent = {
-			.width = texture_width,
+			.width = TEXTURE_WIDTH,
 			.height = 1,
 			.depth = 1,
 		},
@@ -35,7 +37,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 	VkMemoryRequirements memory_requirements;
 	vkGetImageMemoryRequirements(engine->device, image, &memory_requirements);
 
-	VkMemoryAllocateInfo allocInfo{
+	const VkMemoryAllocateInfo allocInfo{
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 		.allocationSize = memory_requirements.size,
 		.memoryTypeIndex = find_memory_type(engine->physicalDevice, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
@@ -47,7 +49,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 
 	vkBindImageMemory(engine->device, image, memory, 0);
 
-	VkImageViewCreateInfo viewInfo{
+	const VkImageViewCreateInfo viewInfo{
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		.image = image,
 		.viewType = VK_IMAGE_VIEW_TYPE_1D,
@@ -65,14 +67,18 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 		throw std::runtime_error("failed to create texture image view!");
 	}
 
-	VkSamplerCreateInfo samplerInfo = vk_init::samplerCreateInfo(engine->physicalDevice, VK_FILTER_LINEAR, 1, VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
+	const VkSamplerCreateInfo sampler_info = vk_init::samplerCreateInfo(
+		engine->physicalDevice,
+		VK_FILTER_LINEAR,
+		1,
+		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
 
-	if (vkCreateSampler(engine->device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
+	if (vkCreateSampler(engine->device, &sampler_info, nullptr, &sampler) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create texture sampler!");
 	}
 
 	engine::immediate_submit(engine, [=](VkCommandBuffer cmd) {
-		auto image_memory_barrier = VkImageMemoryBarrier2{
+		const VkImageMemoryBarrier2 image_memory_barrier {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
 			.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
 			.srcAccessMask = VK_ACCESS_2_NONE,
@@ -90,7 +96,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 			},
 		};
 
-		auto dependency_info = VkDependencyInfo{
+		const VkDependencyInfo dependency_info{
 			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
 			.imageMemoryBarrierCount = 1,
 			.pImageMemoryBarriers = &image_memory_barrier,
@@ -107,7 +113,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 
 	color_ramp_texture_id = engine->node_texture_1d_manager->get_id();
 
-	std::array descriptor_writes{
+	const std::array descriptor_writes{
 		VkWriteDescriptorSet {
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 			.dstSet = engine->node_texture_1d_manager->descriptor_set,
@@ -133,14 +139,14 @@ RampTexture::~RampTexture() {
 }
 
 void RampTexture::create_command_buffer() {
-	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
+	const VkCommandBufferAllocateInfo cmd_allocate_info = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
 
-	if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &command_buffer) != VK_SUCCESS) {
+	if (vkAllocateCommandBuffers(engine->device, &cmd_allocate_info, &command_buffer) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
-	VkCommandBufferBeginInfo beginInfo{
-		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+	const VkCommandBufferBeginInfo beginInfo{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 	};
 
 	if (vkBeginCommandBuffer(command_buffer, &beginInfo) != VK_SUCCESS) {
@@ -148,7 +154,7 @@ void RampTexture::create_command_buffer() {
 	}
 
 	{
-		auto image_memory_barrier = VkImageMemoryBarrier2{
+		const VkImageMemoryBarrier2 image_memory_barrier{
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
 			.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
 			.srcAccessMask = VK_ACCESS_2_NONE,
@@ -166,64 +172,63 @@ void RampTexture::create_command_buffer() {
 			},
 		};
 
-		auto dependency_info = VkDependencyInfo{
+		const VkDependencyInfo dependency_info {
 			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
 			.imageMemoryBarrierCount = 1,
 			.pImageMemoryBarriers = &image_memory_barrier,
 		};
 
 		vkCmdPipelineBarrier2(command_buffer, &dependency_info);
-
-		VkBufferImageCopy region{
-			.bufferOffset = 0,
-			.bufferRowLength = 0,
-			.bufferImageHeight = 0,
-			.imageSubresource = {
-				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-				.mipLevel = 0,
-				.baseArrayLayer = 0,
-				.layerCount = 1,
-			},
-			.imageOffset = { 0, 0, 0 },
-			.imageExtent = {
-				texture_width,
-				1,
-				1
-			}
-		};
-		vkCmdCopyBufferToImage(command_buffer, staging_buffer.buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
-
-		{
-			auto image_memory_barrier = VkImageMemoryBarrier2{
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-				.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
-				.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-				.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
-				.dstAccessMask = VK_ACCESS_2_NONE,
-				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.image = image,
-				.subresourceRange = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.levelCount = 1,
-					.layerCount = 1,
-				},
-			};
-
-			auto dependency_info = VkDependencyInfo{
-				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-				.imageMemoryBarrierCount = 1,
-				.pImageMemoryBarriers = &image_memory_barrier,
-			};
-
-			vkCmdPipelineBarrier2(command_buffer, &dependency_info);
-		}
-
-		if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
-			throw std::runtime_error("failed to record command buffer!");
-		}
 	}
 
+	const VkBufferImageCopy region{
+		.bufferOffset = 0,
+		.bufferRowLength = 0,
+		.bufferImageHeight = 0,
+		.imageSubresource = {
+			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+			.mipLevel = 0,
+			.baseArrayLayer = 0,
+			.layerCount = 1,
+		},
+		.imageOffset = { 0, 0, 0 },
+		.imageExtent = {
+			TEXTURE_WIDTH,
+			1,
+			1
+		}
+	};
+	vkCmdCopyBufferToImage(command_buffer, staging_buffer.buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
+
+	{
+		const VkImageMemoryBarrier2 image_memory_barrier{
+			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+			.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
+			.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+			.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+			.dstAccessMask = VK_ACCESS_2_NONE,
+			.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+			.image = image,
+			.subresourceRange = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.levelCount = 1,
+				.layerCount = 1,
+			},
+		};
+
+		const VkDependencyInfo dependency_info {
+			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+			.imageMemoryBarrierCount = 1,
+			.pImageMemoryBarriers = &image_memory_barrier,
+		};
+
+		vkCmdPipelineBarrier2(command_buffer, &dependency_info);
+	}
+
+	if (vkEndCommandBuffer(command_buffer) != VK_SUCCESS) {
+		throw std::runtime_error("failed to record command buffer!");
+	}
 }

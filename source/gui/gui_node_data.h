@@ -12,7 +12,7 @@
 #include <imgui_impl_vulkan.h>
 
 
-constexpr static inline uint32_t preview_image_size = 128;
+constexpr static inline uint32_t PREVIEW_IMAGE_SIZE = 128;
 
 namespace engine {
 	class Shader;
@@ -29,12 +29,12 @@ struct StringLiteral {
 
 template <typename T, typename FieldType>
 struct count_field_type {
-	static inline constexpr size_t value = []() {
+	static inline constexpr size_t value = [] {
 		size_t field_count = 0;
 		for (size_t i = 0; i < Reflect::class_t<T>::TotalFields; i++) {
 			Reflect::class_t<T>::FieldAt(i, [&](auto& field) {
-				using CurrFieldType = typename std::remove_reference_t<decltype(field)>::Type;
-				if constexpr (std::is_same_v<FieldType, CurrFieldType>) {
+				using CurrentFieldType = typename std::remove_reference_t<decltype(field)>::Type;
+				if constexpr (std::is_same_v<CurrentFieldType, FieldType>) {
 					++field_count;
 				}
 				});
@@ -126,8 +126,8 @@ struct ColorRampData : public NodeData {
 	ImGradientMark* draggingMark = nullptr;
 	ImGradientMark* selectedMark = nullptr;
 
-	inline ColorRampData() {}
-	inline ColorRampData(VulkanEngine* engine) {
+	ColorRampData() {}
+	explicit ColorRampData(VulkanEngine* engine) {
 		ubo_value = std::make_unique<RampTexture>(engine);
 		value = ubo_value->color_ramp_texture_id;
 		ui_value = std::make_unique<ImGradient>(static_cast<float*>(ubo_value->staging_buffer.mapped_buffer));
@@ -309,7 +309,7 @@ struct ImageData : public NodeData {
 	void create_semaphore() {
 		VkSemaphoreTypeCreateInfo timeline_semaphore_create_info{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-			.pNext = NULL,
+			.pNext = nullptr,
 			.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
 			.initialValue = 0,
 		};
@@ -334,8 +334,8 @@ struct ImageData : public NodeData {
 		texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		preview_texture = engine::Texture::create_device_texture(engine,
-			preview_image_size,
-			preview_image_size,
+			PREVIEW_IMAGE_SIZE,
+			PREVIEW_IMAGE_SIZE,
 			VK_FORMAT_R8G8B8A8_UNORM,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
@@ -803,8 +803,8 @@ struct ImageData : public NodeData {
 
 	void update_ubo(const PinVariant& value, size_t index) {
 		if constexpr (has_field_type_v<UboType, ColorRampData>) {
-			UboType::value_t::Class::FieldAt(index, [&](auto& field_v) {
-				using PinValueT = std::decay_t<decltype(field_v)>::Type;
+			typename UboType::value_t::Class::FieldAt(index, [&](auto& field_v) {
+				using PinValueT = typename std::decay_t<decltype(field_v)>::Type;
 				UboType::Class::FieldAt(index, [&](auto& field) {
 					using PinT = std::decay_t<decltype(field)>::Type;
 					uniform_buffer->copyFromHost(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinValueT), field_v.getOffset());

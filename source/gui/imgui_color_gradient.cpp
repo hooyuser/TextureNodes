@@ -8,9 +8,9 @@
 #include "imgui_color_gradient.h"
 #include "imgui_internal.h"
 
-static const float GRADIENT_BAR_WIDGET_HEIGHT = 25;
-static const float GRADIENT_BAR_EDITOR_HEIGHT = 40;
-static const float GRADIENT_MARK_DELETE_DIFFY = 40;
+static constexpr float GRADIENT_BAR_WIDGET_HEIGHT = 25;
+static constexpr float GRADIENT_BAR_EDITOR_HEIGHT = 40;
+static constexpr float GRADIENT_MARK_DELETE_DIFF = 40;
 
 
 ImGradient::ImGradient(float* lookup) :m_cachedValues(lookup) {
@@ -23,7 +23,7 @@ ImGradient::ImGradient(float* lookup) :m_cachedValues(lookup) {
 
 
 ImGradient::~ImGradient() {
-	for (ImGradientMark* mark : m_marks) {
+	for (const ImGradientMark* mark : m_marks) {
 		delete mark;
 	}
 }
@@ -31,14 +31,14 @@ ImGradient::~ImGradient() {
 void ImGradient::insert_mark(float position, ImColor const color)
 {
 	position = ImClamp(position, 0.0f, 1.0f);
-	ImGradientMark* newMark = new ImGradientMark();
-	newMark->position = position;
-	newMark->color[0] = color.Value.x;
-	newMark->color[1] = color.Value.y;
-	newMark->color[2] = color.Value.z;
-	newMark->color[3] = color.Value.w;
+	auto const new_mark = new ImGradientMark();
+	new_mark->position = position;
+	new_mark->color[0] = color.Value.x;
+	new_mark->color[1] = color.Value.y;
+	new_mark->color[2] = color.Value.z;
+	new_mark->color[3] = color.Value.w;
 
-	m_marks.push_back(newMark);
+	m_marks.push_back(new_mark);
 }
 
 void ImGradient::addMark(float position, ImColor const color)
@@ -384,7 +384,7 @@ namespace ImGui
 
 			float diffY = ImGui::GetIO().MousePos.y - barBottom;
 
-			if (diffY >= GRADIENT_MARK_DELETE_DIFFY)
+			if (diffY >= GRADIENT_MARK_DELETE_DIFF)
 			{
 				gradient->removeMark(draggingMark);
 				draggingMark = nullptr;

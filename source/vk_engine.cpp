@@ -395,7 +395,7 @@ void VulkanEngine::create_logical_device() {
 
 void VulkanEngine::create_swap_chain() {
 	SwapChainSupportDetails swapChainSupport = querySwapChainSupport(physicalDevice);
-	VkSurfaceFormatKHR surfaceFormat = chooseSwapSurfaceFormat(swapChainSupport.formats);
+	VkSurfaceFormatKHR surfaceFormat = choose_swap_surface_format(swapChainSupport.formats);
 	VkPresentModeKHR presentMode = chooseSwapPresentMode(swapChainSupport.presentModes);
 	swapChainExtent = chooseSwapExtent(swapChainSupport.capabilities);
 
@@ -727,22 +727,27 @@ void VulkanEngine::parse_material_info() {
 
 void VulkanEngine::create_descriptor_set_layouts() {
 
-	auto camUboLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
-	auto texture2DArrayLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, loadedTexture2Ds.size());
-	auto cubemapArrayLayoutBinding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2, loadedTextureCubemaps.size());
+	auto const cam_ubo_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+	auto const texture_2d_array_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, loadedTexture2Ds.size());
+	auto const cubemap_array_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2, loadedTextureCubemaps.size());
 
-	std::array<VkDescriptorSetLayoutBinding, 3> scenebindings = { camUboLayoutBinding, texture2DArrayLayoutBinding, cubemapArrayLayoutBinding };
-	create_descriptor_set_layout(scenebindings, sceneSetLayout);
+	std::array scene_bindings{
+		cam_ubo_layout_binding,
+		texture_2d_array_layout_binding,
+		cubemap_array_layout_binding
+	};
+
+	create_descriptor_set_layout(scene_bindings, sceneSetLayout);
 }
 
 void VulkanEngine::create_descriptor_set_layout(std::span<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
-	VkDescriptorSetLayoutCreateInfo layoutInfo{
+	const VkDescriptorSetLayoutCreateInfo layout_info{
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 		.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size()),
 		.pBindings = descriptorSetLayoutBindings.data(),
 	};
 
-	if (vkCreateDescriptorSetLayout(device, &layoutInfo, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+	if (vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor set layout!");
 	}
 
@@ -751,15 +756,15 @@ void VulkanEngine::create_descriptor_set_layout(std::span<VkDescriptorSetLayoutB
 		});
 }
 
-void VulkanEngine::createMeshPipeline() {
+void VulkanEngine::create_mesh_pipeline() {
 
-	PipelineBuilder pipelineBuilder(this);
+	PipelineBuilder pipeline_builder(this);
 
-	std::array<VkDescriptorSetLayout, 1> meshDescriptorSetLayouts = { sceneSetLayout };
+	std::array mesh_descriptor_set_layouts = { sceneSetLayout };
 
-	VkPipelineLayoutCreateInfo meshPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(meshDescriptorSetLayouts);
+	const VkPipelineLayoutCreateInfo mesh_pipeline_layout_info = vkinit::pipelineLayoutCreateInfo(mesh_descriptor_set_layouts);
 
-	if (vkCreatePipelineLayout(device, &meshPipelineLayoutInfo, nullptr, &meshPipelineLayout) != VK_SUCCESS) {
+	if (vkCreatePipelineLayout(device, &mesh_pipeline_layout_info, nullptr, &meshPipelineLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
@@ -767,12 +772,12 @@ void VulkanEngine::createMeshPipeline() {
 		vkDestroyPipelineLayout(device, meshPipelineLayout, nullptr);
 		});
 
-	for (auto& material : loadedMaterials) {
-		pipelineBuilder.setShaderStages(material);
+	for (auto const& material : loadedMaterials) {
+		pipeline_builder.setShaderStages(material);
 
-		pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
+		pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
-		pipelineBuilder.buildPipeline(device, viewport3D.render_pass, meshPipelineLayout, material->pipeline);
+		pipeline_builder.buildPipeline(device, viewport3D.render_pass, meshPipelineLayout, material->pipeline);
 
 		main_deletion_queue.push_function([=]() {
 			vkDestroyPipeline(device, material->pipeline, nullptr);
@@ -782,22 +787,22 @@ void VulkanEngine::createMeshPipeline() {
 	}
 }
 
-void VulkanEngine::createEnvLightPipeline() {
-	PipelineBuilder pipelineBuilder(this);
+void VulkanEngine::create_env_light_pipeline() {
+	PipelineBuilder pipeline_builder(this);
 
-	pipelineBuilder.setShaderStages(std::get<HDRiMaterialPtr>(materials["env_light"]));
+	pipeline_builder.setShaderStages(std::get<HDRiMaterialPtr>(materials["env_light"]));
 
-	std::array<VkDescriptorSetLayout, 1> envDescriptorSetLayouts = { sceneSetLayout };
+	std::array env_descriptor_set_layouts = { sceneSetLayout };
 
-	VkPipelineLayoutCreateInfo envPipelineLayoutInfo = vkinit::pipelineLayoutCreateInfo(envDescriptorSetLayouts);
+	const VkPipelineLayoutCreateInfo env_pipeline_layout_info = vkinit::pipelineLayoutCreateInfo(env_descriptor_set_layouts);
 
-	if (vkCreatePipelineLayout(device, &envPipelineLayoutInfo, nullptr, &envPipelineLayout) != VK_SUCCESS) {
+	if (vkCreatePipelineLayout(device, &env_pipeline_layout_info, nullptr, &envPipelineLayout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
-	pipelineBuilder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS_OR_EQUAL);
+	pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS_OR_EQUAL);
 
-	pipelineBuilder.buildPipeline(device, viewport3D.render_pass, envPipelineLayout, envPipeline);
+	pipeline_builder.buildPipeline(device, viewport3D.render_pass, envPipelineLayout, envPipeline);
 
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipelineLayout = envPipelineLayout;
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipeline = envPipeline;
@@ -809,8 +814,8 @@ void VulkanEngine::createEnvLightPipeline() {
 }
 
 void VulkanEngine::create_graphics_pipeline() {
-	createMeshPipeline();
-	createEnvLightPipeline();
+	create_mesh_pipeline();
+	create_env_light_pipeline();
 }
 
 void VulkanEngine::create_command_pool() {
@@ -833,7 +838,7 @@ void VulkanEngine::create_window_attachments() {
 		swapChainExtent.height,
 		1,
 		msaaSamples,
-		swapChainImageFormat,  //color format
+		swapChainImageFormat,  
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -845,7 +850,7 @@ void VulkanEngine::create_window_attachments() {
 		swapChainExtent.height,
 		1,
 		msaaSamples,
-		find_depth_format(),  //depth format
+		find_depth_format(), 
 		VK_IMAGE_TILING_OPTIMAL,
 		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
 		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
@@ -1306,7 +1311,7 @@ void VulkanEngine::load_obj() {
 	std::array tex_layout_bindings = {
 		vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
 	};
-	create_descriptor_set_layout(tex_layout_bindings, tex_set_layout);
+	create_descriptor_set_layout(tex_layout_bindings, material_preview_set_layout);
 }
 
 void VulkanEngine::create_sync_objects() {
@@ -1611,7 +1616,7 @@ void VulkanEngine::draw_frame() {
 	currentFrame = (currentFrame + 1) % MAX_FRAMES_IN_FLIGHT;
 }
 
-VkSurfaceFormatKHR VulkanEngine::chooseSwapSurfaceFormat(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
+VkSurfaceFormatKHR VulkanEngine::choose_swap_surface_format(const std::vector<VkSurfaceFormatKHR>& availableFormats) {
 	for (const auto& availableFormat : availableFormats) {
 		if (availableFormat.format == VK_FORMAT_B8G8R8A8_SRGB && availableFormat.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR) {
 			return availableFormat;
