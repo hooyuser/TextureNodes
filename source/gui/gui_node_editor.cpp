@@ -895,7 +895,7 @@ namespace engine {
 					using FieldTypes = FieldTypeList<UboT>;
 
 					UNROLL<FieldTypes::size>([&] <std::size_t pin_index>() {
-						using PinType = typename FieldTypeList<UboT>::template at<pin_index>;
+						using PinType = typename FieldTypes::template at<pin_index>;
 						auto& node = nodes[node_index];
 						auto& pin_value = node.inputs[pin_index].default_value;
 
@@ -960,6 +960,8 @@ namespace engine {
 		);
 
 		ed::SetCurrentEditor(nullptr);
+
+
 	}
 
 	void NodeEditor::recalculate_node(const size_t index) {

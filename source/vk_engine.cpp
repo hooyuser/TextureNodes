@@ -9,6 +9,7 @@
 #include "vk_gui.h"
 #include "gui/gui_node_editor.h"
 #include "gui/ImGuiFileDialog.h"
+#include "util/class_field_type_list.h"
 
 #include <cstring>
 #include <array>
@@ -16,6 +17,7 @@
 #include <filesystem>
 #include <chrono>
 #include <algorithm>
+
 #include <IconsFontAwesome5.h>
 
 #include <GLFW/glfw3.h>
@@ -42,16 +44,18 @@ constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr double MAX_FPS = 200.0;
 constexpr double MAX_PERIOD = 1.0 / MAX_FPS;
 
-const std::vector validationLayers = {
+
+
+const std::vector validationLayers{
 	"VK_LAYER_KHRONOS_validation",
 	"VK_LAYER_KHRONOS_synchronization2",
 };
 
-constexpr std::array<const char*, 0> instance_extensions = {
+constexpr std::array<const char*, 0> instance_extensions{
 
 };
 
-constexpr std::array deviceExtensions = {
+constexpr std::array deviceExtensions{
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 	//VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
 };
@@ -146,6 +150,8 @@ void VulkanEngine::init_vulkan() {
 	create_descriptor_sets();
 	create_graphics_pipeline();
 
+	load_obj();
+
 	set_camera();
 
 	init_imgui();
@@ -156,7 +162,7 @@ void VulkanEngine::init_vulkan() {
 
 
 void VulkanEngine::main_loop() {
-	bool running = true;
+	//bool running = true;
 	double lastTime = 0.0;
 
 	while (!glfwWindowShouldClose(window)) {
@@ -401,8 +407,8 @@ void VulkanEngine::create_swap_chain() {
 		.imageArrayLayers = 1,
 		.imageUsage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
 	};
-	
-	const std::array queue_family_index_array {
+
+	const std::array queue_family_index_array{
 		queueFamilyIndices.graphicsFamily.value(),
 		queueFamilyIndices.presentFamily.value()
 	};
@@ -566,26 +572,26 @@ void VulkanEngine::load_gltf() {
 		}
 
 		// Only support one scene
-		for (auto node_index : glTFModel.scenes[0].nodes) {
+		for (auto const node_index : glTFModel.scenes[0].nodes) {
 			const tinygltf::Node& node = glTFModel.nodes[node_index];
 
 			if (node.mesh > -1) {
-				RenderObject renderobject;
-				renderobject.mesh = loaded_meshes[node.mesh];
+				RenderObject render_object;
+				render_object.mesh = loaded_meshes[node.mesh];
 				if (node.translation.size() == 3) {
-					renderobject.transformMatrix = glm::translate(renderobject.transformMatrix, glm::vec3(glm::make_vec3(node.translation.data())));
+					render_object.transformMatrix = glm::translate(render_object.transformMatrix, glm::vec3(glm::make_vec3(node.translation.data())));
 				}
 				if (node.rotation.size() == 4) {
 					glm::quat q = glm::make_quat(node.rotation.data());
-					renderobject.transformMatrix *= glm::mat4(q);
+					render_object.transformMatrix *= glm::mat4(q);
 				}
 				if (node.scale.size() == 3) {
-					renderobject.transformMatrix = glm::scale(renderobject.transformMatrix, glm::vec3(glm::make_vec3(node.scale.data())));
+					render_object.transformMatrix = glm::scale(render_object.transformMatrix, glm::vec3(glm::make_vec3(node.scale.data())));
 				}
 				if (node.matrix.size() == 16) {
-					renderobject.transformMatrix = glm::make_mat4x4(node.matrix.data());
+					render_object.transformMatrix = glm::make_mat4x4(node.matrix.data());
 				};
-				renderables.emplace_back(std::move(renderobject));
+				renderables.emplace_back(std::move(render_object));
 			}
 		}
 	}
@@ -677,28 +683,28 @@ void VulkanEngine::parse_material_info() {
 		envMat->textureArrayIndex.emplace("cubemap", loaded_cubemap_textures.size());
 		envMat->paras.baseColorTextureID = loaded_cubemap_textures.size();
 		loaded_cubemap_textures.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["filePaths"].get<std::vector<std::string>>()));
-		for (auto& mat : loaded_materials) {
+		for (auto const& mat : loaded_materials) {
 			mat->paras.irradianceMapId = loaded_cubemap_textures.size();
 		}
 		loaded_cubemap_textures.emplace_back(engine::Texture::loadCubemapTexture(this, envMaterialInfoJson["irradianceMapPaths"].get<std::vector<std::string>>()));
 
-		for (auto& mat : loaded_materials) {
+		for (auto const& mat : loaded_materials) {
 			mat->paras.prefilteredMapId = loaded_cubemap_textures.size();
 		}
 		loaded_cubemap_textures.emplace_back(engine::Texture::loadPrefilteredMapTexture(this, envMaterialInfoJson["prefilteredMapPaths"].get<std::vector<std::vector<std::string>>>()));
 
-		for (auto& mat : loaded_materials) {
+		for (auto const& mat : loaded_materials) {
 			mat->paras.brdfLUTId = loaded_2d_textures.size();
 		}
 		loaded_2d_textures.emplace_back(engine::Texture::load2DTexture(this, envMaterialInfoJson["BRDF_2D_LUT"].get<std::string>(), false));
 	}
 
-	for (auto& mat : loaded_materials) {
+	for (auto const& mat : loaded_materials) {
 		mat->paras.texture2DArraySize = loaded_2d_textures.size();
 	}
 
-	for (auto& [name, mat] : materials) {
-		std::visit([this](auto& obj) {
+	for (auto& mat : materials | std::views::values) {
+		std::visit([&](auto& obj) {
 			if constexpr (!std::same_as<MaterialPtr, std::decay_t<decltype(obj)>>) {
 				obj->paras.textureCubemapArraySize = loaded_cubemap_textures.size();
 			}
@@ -714,14 +720,33 @@ void VulkanEngine::parse_material_info() {
 
 void VulkanEngine::create_descriptor_set_layouts() {
 
-	auto const cam_ubo_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT, 0);
-	auto const texture_2d_array_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 1, loaded_2d_textures.size());
-	auto const cubemap_array_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, VK_SHADER_STAGE_FRAGMENT_BIT, 2, loaded_cubemap_textures.size());
+	auto const cam_ubo_layout_binding = vkinit::descriptorSetLayoutBinding(
+		VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
+		0);
+
+	auto const texture_2d_array_layout_binding = vkinit::descriptorSetLayoutBinding(
+		VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		VK_SHADER_STAGE_FRAGMENT_BIT,
+		1,
+		loaded_2d_textures.size());
+
+	auto const cubemap_array_layout_binding = vkinit::descriptorSetLayoutBinding(
+		VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+		VK_SHADER_STAGE_FRAGMENT_BIT,
+		2,
+		loaded_cubemap_textures.size());
+
+	auto const material_preview_layout_binding = vkinit::descriptorSetLayoutBinding(
+		VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+		VK_SHADER_STAGE_FRAGMENT_BIT,
+		3);
 
 	std::array scene_bindings{
 		cam_ubo_layout_binding,
 		texture_2d_array_layout_binding,
-		cubemap_array_layout_binding
+		cubemap_array_layout_binding,
+		material_preview_layout_binding
 	};
 
 	create_descriptor_set_layout(scene_bindings, scene_set_layout);
@@ -982,7 +1007,7 @@ void VulkanEngine::create_viewport_cmd_buffers() {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
-	main_deletion_queue.push_function([=]() {
+	main_deletion_queue.push_function([&]() {
 		vkFreeCommandBuffers(device, commandPool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()), viewport_3d.cmd_buffers.data());
 		});
 }
@@ -1014,7 +1039,6 @@ VkFormat VulkanEngine::find_depth_format() {
 bool VulkanEngine::hasStencilComponent(VkFormat format) {
 	return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
-
 
 VkSampleCountFlagBits VulkanEngine::getMaxUsableSampleCount() {
 	VkPhysicalDeviceProperties physicalDeviceProperties;
@@ -1197,9 +1221,9 @@ void VulkanEngine::create_descriptor_sets() {
 
 void VulkanEngine::create_command_buffers() {
 	viewport_3d.cmd_buffers.resize(swapchain_image_count);
-	VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)viewport_3d.cmd_buffers.size());
+	const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)viewport_3d.cmd_buffers.size());
 
-	if (vkAllocateCommandBuffers(device, &cmdAllocInfo, viewport_3d.cmd_buffers.data()) != VK_SUCCESS) {
+	if (vkAllocateCommandBuffers(device, &cmd_alloc_info, viewport_3d.cmd_buffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
@@ -1211,20 +1235,21 @@ void VulkanEngine::create_command_buffers() {
 void VulkanEngine::record_viewport_cmd_buffer(const int command_buffer_index) {
 	auto const i = command_buffer_index;
 
-	VkCommandBufferBeginInfo beginInfo{};
-	beginInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO;
+	VkCommandBufferBeginInfo beginInfo{
+		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+	};
 
 	if (vkBeginCommandBuffer(viewport_3d.cmd_buffers[i], &beginInfo) != VK_SUCCESS) {
 		throw std::runtime_error("failed to begin recording command buffer!");
 	}
 
-	VkExtent2D viewport_extent{ static_cast<uint32_t>(viewport_3d.width), static_cast<uint32_t>(viewport_3d.height) };
+	const VkExtent2D viewport_extent{ static_cast<uint32_t>(viewport_3d.width), static_cast<uint32_t>(viewport_3d.height) };
 
-	VkRenderPassBeginInfo renderPassInfo = vkinit::renderPassBeginInfo(viewport_3d.render_pass, viewport_extent, viewport_3d.framebuffers[i]);
+	const VkRenderPassBeginInfo render_pass_info = vkinit::renderPassBeginInfo(viewport_3d.render_pass, viewport_extent, viewport_3d.framebuffers[i]);
 
-	vkCmdBeginRenderPass(viewport_3d.cmd_buffers[i], &renderPassInfo, VK_SUBPASS_CONTENTS_INLINE);
+	vkCmdBeginRenderPass(viewport_3d.cmd_buffers[i], &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
-	VkViewport viewport{
+	const VkViewport viewport{
 		.x = 0.0f,
 		.y = viewport_3d.height,
 		.width = viewport_3d.width,
@@ -1233,7 +1258,7 @@ void VulkanEngine::record_viewport_cmd_buffer(const int command_buffer_index) {
 		.maxDepth = 1.0f,
 	};
 
-	VkRect2D scissor{
+	const VkRect2D scissor{
 		.offset = { 0, 0 },
 		.extent = viewport_extent,
 	};
@@ -1241,37 +1266,37 @@ void VulkanEngine::record_viewport_cmd_buffer(const int command_buffer_index) {
 	vkCmdSetViewport(viewport_3d.cmd_buffers[i], 0, 1, &viewport);
 	vkCmdSetScissor(viewport_3d.cmd_buffers[i], 0, 1, &scissor);
 
-	MeshPtr lastMesh = nullptr;
-	MaterialPtrV lastMaterial;
+	MeshPtr last_mesh = nullptr;
+	MaterialPtrV last_material;
 
 	auto cmd = viewport_3d.cmd_buffers[i];
 
 	for (int k = 0; k < renderables.size(); k++)
 	{
-		RenderObject& object = renderables[k];
+		auto mesh = renderables[k].mesh;
 
 		vkCmdBindDescriptorSets(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, envPipelineLayout, 0, 1, &scene_descriptor_sets[i], 0, nullptr);
 
 		//only bind the pipeline if it doesn't match with the already bound one
 
 		//only bind the mesh if its a different one from last bind
-		if (object.mesh != lastMesh) {
-			if (object.mesh->pMaterial != lastMaterial) {
+		if (mesh != last_mesh) {
+			if (mesh->pMaterial != last_material) {
 				std::visit([&](auto p_material) {
 					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, p_material->pipeline);
-					}, object.mesh->pMaterial);
-				lastMaterial = object.mesh->pMaterial;
+					}, mesh->pMaterial);
+				last_material = mesh->pMaterial;
 			}
 			//bind the mesh vertex buffer with offset 0
-			VkBuffer vertexBuffers{ object.mesh->pVertexBuffer->buffer };
+			VkBuffer vertexBuffers{ mesh->pVertexBuffer->buffer };
 			VkDeviceSize offsets{ 0 };
 			vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffers, &offsets);
 
-			vkCmdBindIndexBuffer(cmd, object.mesh->pIndexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
-			lastMesh = object.mesh;
+			vkCmdBindIndexBuffer(cmd, mesh->pIndexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+			last_mesh = mesh;
 		}
 		//we can now draw
-		vkCmdDrawIndexed(cmd, static_cast<uint32_t>(object.mesh->_indices.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(cmd, static_cast<uint32_t>(mesh->_indices.size()), 1, 0, 0, 0);
 	}
 
 	vkCmdEndRenderPass(viewport_3d.cmd_buffers[i]);
@@ -1295,10 +1320,26 @@ void VulkanEngine::load_obj() {
 	};
 	material->pShaders = engine::Shader::createFromSpv(this, spv_file_paths);
 
-	std::array tex_layout_bindings = {
-		vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
-	};
-	create_descriptor_set_layout(tex_layout_bindings, material_preview_set_layout);
+	std::apply([this](auto&&... args) {
+		((args = Texture::create_device_texture(this,
+			TEXTURE_WIDTH,
+			TEXTURE_HEIGHT,
+			VK_FORMAT_R8G8B8A8_UNORM,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)), ...);
+		}, class_field_to_tuple(pbr_material_texture_set));
+	bool oo = 0;
+
+	//std::apply([&](auto&... x) { (ar(x), ...); }, class_field_to_tuple(pbr_material_texture_set));
+	//pbr_material_texture_set = PbrMaterialTextureSet{
+	//	.base_color = Texture::create_device_texture(this,
+	//		TEXTURE_WIDTH,
+	//		TEXTURE_HEIGHT,
+	//		VK_FORMAT_R8G8B8A8_UNORM,
+	//		VK_IMAGE_ASPECT_COLOR_BIT,
+	//		VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT),
+	//	
+	//};
 }
 
 void VulkanEngine::create_sync_objects() {

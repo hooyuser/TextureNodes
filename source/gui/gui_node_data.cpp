@@ -1,7 +1,7 @@
 #include "gui_node_data.h"
 #include "../vk_util.h"
 
-constexpr uint32_t TEXTURE_WIDTH = 256;
+constexpr uint32_t RAMP_TEXTURE_SIZE = 256;
 
 RampTexture::RampTexture(VulkanEngine* engine) :
 	engine(engine),
@@ -10,14 +10,14 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 		engine->physicalDevice,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-		TEXTURE_WIDTH * 4 * sizeof(float))) {
+		RAMP_TEXTURE_SIZE * 4 * sizeof(float))) {
 
 	const VkImageCreateInfo imageInfo{
 		.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
 		.imageType = VK_IMAGE_TYPE_1D,
 		.format = VK_FORMAT_R32G32B32A32_SFLOAT,//VK_FORMAT_R8G8B8A8_UNORM, //VK_FORMAT_R32G32B32A32_SFLOAT,
 		.extent = {
-			.width = TEXTURE_WIDTH,
+			.width = RAMP_TEXTURE_SIZE,
 			.height = 1,
 			.depth = 1,
 		},
@@ -193,7 +193,7 @@ void RampTexture::create_command_buffer() {
 		},
 		.imageOffset = { 0, 0, 0 },
 		.imageExtent = {
-			TEXTURE_WIDTH,
+			RAMP_TEXTURE_SIZE,
 			1,
 			1
 		}

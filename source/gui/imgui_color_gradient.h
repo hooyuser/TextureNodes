@@ -61,21 +61,22 @@ NLOHMANN_DEFINE_TYPE_NON_INTRUSIVE(ImGradientMark, color, position)
 
 class ImGradient {
 public:
+    //ImGradient() = default;
     ImGradient(float* lookup);
     ~ImGradient();
     
     void getColorAt(float position, float* color) const;
-    void insert_mark(float position, ImColor const color);
-    void addMark(float position, ImColor const color);
+    void insert_mark(float position, ImColor color);
+    void addMark(float position, ImColor color);
     void removeMark(ImGradientMark* mark);
-    inline void clear_marks() {
+    void clear_marks() {
         for (ImGradientMark* mark : m_marks) {
             delete mark;
         }
         m_marks.clear();
     }
     void refreshCache();
-    inline std::list<ImGradientMark*> & getMarks(){ return m_marks; }
+    std::list<ImGradientMark*> & getMarks(){ return m_marks; }
 
 private:
     float* m_cachedValues;  //float[256 * 4] m_cachedValues;

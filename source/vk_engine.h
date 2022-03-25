@@ -1,17 +1,17 @@
 #pragma once
 #include "vk_types.h"
-//#include "gui/gui_node_texture_manager.h"
-
-// #define GLFW_INCLUDE_VULKAN
-
+#include "util/util.h"
 #include <iostream>
-#include <stdexcept>
 #include <vector>
 #include <cstdint>
 #include <deque>
 #include <variant>
 #include <span>
+#include <ranges>
 #include <unordered_map>
+
+constexpr inline uint32_t TEXTURE_WIDTH = 1024;
+constexpr inline uint32_t TEXTURE_HEIGHT = 1024;
 
 struct FrameData {
 	VkFence inFlightFence;
@@ -19,20 +19,18 @@ struct FrameData {
 	VkSemaphore renderFinishedSemaphore;
 };
 
-struct DeletionQueue
-{
+struct DeletionQueue {
 	std::deque<std::function<void()>> deletors;
 
-	void push_function(std::function<void()>&& function) {
-		deletors.emplace_back(function);
+	void push_function(auto&& function) noexcept {
+		deletors.emplace_back(FWD(function));
 	}
 
 	void flush() {
 		// reverse iterate the deletion queue to execute all the functions
-		for (auto it = deletors.rbegin(); it != deletors.rend(); it++) {
-			(*it)(); //call the function
+		for (auto const& func : deletors | std::views::reverse) {
+			func(); //call the function
 		}
-
 		deletors.clear();
 	}
 };
@@ -54,7 +52,7 @@ namespace engine {
 
 	struct Empty_Type;
 	template <typename ParaT> class Material;
-	
+
 	using PbrMaterial = Material<Pbr>;
 	using HDRiMaterial = Material<HDRi>;
 	using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
@@ -85,6 +83,13 @@ struct ViewportUI {
 struct RenderObject {
 	MeshPtr mesh;
 	glm::mat4 transformMatrix;
+};
+
+struct PbrMaterialTextureSet {
+	TexturePtr base_color;
+	TexturePtr metalness;
+	TexturePtr roughness;
+	TexturePtr normal;
 };
 
 class VulkanEngine {
@@ -126,7 +131,6 @@ public:
 
 	VkRenderPass renderPass;
 	VkDescriptorSetLayout scene_set_layout;
-	VkDescriptorSetLayout material_preview_set_layout;
 	VkPipelineLayout meshPipelineLayout;
 	VkPipelineLayout envPipelineLayout;
 	VkPipeline envPipeline;
@@ -146,8 +150,12 @@ public:
 	VkDescriptorPool descriptorPool;
 	std::vector<VkDescriptorSet> scene_descriptor_sets;
 
+	VkDescriptorSet material_preview_descriptor_set;
+
+	PbrMaterialTextureSet pbr_material_texture_set;
+
 	VkCommandPool commandPool;
-	
+
 	std::vector<VkFence> imagesInFlight;
 	std::vector<FrameData> frame_data;
 	size_t current_frame = 0;

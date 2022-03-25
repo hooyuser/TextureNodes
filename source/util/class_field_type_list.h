@@ -1,6 +1,24 @@
 #pragma once
 #include <tuple>
 
+template <size_t I>
+struct any_type {
+	template <class T>
+	constexpr operator T() const noexcept;
+};
+template <class S, size_t... Is>
+constexpr size_t detect_fields_count(std::index_sequence<Is...>) noexcept {
+	if constexpr (!requires { S{ std::declval<any_type<Is>>()... }; }) {
+		return sizeof...(Is) - 1;
+	}
+	else {
+		return detect_fields_count<S>(std::make_index_sequence<sizeof...(Is) + 1>{});
+	}
+}
+
+template <class S>
+constexpr size_t counter_member_v = detect_fields_count<std::decay_t<S>>(std::make_index_sequence<1>{});
+
 #define MACRO_BUILD0(x)
 #define MACRO_BUILD1(x)  MACRO_BUILD0(x)   x(1)
 #define MACRO_BUILD2(x)  MACRO_BUILD1(x) , x(2)
@@ -87,7 +105,7 @@
 #define MACRO_ACC_FIELD(N) MACRO_BUILD(MACRO_FIELD, N)
 
 #define MACRO_STRUCTURE_BINDING(...) __VA_OPT__(auto&& [__VA_ARGS__] = s;)
-#define MACRO_TIE(...) return std::tie(__VA_ARGS__);
+#define MACRO_TIE(...) return std::forward_as_tuple(__VA_ARGS__);
 
 #define MACRO_IF_FIELD_COUNT(N) if constexpr (count == N) {\
     MACRO_STRUCTURE_BINDING(MACRO_ACC_FIELD(N))\
@@ -96,9 +114,9 @@
 #define MACRO_ELSE_IF_FIELD_COUNT(N) else MACRO_IF_FIELD_COUNT(N)
 
 
-template <class S>
-constexpr auto class_field_to_tuple(S&& s) noexcept {
-	constexpr auto count = std::decay_t<S>::Class::TotalFields;
+template <class T>
+constexpr auto class_field_to_tuple(T&& s) noexcept {
+	constexpr auto count = counter_member_v<T>;
 	MACRO_IF_FIELD_COUNT(79)
 		MACRO_ELSE_IF_FIELD_COUNT(78)
 		MACRO_ELSE_IF_FIELD_COUNT(77)
@@ -181,5 +199,5 @@ constexpr auto class_field_to_tuple(S&& s) noexcept {
 		MACRO_ELSE_IF_FIELD_COUNT(0)
 }
 
-template<typename Class>
-using FieldTypeTuple = decltype(class_field_to_tuple(std::declval<Class>()));
+template<typename Class> requires std::is_aggregate_v<Class>
+using FieldTypeTuple = std::decay_t<decltype(class_field_to_tuple(std::declval<Class>()))>;

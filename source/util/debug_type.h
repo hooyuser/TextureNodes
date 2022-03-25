@@ -1,29 +1,50 @@
-#pragma once
+#include <string_view>
 
-#include <string>
-#include <cstdlib>
-#if defined(__GNUC__) || defined(__clang__)
-#include <cxxabi.h>
-#endif
+template <typename T> constexpr std::string_view type_name();
 
-template <class T>
-std::string cpp_type_name() {
-    const char* name = typeid(T).name();
-#if defined(__GNUC__) || defined(__clang__)
-    int status;
-    char* p = abi::__cxa_demangle(name, 0, 0, &status);
-    std::string s = p;
-    std::free(p);
-#else
-    std::string s = name;
-#endif
-    if (std::is_const_v<std::remove_reference_t<T>>)
-        s += " const";
-    if (std::is_volatile_v<std::remove_reference_t<T>>)
-        s += " volatile";
-    if (std::is_lvalue_reference_v<T>)
-        s += " &";
-    if (std::is_rvalue_reference_v<T>)
-        s += " &&";
-    return s;
+template <>
+constexpr std::string_view type_name<void>()
+{
+    return "void";
 }
+
+namespace detail {
+
+    using type_name_prober = void;
+
+    template <typename T>
+    constexpr std::string_view wrapped_type_name()
+    {
+#ifdef __clang__
+        return __PRETTY_FUNCTION__;
+#elif defined(__GNUC__)
+        return __PRETTY_FUNCTION__;
+#elif defined(_MSC_VER)
+        return __FUNCSIG__;
+#else
+#error "Unsupported compiler"
+#endif
+    }
+
+    constexpr std::size_t wrapped_type_name_prefix_length() {
+        return wrapped_type_name<type_name_prober>().find(type_name<type_name_prober>());
+    }
+
+    constexpr std::size_t wrapped_type_name_suffix_length() {
+        return wrapped_type_name<type_name_prober>().length()
+            - wrapped_type_name_prefix_length()
+            - type_name<type_name_prober>().length();
+    }
+
+} // namespace detail
+
+template <typename T>
+constexpr std::string_view type_name() {
+    constexpr auto wrapped_name = detail::wrapped_type_name<T>();
+    constexpr auto prefix_length = detail::wrapped_type_name_prefix_length();
+    constexpr auto suffix_length = detail::wrapped_type_name_suffix_length();
+    constexpr auto type_name_length = wrapped_name.length() - prefix_length - suffix_length;
+    return wrapped_name.substr(prefix_length, type_name_length);
+}
+template <class T>
+constexpr inline std::string_view cpp_type_name = type_name<T>();

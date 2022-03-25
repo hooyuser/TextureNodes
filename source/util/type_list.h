@@ -44,7 +44,7 @@ struct TypeList {
 
 	//Member types
 	template <typename TypeSetFrom>
-	using from = decltype(convert_type_list_to(std::declval<std::remove_reference_t<TypeSetFrom>>(), std::declval<TypeList<>>()));
+	using from = decltype(convert_type_list_to(std::declval<std::decay_t<TypeSetFrom>>(), std::declval<TypeList<>>()));
 
 	template<template<typename...> class TypeSetTo>
 	using cast_to = TypeSetTo<Ts...>;

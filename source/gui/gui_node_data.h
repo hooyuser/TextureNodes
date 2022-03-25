@@ -126,19 +126,37 @@ struct ColorRampData : public NodeData {
 	ImGradientMark* draggingMark = nullptr;
 	ImGradientMark* selectedMark = nullptr;
 
-	ColorRampData() {}
-	explicit ColorRampData(VulkanEngine* engine) {
+	ColorRampData() {
+		ui_value = nullptr;
+		ubo_value = nullptr;
+	}
+	ColorRampData(VulkanEngine* engine) {
 		ubo_value = std::make_unique<RampTexture>(engine);
 		value = ubo_value->color_ramp_texture_id;
 		ui_value = std::make_unique<ImGradient>(static_cast<float*>(ubo_value->staging_buffer.mapped_buffer));
 	}
-	//inline ColorRampData(ColorRampData&&ramp_data) noexcept :ui_value(std::move(ramp_data.ui_value)), ubo_value(std::move(ramp_data.ubo_value)){}
-	//inline ColorRampData& operator=(ColorRampData&& ramp_data) noexcept {
-	//	ui_value = std::move(ramp_data.ui_value);
-	//	ubo_value = std::move(ramp_d
-	// ata.ubo_value);
-	//	return *this;
-	//}
+
+	//ColorRampData(const ColorRampData& ramp_data) =default;
+
+	/*ColorRampData(ColorRampData&&ramp_data) noexcept :
+		value(ramp_data.value),
+		ui_value(std::move(ramp_data.ui_value)),
+		ubo_value(std::move(ramp_data.ubo_value)),
+		draggingMark(ramp_data.draggingMark),
+		selectedMark(ramp_data.selectedMark)
+	{}
+
+	ColorRampData& operator=(ColorRampData&& ramp_data) noexcept {
+		ui_value = std::move(ramp_data.ui_value);
+		ubo_value = std::move(ramp_data.ubo_value);
+		value = ramp_data.value;
+		draggingMark = ramp_data.draggingMark;
+		selectedMark = ramp_data.selectedMark;
+		return *this;
+	}
+	ColorRampData& operator=(const ColorRampData& ramp_data) = default;*/
+
+	//~ColorRampData() {}
 };
 
 inline void to_json(json& j, const ColorRampData& p) {

@@ -14,7 +14,7 @@ layout(set = 0, binding = 0) uniform CameraUniformBufferObject {
 layout(set = 0, binding = 1) uniform sampler2D textureArray[];
 layout(set = 0, binding = 2) uniform samplerCube cubemapArray[];
 
-layout(set = 1, binding = 0) uniform UniformBufferObject {
+layout(set = 0, binding = 3) uniform UniformBufferObject {
     vec4 base_color;
     int base_color_texture_id;
     float metalness;
