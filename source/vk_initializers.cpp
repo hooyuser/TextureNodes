@@ -4,7 +4,7 @@
 
 
 VkCommandPoolCreateInfo vkinit::commandPoolCreateInfo(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags /*= 0*/) {
-	VkCommandPoolCreateInfo commandPoolInfo = { 
+	VkCommandPoolCreateInfo commandPoolInfo = {
 		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 		.pNext = nullptr,
 		.flags = flags,
@@ -122,27 +122,25 @@ VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPo
 	return rasterizerInfo;
 }
 
-VkPipelineMultisampleStateCreateInfo vkinit::multisamplingStateCreateInfo(VkSampleCountFlagBits msaaSamples) {
-	return  {
+VkPipelineMultisampleStateCreateInfo vkinit::multisampling_state_create_info(VkSampleCountFlagBits msaa_samples) {
+	return {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO ,
 		.pNext = nullptr,
-		.rasterizationSamples = msaaSamples,
+		.rasterizationSamples = msaa_samples,
 		.sampleShadingEnable = VK_TRUE,
 		.minSampleShading = 0.2f,
 		.pSampleMask = nullptr,
 		.alphaToCoverageEnable = VK_FALSE,
 		.alphaToOneEnable = VK_FALSE
 	};
-
 }
 
-VkPipelineColorBlendAttachmentState vkinit::colorBlendAttachmentState() {
-	VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
-
-	colorBlendAttachment.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
-		VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT;
-	colorBlendAttachment.blendEnable = VK_FALSE;
-	return colorBlendAttachment;
+VkPipelineColorBlendAttachmentState vkinit::color_blend_attachment_state() {
+	return {
+		.blendEnable = VK_FALSE,
+		.colorWriteMask = VK_COLOR_COMPONENT_R_BIT | VK_COLOR_COMPONENT_G_BIT |
+		VK_COLOR_COMPONENT_B_BIT | VK_COLOR_COMPONENT_A_BIT,
+	};
 }
 
 VkPipelineColorBlendStateCreateInfo vkinit::colorBlendAttachmentCreateInfo(VkPipelineColorBlendAttachmentState& colorBlendAttachment, uint32_t attachment_count) {

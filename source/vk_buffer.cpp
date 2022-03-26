@@ -5,11 +5,11 @@
 
 
 namespace vk_base {
-	Buffer::Buffer(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, VkDeviceSize size) : device(device), size(size) {
+	Buffer::Buffer(VkDevice device, VkPhysicalDevice physical_device, VkBufferUsageFlags buffer_usage, VkMemoryPropertyFlags memory_properties, VkDeviceSize size) : device(device), size(size) {
 		const VkBufferCreateInfo buffer_info{
 			.sType = VK_STRUCTURE_TYPE_BUFFER_CREATE_INFO,
 			.size = size,
-			.usage = bufferUsage,
+			.usage = buffer_usage,
 			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		};
 
@@ -23,7 +23,7 @@ namespace vk_base {
 		const VkMemoryAllocateInfo allocate_info{
 			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 			.allocationSize = memory_requirements.size,
-			.memoryTypeIndex = find_memory_type(physicalDevice, memory_requirements.memoryTypeBits, memoryProperties),
+			.memoryTypeIndex = find_memory_type(physical_device, memory_requirements.memoryTypeBits, memory_properties),
 		};
 
 		if (vkAllocateMemory(device, &allocate_info, nullptr, &memory) != VK_SUCCESS) {
@@ -32,10 +32,9 @@ namespace vk_base {
 
 		vkBindBufferMemory(device, buffer, memory, 0);
 
-		if (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT & memoryProperties) {
+		if (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT & memory_properties) {
 			vkMapMemory(device, memory, 0, size, 0, &mapped_buffer);
 		}
-
 	}
 
 	Buffer::~Buffer() {

@@ -11,16 +11,14 @@
 #include <stdexcept>
 #include <iostream>
 
-namespace std {
-	template<>
-	struct hash<Vertex> {
-		size_t operator()(Vertex const& vertex) const noexcept {
-			return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
-		}
-	};
-}
+template<>
+struct std::hash<Vertex> {
+	size_t operator()(Vertex const& vertex) const noexcept {
+		return ((hash<glm::vec3>()(vertex.pos) ^ (hash<glm::vec3>()(vertex.normal) << 1)) >> 1) ^ (hash<glm::vec2>()(vertex.texCoord) << 1);
+	}
+};
 
-std::vector<VkVertexInputBindingDescription> Vertex::getBindingDescriptions() {
+std::vector<VkVertexInputBindingDescription> Vertex::get_binding_descriptions() {
 	constexpr VkVertexInputBindingDescription binding_description{
 		.binding = 0,
 		.stride = sizeof(Vertex),
@@ -30,7 +28,7 @@ std::vector<VkVertexInputBindingDescription> Vertex::getBindingDescriptions() {
 	return { binding_description };
 }
 
-std::vector<VkVertexInputAttributeDescription> Vertex::getAttributeDescriptions() {
+std::vector<VkVertexInputAttributeDescription> Vertex::get_attribute_descriptions() {
 
 	constexpr VkVertexInputAttributeDescription pos_attribute_description{
 		.location = 0,
@@ -75,35 +73,33 @@ namespace engine {
 			throw std::runtime_error(warn + err);
 		}
 
-		std::unordered_map<Vertex, uint32_t> uniqueVertices{};
+		std::unordered_map<Vertex, uint32_t> unique_vertices{};
 
 		for (const auto& shape : shapes) {
-			for (const auto& index : shape.mesh.indices) {
-				Vertex vertex{};
-
-				vertex.pos = {
-					attrib.vertices[3 * index.vertex_index + 0],
-					attrib.vertices[3 * index.vertex_index + 1],
-					attrib.vertices[3 * index.vertex_index + 2]
+			for (const auto& [vertex_index, normal_index, texcoord_index] : shape.mesh.indices) {
+				Vertex vertex{
+					.pos = {
+						attrib.vertices[3 * vertex_index + 0],
+						attrib.vertices[3 * vertex_index + 1],
+						attrib.vertices[3 * vertex_index + 2]
+					},
+					.normal = {
+						attrib.normals[3 * normal_index + 0],
+						attrib.normals[3 * normal_index + 1],
+						attrib.normals[3 * normal_index + 2]
+					},
+					.texCoord = {
+						attrib.texcoords[2 * texcoord_index + 0],
+						1.0f - attrib.texcoords[2 * texcoord_index + 1]
+					}
 				};
 
-				vertex.normal = {
-					attrib.normals[3 * index.normal_index + 0],
-					attrib.normals[3 * index.normal_index + 1],
-					attrib.normals[3 * index.normal_index + 2]
-				};
-
-				vertex.texCoord = {
-					attrib.texcoords[2 * index.texcoord_index + 0],
-					1.0f - attrib.texcoords[2 * index.texcoord_index + 1]
-				};
-
-				if (uniqueVertices.count(vertex) == 0) {
-					uniqueVertices[vertex] = static_cast<uint32_t>(mesh->_vertices.size());
+				if (!unique_vertices.contains(vertex)) {
+					unique_vertices[vertex] = static_cast<uint32_t>(mesh->_vertices.size());
 					mesh->_vertices.emplace_back(vertex);
 				}
 
-				mesh->_indices.emplace_back(uniqueVertices[vertex]);
+				mesh->_indices.emplace_back(unique_vertices[vertex]);
 			}
 		}
 
@@ -125,21 +121,21 @@ namespace engine {
 				size_t vertexCount = 0;
 
 				// Get buffer data for vertex normals
-				if (glTFPrimitive.attributes.find("POSITION") != glTFPrimitive.attributes.end()) {
+				if (glTFPrimitive.attributes.contains("POSITION")) {
 					const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("POSITION")->second];
 					const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
 					positionBuffer = reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 					vertexCount = accessor.count;
 				}
 				// Get buffer data for vertex normals
-				if (glTFPrimitive.attributes.find("NORMAL") != glTFPrimitive.attributes.end()) {
+				if (glTFPrimitive.attributes.contains("NORMAL")) {
 					const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("NORMAL")->second];
 					const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
 					normalsBuffer = reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
 				}
 				// Get buffer data for vertex texture coordinates
 				// glTF supports multiple sets, we only load the first one
-				if (glTFPrimitive.attributes.find("TEXCOORD_0") != glTFPrimitive.attributes.end()) {
+				if (glTFPrimitive.attributes.contains("TEXCOORD_0")) {
 					const tinygltf::Accessor& accessor = model.accessors[glTFPrimitive.attributes.find("TEXCOORD_0")->second];
 					const tinygltf::BufferView& view = model.bufferViews[accessor.bufferView];
 					texCoordsBuffer = reinterpret_cast<const float*>(&(model.buffers[view.buffer].data[accessor.byteOffset + view.byteOffset]));
@@ -151,7 +147,7 @@ namespace engine {
 					vertex.pos = glm::make_vec3(&positionBuffer[v * 3]);
 					vertex.normal = glm::normalize(glm::vec3(normalsBuffer ? glm::make_vec3(&normalsBuffer[v * 3]) : glm::vec3(0.0f)));
 					vertex.texCoord = texCoordsBuffer ? glm::make_vec2(&texCoordsBuffer[v * 2]) : glm::vec3(0.0f);
-					mesh->_vertices.push_back(vertex);
+					mesh->_vertices.emplace_back(vertex);
 				}
 			}
 			// Indices
@@ -169,7 +165,7 @@ namespace engine {
 					auto* buf = new uint32_t[accessor.count];
 					memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint32_t));
 					for (size_t index = 0; index < accessor.count; index++) {
-						mesh->_indices.push_back(buf[index] + vertex_start);
+						mesh->_indices.emplace_back(buf[index] + vertex_start);
 					}
 					break;
 				}
@@ -177,7 +173,7 @@ namespace engine {
 					auto* buf = new uint16_t[accessor.count];
 					memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint16_t));
 					for (size_t index = 0; index < accessor.count; index++) {
-						mesh->_indices.push_back(buf[index] + vertex_start);
+						mesh->_indices.emplace_back(buf[index] + vertex_start);
 					}
 					break;
 				}
@@ -185,7 +181,7 @@ namespace engine {
 					auto* buf = new uint8_t[accessor.count];
 					memcpy(buf, &buffer.data[accessor.byteOffset + buffer_view.byteOffset], accessor.count * sizeof(uint8_t));
 					for (size_t index = 0; index < accessor.count; index++) {
-						mesh->_indices.push_back(buf[index] + vertex_start);
+						mesh->_indices.emplace_back(buf[index] + vertex_start);
 					}
 					break;
 				}
@@ -194,14 +190,14 @@ namespace engine {
 					return mesh;
 				}
 			}
-			mesh->pMaterial = engine->loaded_materials[glTFPrimitive.material];  //Does not support different materials for different primitives 
+			mesh->material = engine->loaded_materials[glTFPrimitive.material];  //Does not support different materials for different primitives 
 		}
 		return mesh;
 	}
 
 
 	MeshPtr Mesh::load_from_obj(VulkanEngine* engine, const char* filename) {
-		auto mesh = Mesh::create_from_obj(filename);
+		auto mesh = create_from_obj(filename);
 
 		mesh->upload(engine);
 
@@ -209,7 +205,7 @@ namespace engine {
 	}
 
 	MeshPtr Mesh::load_from_gltf(VulkanEngine* engine, const tinygltf::Model& model, const tinygltf::Mesh& glTFMesh) {
-		auto mesh = Mesh::create_from_gltf(engine, model, glTFMesh);
+		auto mesh = create_from_gltf(engine, model, glTFMesh);
 
 		mesh->upload(engine);
 
@@ -219,38 +215,38 @@ namespace engine {
 	void Mesh::upload(VulkanEngine* engine) {
 		const VkDeviceSize vertex_buffer_size = sizeof(_vertices[0]) * _vertices.size();
 
-		auto const pStagingVertexBuffer = engine::Buffer::create_buffer(engine,
+		auto const staging_vertex_buffer = engine::Buffer::create_buffer(engine,
 			vertex_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			TEMP_BIT);
 
-		pStagingVertexBuffer->copy_from_host(_vertices.data());
+		staging_vertex_buffer->copy_from_host(_vertices.data());
 
-		pVertexBuffer = engine::Buffer::create_buffer(engine,
+		vertex_buffer = engine::Buffer::create_buffer(engine,
 			vertex_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT);
 
-		pVertexBuffer->copy_from_buffer(engine, pStagingVertexBuffer->buffer);
+		vertex_buffer->copy_from_buffer(engine, staging_vertex_buffer->buffer);
 
 		const VkDeviceSize index_buffer_size = sizeof(_indices[0]) * _indices.size();
 
-		auto pStagingIndexBuffer = engine::Buffer::create_buffer(engine,
+		auto const staging_index_buffer = engine::Buffer::create_buffer(engine,
 			index_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			TEMP_BIT);
 
-		pStagingIndexBuffer->copy_from_host(_indices.data());
+		staging_index_buffer->copy_from_host(_indices.data());
 
-		pIndexBuffer = engine::Buffer::create_buffer(engine,
+		index_buffer = engine::Buffer::create_buffer(engine,
 			index_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT);
 
-		pIndexBuffer->copy_from_buffer(engine, pStagingIndexBuffer->buffer);
+		index_buffer->copy_from_buffer(engine, staging_index_buffer->buffer);
 	}
 }

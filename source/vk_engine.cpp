@@ -1,15 +1,10 @@
 #include "vk_engine.h"
-#include "vk_initializers.h"
 #include "vk_shader.h"
 #include "vk_mesh.h"
-#include "vk_pipeline.h"
-#include "vk_image.h"
-#include "vk_buffer.h"
 #include "vk_camera.h"
 #include "vk_gui.h"
 #include "gui/gui_node_editor.h"
 #include "gui/ImGuiFileDialog.h"
-#include "util/class_field_type_list.h"
 
 #include <cstring>
 #include <array>
@@ -172,7 +167,6 @@ void VulkanEngine::main_loop() {
 			glfwPollEvents();
 			draw_frame();
 		}
-
 	}
 
 	vkDeviceWaitIdle(device);
@@ -721,7 +715,7 @@ void VulkanEngine::parse_material_info() {
 
 	RenderObject skyBoxObject;
 	skyBoxObject.mesh = Mesh::load_from_obj(this, "assets/obj_models/skybox.obj");
-	skyBoxObject.mesh->pMaterial = std::get<HDRiMaterialPtr>(materials["env_light"]);
+	skyBoxObject.mesh->material = std::get<HDRiMaterialPtr>(materials["env_light"]);
 	skyBoxObject.transform_matrix = glm::mat4{ 1.0f };
 	renderables.emplace_back(std::move(skyBoxObject));
 }
@@ -779,6 +773,7 @@ void VulkanEngine::create_descriptor_set_layout(std::span<VkDescriptorSetLayoutB
 void VulkanEngine::create_mesh_pipeline() {
 
 	PipelineBuilder pipeline_builder(this);
+	pipeline_builder.set_msaa(msaa_samples);
 
 	std::array mesh_descriptor_set_layouts = { scene_set_layout };
 
@@ -797,7 +792,7 @@ void VulkanEngine::create_mesh_pipeline() {
 
 		pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
-		pipeline_builder.buildPipeline(device, viewport_3d.render_pass, mesh_pipeline_layout, material->pipeline);
+		pipeline_builder.build_pipeline(device, viewport_3d.render_pass, mesh_pipeline_layout, material->pipeline);
 
 		main_deletion_queue.push_function([=]() {
 			vkDestroyPipeline(device, material->pipeline, nullptr);
@@ -809,6 +804,7 @@ void VulkanEngine::create_mesh_pipeline() {
 
 void VulkanEngine::create_env_light_pipeline() {
 	PipelineBuilder pipeline_builder(this);
+	pipeline_builder.set_msaa(msaa_samples);
 
 	pipeline_builder.setShaderStages(std::get<HDRiMaterialPtr>(materials["env_light"]));
 
@@ -822,7 +818,7 @@ void VulkanEngine::create_env_light_pipeline() {
 
 	pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS_OR_EQUAL);
 
-	pipeline_builder.buildPipeline(device, viewport_3d.render_pass, env_pipeline_layout, env_pipeline);
+	pipeline_builder.build_pipeline(device, viewport_3d.render_pass, env_pipeline_layout, env_pipeline);
 
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipelineLayout = env_pipeline_layout;
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipeline = env_pipeline;
@@ -852,31 +848,31 @@ void VulkanEngine::create_command_pool() {
 		});
 }
 
-void VulkanEngine::create_window_attachments() {
-	color_image = engine::Image::createImage(this,
-		swapchain_extent.width,
-		swapchain_extent.height,
-		1,
-		msaa_samples,
-		swapchain_image_format,
-		VK_IMAGE_TILING_OPTIMAL,
-		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		VK_IMAGE_ASPECT_COLOR_BIT,
-		SWAPCHAIN_DEPENDENT_BIT);
-
-	depth_image = engine::Image::createImage(this,
-		swapchain_extent.width,
-		swapchain_extent.height,
-		1,
-		msaa_samples,
-		find_depth_format(),
-		VK_IMAGE_TILING_OPTIMAL,
-		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
-		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-		VK_IMAGE_ASPECT_DEPTH_BIT,
-		SWAPCHAIN_DEPENDENT_BIT);
-}
+//void VulkanEngine::create_window_attachments() {
+//	color_image = engine::Image::createImage(this,
+//		swapchain_extent.width,
+//		swapchain_extent.height,
+//		1,
+//		msaa_samples,
+//		swapchain_image_format,
+//		VK_IMAGE_TILING_OPTIMAL,
+//		VK_IMAGE_USAGE_TRANSIENT_ATTACHMENT_BIT | VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT,
+//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+//		VK_IMAGE_ASPECT_COLOR_BIT,
+//		SWAPCHAIN_DEPENDENT_BIT);
+//
+//	depth_image = engine::Image::createImage(this,
+//		swapchain_extent.width,
+//		swapchain_extent.height,
+//		1,
+//		msaa_samples,
+//		find_depth_format(),
+//		VK_IMAGE_TILING_OPTIMAL,
+//		VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT,
+//		VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+//		VK_IMAGE_ASPECT_DEPTH_BIT,
+//		SWAPCHAIN_DEPENDENT_BIT);
+//}
 
 void VulkanEngine::create_viewport_attachments() {
 	auto const mode = glfwGetVideoMode(glfwGetPrimaryMonitor()); //get monitor resolution
@@ -951,7 +947,7 @@ void VulkanEngine::create_viewport_render_pass() {
 		.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
 		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 		.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		};
+	};
 
 	constexpr VkAttachmentReference color_attachment_resolve_ref{
 		.attachment = 2,
@@ -1067,7 +1063,7 @@ VkFormat VulkanEngine::find_supported_format(const std::vector<VkFormat>& candid
 	throw std::runtime_error("failed to find supported format!");
 }
 
-VkFormat VulkanEngine::find_depth_format() const{
+VkFormat VulkanEngine::find_depth_format() const {
 	return find_supported_format(
 		{ VK_FORMAT_D32_SFLOAT, VK_FORMAT_D32_SFLOAT_S8_UINT, VK_FORMAT_D24_UNORM_S8_UINT },
 		VK_IMAGE_TILING_OPTIMAL,
@@ -1079,7 +1075,7 @@ bool VulkanEngine::has_stencil_component(const VkFormat format) {
 	return format == VK_FORMAT_D32_SFLOAT_S8_UINT || format == VK_FORMAT_D24_UNORM_S8_UINT;
 }
 
-VkSampleCountFlagBits VulkanEngine::get_max_usable_sample_count() const{
+VkSampleCountFlagBits VulkanEngine::get_max_usable_sample_count() const {
 	VkPhysicalDeviceProperties physicalDeviceProperties;
 	vkGetPhysicalDeviceProperties(physical_device, &physicalDeviceProperties);
 
@@ -1342,18 +1338,18 @@ void VulkanEngine::record_viewport_cmd_buffer(const int command_buffer_index) {
 
 		//only bind the mesh if its a different one from last bind
 		if (mesh != last_mesh) {
-			if (mesh->pMaterial != last_material) {
+			if (mesh->material != last_material) {
 				std::visit([&](auto p_material) {
 					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, p_material->pipeline);
-					}, mesh->pMaterial);
-				last_material = mesh->pMaterial;
+					}, mesh->material);
+				last_material = mesh->material;
 			}
 			//bind the mesh vertex buffer with offset 0
-			VkBuffer vertexBuffers{ mesh->pVertexBuffer->buffer };
+			VkBuffer vertexBuffers{ mesh->vertex_buffer->buffer };
 			VkDeviceSize offsets{ 0 };
 			vkCmdBindVertexBuffers(cmd, 0, 1, &vertexBuffers, &offsets);
 
-			vkCmdBindIndexBuffer(cmd, mesh->pIndexBuffer->buffer, 0, VK_INDEX_TYPE_UINT32);
+			vkCmdBindIndexBuffer(cmd, mesh->index_buffer->buffer, 0, VK_INDEX_TYPE_UINT32);
 			last_mesh = mesh;
 		}
 		//we can now draw
@@ -1388,9 +1384,10 @@ void VulkanEngine::load_obj() {
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)), ...);
 		}, class_field_to_tuple(pbr_material_texture_set));
 
-	mesh->pMaterial = material;
+	mesh->material = material;
 
 	PipelineBuilder pipeline_builder(this);
+	pipeline_builder.set_msaa(msaa_samples);
 
 	std::array mesh_descriptor_set_layouts = { scene_set_layout };
 
@@ -1416,7 +1413,7 @@ void VulkanEngine::load_obj() {
 
 	pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
-	pipeline_builder.buildPipeline(device, viewport_3d.render_pass, material_preview_pipeline_layout, material->pipeline);
+	pipeline_builder.build_pipeline(device, viewport_3d.render_pass, material_preview_pipeline_layout, material->pipeline);
 
 	main_deletion_queue.push_function([=]() {
 		vkDestroyPipeline(device, material->pipeline, nullptr);
@@ -1429,7 +1426,7 @@ void VulkanEngine::load_obj() {
 	renderables.emplace_back(RenderObject{
 		.mesh = mesh,
 		.transform_matrix = glm::mat4{ 1.0f },
-	});
+		});
 }
 
 void VulkanEngine::create_sync_objects() {

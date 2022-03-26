@@ -251,7 +251,7 @@ public:
 
 	void record_viewport_cmd_buffer(int command_buffer_index);
 
-	void create_window_attachments();
+	//void create_window_attachments();
 
 	void load_gltf();
 

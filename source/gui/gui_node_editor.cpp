@@ -1,7 +1,6 @@
 #include "gui_node_editor.h"
 #include <imgui_internal.h>
 
-#include "../vk_initializers.h"
 #include "../vk_shader.h"
 #include <IconsFontAwesome5.h>
 #include <json.hpp>
@@ -632,30 +631,33 @@ namespace engine {
 					int end_pin_index = -1;
 
 					for (auto& node : nodes) {
-						for (size_t i = 0; i < node.outputs.size(); ++i) {
-							if (node.outputs[i].id == start_pin_id) {
-								start_pin = &node.outputs[i];
+						for (size_t i = 0; auto& output: node.outputs) {
+							if (output.id == start_pin_id) {
+								start_pin = &output;
 								start_pin_index = i;
 							}
-							if (node.outputs[i].id == end_pin_id) {
-								end_pin = &node.outputs[i];
+							if (output.id == end_pin_id) {
+								end_pin = &output;
 								end_pin_index = i;
 							}
+							++i;
 						}
-						for (size_t i = 0; i < node.inputs.size(); ++i) {
-							if (node.inputs[i].id == start_pin_id) {
-								start_pin = &node.inputs[i];
+						for (size_t i = 0; auto& input: node.inputs) {
+							if (input.id == start_pin_id) {
+								start_pin = &input;
 								start_pin_index = i;
 							}
-							if (node.inputs[i].id == end_pin_id) {
-								end_pin = &node.inputs[i];
+							if (input.id == end_pin_id) {
+								end_pin = &input;
 								end_pin_index = i;
 							}
+							++i;
 						}
 						if (start_pin_index >= 0 && end_pin_index >= 0) {
 							break;
 						}
 					}
+					assert(start_pin_index >= 0 && end_pin_index >= 0);
 
 					auto show_label = [](const char* label, const ImColor color) {
 						ImGui::SetCursorPosY(ImGui::GetCursorPosY() - ImGui::GetTextLineHeight());

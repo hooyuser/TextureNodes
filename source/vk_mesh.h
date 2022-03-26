@@ -1,6 +1,5 @@
 #pragma once
 
-#include "vk_types.h"
 #include "vk_buffer.h"
 #include "vk_material.h"
 #include <vector>
@@ -16,9 +15,9 @@ struct Vertex {
     glm::vec3 normal;
     glm::vec2 texCoord;
 
-    static std::vector<VkVertexInputBindingDescription> getBindingDescriptions();
+    static std::vector<VkVertexInputBindingDescription> get_binding_descriptions();
 
-    static std::vector<VkVertexInputAttributeDescription> getAttributeDescriptions();
+    static std::vector<VkVertexInputAttributeDescription> get_attribute_descriptions();
 
     bool operator==(const Vertex& other) const {
         return pos == other.pos && normal == other.normal && texCoord == other.texCoord;
@@ -32,9 +31,9 @@ namespace engine {
     public:
         std::vector<Vertex> _vertices;
         std::vector<uint32_t> _indices;
-        BufferPtr pVertexBuffer;
-        BufferPtr pIndexBuffer;
-        MaterialPtrV pMaterial;
+        BufferPtr vertex_buffer;
+        BufferPtr index_buffer;
+        MaterialPtrV material;
 
         static MeshPtr create_from_obj(const char* filename);
         static MeshPtr load_from_obj(VulkanEngine* engine, const char* filename);

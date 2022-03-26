@@ -22,18 +22,18 @@ private:
 
 public:
 	Camera() :
-		spherical_coord(SphericalCoord{}), fov(0.0f), aspect_ratio(1.0f), near_clip(0.1f), far_clip(10.0f), up(glm::vec3(0.0f, 1.0f, 0.0f)) {}
+		spherical_coord(SphericalCoord{}), up(glm::vec3(0.0f, 1.0f, 0.0f)), fov(0.0f), aspect_ratio(1.0f), near_clip(0.1f), far_clip(10.0f) {}
 
-	Camera(SphericalCoord spherical_coord, float fov, float aspect_ratio, float near_clip, float far_clip, glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f)) :
-		spherical_coord(spherical_coord), fov(fov), aspect_ratio(aspect_ratio), near_clip(near_clip), far_clip(far_clip), up(up) {
+	Camera(SphericalCoord spherical_coordinate, float fov, float aspect_ratio, float near_clip, float far_clip, glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f)) :
+		spherical_coord(spherical_coordinate), up(up), fov(fov), aspect_ratio(aspect_ratio), near_clip(near_clip), far_clip(far_clip) {
 		position = to_cartesian();
 	}
 
-	void set_aspect_ratio(float aspect_ratio) {
-		this->aspect_ratio = aspect_ratio;
-	};
+	void set_aspect_ratio(const float cam_aspect_ratio) {
+		aspect_ratio = cam_aspect_ratio;
+	}
 
-	glm::vec3 get_position() const {
+	[[nodiscard]] glm::vec3 get_position() const {
 		return position;
 	}
 
@@ -41,13 +41,13 @@ public:
 
 	void zoom(float distance, float zoom_factor = 1.0f);
 
-	glm::vec3 to_cartesian() const;
+	[[nodiscard]] glm::vec3 to_cartesian() const;
 
-	glm::mat4 view_matrix() const {
+	[[nodiscard]] glm::mat4 view_matrix() const {
 		return glm::lookAt(position, spherical_coord.target, up);
-	};
+	}
 
-	glm::mat4 proj_matrix() const {
+	[[nodiscard]] glm::mat4 proj_matrix() const {
 		return glm::perspective(fov, aspect_ratio, near_clip, far_clip);
-	};
+	}
 };

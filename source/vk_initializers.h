@@ -23,7 +23,7 @@ namespace vkinit {
 
 	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo(VkPolygonMode polygonMode, VkCullModeFlagBits cullMode = VK_CULL_MODE_NONE);
 
-	VkPipelineMultisampleStateCreateInfo multisamplingStateCreateInfo(VkSampleCountFlagBits msaaSamples);
+	VkPipelineMultisampleStateCreateInfo multisampling_state_create_info(VkSampleCountFlagBits msaa_samples);
 
 	constexpr VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo(VkCompareOp compareOp) noexcept {
 		return {
@@ -36,7 +36,7 @@ namespace vkinit {
 		};
 	}
 
-	VkPipelineColorBlendAttachmentState colorBlendAttachmentState();
+	VkPipelineColorBlendAttachmentState color_blend_attachment_state();
 
 	VkPipelineColorBlendStateCreateInfo colorBlendAttachmentCreateInfo(VkPipelineColorBlendAttachmentState& colorBlendAttachment, uint32_t attachment_count = 1);
 

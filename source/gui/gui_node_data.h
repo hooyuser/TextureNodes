@@ -531,7 +531,7 @@ struct ImageData : public NodeData {
 			pipeline_builder.shaderStages.emplace_back(std::move(shader_info));
 		}
 
-		pipeline_builder.buildPipeline(engine->device, image_processing_render_pass, image_processing_pipeline_layout, image_processing_pipeline);
+		pipeline_builder.build_pipeline(engine->device, image_processing_render_pass, image_processing_pipeline_layout, image_processing_pipeline);
 
 		engine->main_deletion_queue.push_function([device = engine->device, pipeline = image_processing_pipeline]() {
 			vkDestroyPipeline(device, pipeline, nullptr);

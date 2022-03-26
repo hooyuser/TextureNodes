@@ -44,10 +44,12 @@ namespace engine {
 
 		void set_viewport(float width, float height);
 
+		void set_msaa(VkSampleCountFlagBits msaaSamples);
+
 		template<typename ParaT>
 		void setShaderStages(std::shared_ptr<Material<ParaT>> pMaterial);
 
-		void buildPipeline(const VkDevice& device, const VkRenderPass& pass, const VkPipelineLayout& pipelineLayout, VkPipeline& pipeline);
+		void build_pipeline(const VkDevice& device, const VkRenderPass& pass, const VkPipelineLayout& pipelineLayout, VkPipeline& pipeline);
 	};
 
 	template<typename ParaT>

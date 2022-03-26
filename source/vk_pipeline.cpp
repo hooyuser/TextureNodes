@@ -6,12 +6,12 @@
 namespace engine {
 	PipelineBuilder::PipelineBuilder(VulkanEngine* engine, DynamicViewportFlagBits dynamic_viewport, VertexInputFlagBits enable_vertex_input) {
 		if (enable_vertex_input == ENABLE_VERTEX_INPUT) {
-			bindingDescriptions = Vertex::getBindingDescriptions();
-			attributeDescriptions = Vertex::getAttributeDescriptions();
+			bindingDescriptions = Vertex::get_binding_descriptions();
+			attributeDescriptions = Vertex::get_attribute_descriptions();
 			vertexInput = vkinit::vertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
 		}
 		else if (enable_vertex_input == DISABLE_VERTEX_INPUT) {
-			VkPipelineVertexInputStateCreateInfo vertex_input_info = {
+			const VkPipelineVertexInputStateCreateInfo vertex_input_info = {
 				.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 				.vertexBindingDescriptionCount = 0,
 				.pVertexBindingDescriptions = nullptr,
@@ -49,11 +49,11 @@ namespace engine {
 			rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
 		}
 
-		multisampling = vkinit::multisamplingStateCreateInfo(engine->msaa_samples);
+		multisampling = vkinit::multisampling_state_create_info(VK_SAMPLE_COUNT_1_BIT);
 
 		depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
-		colorBlendAttachment = vkinit::colorBlendAttachmentState();
+		colorBlendAttachment = vkinit::color_blend_attachment_state();
 
 		colorBlend = vkinit::colorBlendAttachmentCreateInfo(colorBlendAttachment);
 
@@ -78,8 +78,12 @@ namespace engine {
 		viewportState = vkinit::viewportStateCreateInfo(&viewport, &scissor);
 	}
 
-	void PipelineBuilder::buildPipeline(const VkDevice& device, const VkRenderPass& renderPass, const VkPipelineLayout& pipelineLayout, VkPipeline& graphicsPipeline) {
-		VkGraphicsPipelineCreateInfo pipeline_info{
+	void PipelineBuilder::set_msaa(VkSampleCountFlagBits msaaSamples) {
+		multisampling = vkinit::multisampling_state_create_info(msaaSamples);
+	}
+
+	void PipelineBuilder::build_pipeline(const VkDevice& device, const VkRenderPass& renderPass, const VkPipelineLayout& pipelineLayout, VkPipeline& graphicsPipeline) {
+		const VkGraphicsPipelineCreateInfo pipeline_info{
 			.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			.pNext = p_next,
 			.stageCount = 2,

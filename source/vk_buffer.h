@@ -14,7 +14,7 @@ namespace vk_base {
 		VkDeviceSize size = 0;
 		void* mapped_buffer = nullptr;
 
-		Buffer(VkDevice device, VkPhysicalDevice physicalDevice, VkBufferUsageFlags bufferUsage, VkMemoryPropertyFlags memoryProperties, VkDeviceSize size);
+		Buffer(VkDevice device, VkPhysicalDevice physical_device, VkBufferUsageFlags buffer_usage, VkMemoryPropertyFlags memory_properties, VkDeviceSize size);
 
 		~Buffer();
 	private:
