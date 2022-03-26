@@ -9,7 +9,7 @@ namespace engine {
 	ShaderModule::ShaderModule(){}
 	ShaderModule::ShaderModule(VkShaderStageFlagBits stage, VkShaderModule shader) :stage(stage), shader(shader) {}
 	ShaderModule::ShaderModule(const ShaderModule& shaderModule): stage(shaderModule.stage), shader(shaderModule.shader) {}
-	ShaderModule::ShaderModule(ShaderModule&& shaderModule) : stage(shaderModule.stage), shader(shaderModule.shader) {}
+	ShaderModule::ShaderModule(ShaderModule&& shaderModule) noexcept: stage(shaderModule.stage), shader(shaderModule.shader) {}
 
 
 	std::vector<char> readFile(const std::string& filename) {

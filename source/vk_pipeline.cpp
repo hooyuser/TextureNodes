@@ -11,14 +11,14 @@ namespace engine {
 			vertexInput = vkinit::vertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
 		}
 		else if (enable_vertex_input == DISABLE_VERTEX_INPUT) {
-			VkPipelineVertexInputStateCreateInfo vertexInputInfo = {
+			VkPipelineVertexInputStateCreateInfo vertex_input_info = {
 				.sType = VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO,
 				.vertexBindingDescriptionCount = 0,
 				.pVertexBindingDescriptions = nullptr,
 				.vertexAttributeDescriptionCount = 0,
 				.pVertexAttributeDescriptions = nullptr,
 			};
-			vertexInput = vertexInputInfo;
+			vertexInput = vertex_input_info;
 		}
 		inputAssembly = vkinit::inputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
@@ -49,7 +49,7 @@ namespace engine {
 			rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
 		}
 
-		multisampling = vkinit::multisamplingStateCreateInfo(engine->msaaSamples);
+		multisampling = vkinit::multisamplingStateCreateInfo(engine->msaa_samples);
 
 		depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
@@ -79,7 +79,7 @@ namespace engine {
 	}
 
 	void PipelineBuilder::buildPipeline(const VkDevice& device, const VkRenderPass& renderPass, const VkPipelineLayout& pipelineLayout, VkPipeline& graphicsPipeline) {
-		VkGraphicsPipelineCreateInfo pipelineInfo{
+		VkGraphicsPipelineCreateInfo pipeline_info{
 			.sType = VK_STRUCTURE_TYPE_GRAPHICS_PIPELINE_CREATE_INFO,
 			.pNext = p_next,
 			.stageCount = 2,
@@ -97,7 +97,7 @@ namespace engine {
 			.subpass = 0,
 			.basePipelineHandle = VK_NULL_HANDLE,
 		};
-		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipelineInfo, nullptr, &graphicsPipeline) != VK_SUCCESS) {
+		if (vkCreateGraphicsPipelines(device, VK_NULL_HANDLE, 1, &pipeline_info, nullptr, &graphicsPipeline) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create graphics pipeline!");
 		}
 	}

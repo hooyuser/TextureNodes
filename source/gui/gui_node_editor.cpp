@@ -39,7 +39,7 @@ std::string first_letter_to_upper(std::string_view str) {
 }
 
 namespace engine {
-	constexpr int NodeEditor::get_next_id() {
+	int NodeEditor::get_next_id() noexcept{
 		return next_id++;
 	}
 
@@ -134,7 +134,7 @@ namespace engine {
 
 		vkResetFences(engine->device, 1, &fence);
 
-		if (vkQueueSubmit2(engine->graphicsQueue, submits.size(), submits.data(), fence) != VK_SUCCESS) {
+		if (vkQueueSubmit2(engine->graphics_queue, submits.size(), submits.data(), fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
 	}
@@ -567,7 +567,7 @@ namespace engine {
 									.pCommandBuffers = &color_ramp_data.ubo_value->command_buffer,
 								};
 								vkResetFences(engine->device, 1, &fence);
-								vkQueueSubmit(engine->graphicsQueue, 1, &submit_info, fence);
+								vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
 								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 								update_from(*color_ramp_node_index);
 							}
@@ -913,7 +913,7 @@ namespace engine {
 								.pCommandBuffers = &(std::get<ColorRampData>(pin_value).ubo_value->command_buffer),
 							};
 							vkResetFences(engine->device, 1, &fence);
-							vkQueueSubmit(engine->graphicsQueue, 1, &submit_info, fence);
+							vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
 							vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 						}
 						else if constexpr (!std::same_as<PinType, TextureIdData>) {

@@ -58,7 +58,7 @@ namespace engine {
 	using BufferPtr = std::shared_ptr<Buffer>;
 
 	BufferPtr Buffer::create_buffer(VulkanEngine* engine, VkDeviceSize device_size, VkBufferUsageFlags buffer_usage, VkMemoryPropertyFlags memory_properties, CreateResourceFlagBits buffer_description) {
-		auto p_buffer = std::make_shared<Buffer>(engine->device, engine->physicalDevice, buffer_usage, memory_properties, device_size);
+		auto p_buffer = std::make_shared<Buffer>(engine->device, engine->physical_device, buffer_usage, memory_properties, device_size);
 		if (buffer_description & 0x00000001) {
 			((buffer_description == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroyBuffer(p_buffer->device, p_buffer->buffer, nullptr);
@@ -71,7 +71,7 @@ namespace engine {
 	}
 
 	void Buffer::copy_from_host(void const* host_data) const {
-		memcpy(mapped_buffer, host_data, (size_t)size);
+		memcpy(mapped_buffer, host_data, size);
 	}
 
 	void Buffer::copy_from_host(void const* host_data, size_t data_size, size_t offset) const {

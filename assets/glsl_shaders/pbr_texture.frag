@@ -17,8 +17,8 @@ layout(set = 0, binding = 2) uniform samplerCube cubemapArray[];
 layout(set = 0, binding = 3) uniform UniformBufferObject {
     vec4 base_color;
     int base_color_texture_id;
-    float metalness;
-    int metalness_texture_id;
+    float metallic;
+    int metallic_texture_id;
     float roughness;
     int roughness_texture_id;
     int normal_texture_id;
@@ -61,11 +61,11 @@ void main() {
     } else {
         base_color = ubo.base_color.rgb;
     }
-    float metalness;
-    if(ubo.metalness_texture_id >= 0) {
-        metalness = texture(textureArray[ubo.metalness_texture_id], fragTexCoord).r;
+    float metallic;
+    if(ubo.metallic_texture_id >= 0) {
+        metallic = texture(textureArray[ubo.metallic_texture_id], fragTexCoord).r;
     } else {
-        metalness = ubo.metalness;
+        metallic = ubo.metallic;
     }
     float roughness;
     if(ubo.roughness_texture_id >= 0) {
@@ -80,9 +80,9 @@ void main() {
         normal = fragNormal;
     }
 
-    vec3 F0 = mix(vec3(0.16 * 0.5 * 0.5), base_color, metalness);
+    vec3 F0 = mix(vec3(0.16 * 0.5 * 0.5), base_color, metallic);
     vec3 F = max(vec3(1.0) - roughness, F0);
-    vec3 diffuse = base_color * (1.0 - metalness) * F * texture(cubemapArray[ubo.irradiance_map_id], normal).xyz / PI;
+    vec3 diffuse = base_color * (1.0 - metallic) * F * texture(cubemapArray[ubo.irradiance_map_id], normal).xyz / PI;
 
     float alpha = roughness * roughness;
     vec3 wo = normalize(cam_ubo.pos - fragPos.xyz);

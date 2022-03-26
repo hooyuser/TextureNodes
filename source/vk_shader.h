@@ -14,7 +14,7 @@ namespace engine {
 		ShaderModule();
 		ShaderModule(VkShaderStageFlagBits stage, VkShaderModule shader);
 		ShaderModule(const ShaderModule& shaderModule);
-		ShaderModule(ShaderModule&& shaderModule);
+		ShaderModule(ShaderModule&& shaderModule) noexcept;
 	};
 
 	class Shader {
@@ -36,11 +36,11 @@ namespace engine {
 				createInfo.pCode = reinterpret_cast<const uint32_t*>(spvCode.data());
 
 				ShaderModule shaderModule;
-				auto extention = std::filesystem::path(spvFilePath).stem().extension().string();
-				if (extention == ".vert") {
+				auto extension = std::filesystem::path(spvFilePath).stem().extension().string();
+				if (extension == ".vert") {
 					shaderModule.stage = VK_SHADER_STAGE_VERTEX_BIT;
 				}
-				else if (extention == ".frag") {
+				else if (extension == ".frag") {
 					shaderModule.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 				}
 				else {

@@ -25,7 +25,16 @@ namespace vkinit {
 
 	VkPipelineMultisampleStateCreateInfo multisamplingStateCreateInfo(VkSampleCountFlagBits msaaSamples);
 
-	VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo(VkCompareOp compareOp);
+	constexpr VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo(VkCompareOp compareOp) noexcept {
+		return {
+			.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
+			.depthTestEnable = VK_TRUE,
+			.depthWriteEnable = VK_TRUE,
+			.depthCompareOp = compareOp,
+			.depthBoundsTestEnable = VK_FALSE,
+			.stencilTestEnable = VK_FALSE,
+		};
+	}
 
 	VkPipelineColorBlendAttachmentState colorBlendAttachmentState();
 
@@ -37,7 +46,19 @@ namespace vkinit {
 
 	VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount = 1);
 
-	VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0);
+	constexpr VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0) noexcept {
+		return {
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = flags,
+		};
+	}
 
-	VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags = 0);
+	constexpr VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags /*= 0*/) noexcept {
+		return {
+			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
+			.pNext = nullptr,
+			.flags = flags,
+		};
+	}
 }

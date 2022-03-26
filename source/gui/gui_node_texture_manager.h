@@ -18,14 +18,14 @@ struct NodeTextureManager {
 
 	NodeTextureManager(VulkanEngine* engine, uint32_t max_textures);
 
-	inline const auto get_id() {
+	auto get_id() {
 		auto id = *unused_id.begin();
 		used_id.emplace(id);
 		unused_id.erase(id);
 		return id;
 	}
 
-	inline void delete_id(uint32_t id) {
+	void delete_id(uint32_t id) {
 		unused_id.emplace(id);
 		used_id.erase(id);
 	}

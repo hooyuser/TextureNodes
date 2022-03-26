@@ -180,7 +180,7 @@ namespace engine {
 	}
 
 	ImagePtr Image::createImage(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, CreateResourceFlagBits imageDescription) {
-		auto pImage = std::make_shared<Image>(engine->device, engine->physicalDevice, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags);
+		auto pImage = std::make_shared<Image>(engine->device, engine->physical_device, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags);
 		if (imageDescription & 0x00000001) {
 			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroyImageView(engine->device, pImage->imageView, nullptr);
@@ -272,10 +272,10 @@ namespace engine {
 			});
 	}
 
-	void Image::generateMipmaps(VulkanEngine* engine) {
+	void Image::generateMipmaps(VulkanEngine* engine) const{
 		// Check if image format supports linear blitting
 		VkFormatProperties formatProperties;
-		vkGetPhysicalDeviceFormatProperties(engine->physicalDevice, format, &formatProperties);
+		vkGetPhysicalDeviceFormatProperties(engine->physical_device, format, &formatProperties);
 
 		if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
 			throw std::runtime_error("texture image format does not support linear blitting!");
@@ -390,7 +390,7 @@ namespace engine {
 	}
 
 	TexturePtr Texture::createTexture(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkFilter filters, CreateResourceFlagBits imageDescription) {
-		auto pTexture = std::make_shared<Texture>(engine->device, engine->physicalDevice, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags, filters);
+		auto pTexture = std::make_shared<Texture>(engine->device, engine->physical_device, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags, filters);
 		if (imageDescription & 0x00000001) {
 			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
@@ -409,7 +409,7 @@ namespace engine {
 	TexturePtr Texture::create2DTexture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits imageDescription) {
 		auto mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 		auto pTexture = std::make_shared<Texture>(engine->device,
-			engine->physicalDevice,
+			engine->physical_device,
 			width,
 			height,
 			mipLevels,
@@ -437,7 +437,7 @@ namespace engine {
 
 	TexturePtr Texture::create2DTexture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits imageDescription, const uint32_t mipLevels) {
 		auto pTexture = std::make_shared<Texture>(engine->device,
-			engine->physicalDevice,
+			engine->physical_device,
 			width,
 			height,
 			mipLevels,
@@ -467,7 +467,7 @@ namespace engine {
 		//auto mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 		VkImageUsageFlagBits usage_flag = (aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		auto pTexture = std::make_shared<Texture>(engine->device,
-			engine->physicalDevice,
+			engine->physical_device,
 			width,
 			height,
 			1,
@@ -495,7 +495,7 @@ namespace engine {
 
 	TexturePtr Texture::create_device_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspectFlags, VkImageUsageFlags usage_flag, CreateResourceFlagBits imageDescription) {
 		auto pTexture = std::make_shared<Texture>(engine->device,
-			engine->physicalDevice,
+			engine->physical_device,
 			width,
 			height,
 			1,
@@ -521,10 +521,10 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::createCubemapTexture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription) {
+	TexturePtr Texture::create_cubemap_texture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription) {
 		auto mipLevels = static_cast<uint32_t>(std::floor(std::log2(width))) + 1;
 		auto pTexture = std::make_shared<Texture>(engine->device,
-			engine->physicalDevice,
+			engine->physical_device,
 			width,
 			width,
 			mipLevels,
@@ -552,9 +552,9 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::createCubemapTexture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription, const uint32_t mipLevels) {
+	TexturePtr Texture::create_cubemap_texture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription, const uint32_t mipLevels) {
 		auto pTexture = std::make_shared<Texture>(engine->device,
-			engine->physicalDevice,
+			engine->physical_device,
 			width,
 			width,
 			mipLevels,
@@ -582,24 +582,24 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::load2DTextureFromHost(VulkanEngine* engine, void* hostPixels, int texWidth, int texHeight, int texChannels, bool enableMipmap/*= true*/, VkFormat format/*= VK_FORMAT_R8G8B8A8_SRGB*/) {
+	TexturePtr Texture::load_2d_texture_from_host(VulkanEngine* engine, void const* host_pixels, int tex_width, int texHeight, int texChannels, bool enableMipmap/*= true*/, VkFormat format/*= VK_FORMAT_R8G8B8A8_SRGB*/) {
 
-		VkDeviceSize imageSize = static_cast<uint64_t>(texWidth) * texHeight * texChannels;
+		VkDeviceSize imageSize = static_cast<uint64_t>(tex_width) * texHeight * texChannels;
 
 		auto pStagingBuffer = engine::Buffer::create_buffer(engine,
 			imageSize,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			TEMP_BIT);
-		pStagingBuffer->copy_from_host(hostPixels);
+		pStagingBuffer->copy_from_host(host_pixels);
 
 		engine::TexturePtr pTexture;
 
 		if (enableMipmap) {
-			pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, format, SWAPCHAIN_INDEPENDENT_BIT);
+			pTexture = engine::Texture::create2DTexture(engine, tex_width, texHeight, format, SWAPCHAIN_INDEPENDENT_BIT);
 		}
 		else {
-			pTexture = engine::Texture::create2DTexture(engine, texWidth, texHeight, format, SWAPCHAIN_INDEPENDENT_BIT, 1);
+			pTexture = engine::Texture::create2DTexture(engine, tex_width, texHeight, format, SWAPCHAIN_INDEPENDENT_BIT, 1);
 		}
 
 		pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -615,21 +615,21 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const char* filePath, bool enableMipmap/*= true*/, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
+	TexturePtr Texture::load_2d_texture(VulkanEngine* engine, const char* filePath, bool enableMipmap/*= true*/, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
 		int texWidth, texHeight, texChannels;
 		stbi_uc* pixels = stbi_load(filePath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
 		//VkDeviceSize imageSize = static_cast<uint64_t>(texWidth) * texHeight * 4;
 		if (!pixels) {
 			throw std::runtime_error("failed to load texture image!");
 		}
-		return load2DTextureFromHost(engine, pixels, texWidth, texHeight, texChannels, enableMipmap, format);
+		return load_2d_texture_from_host(engine, pixels, texWidth, texHeight, texChannels, enableMipmap, format);
 	}
 
-	TexturePtr Texture::load2DTexture(VulkanEngine* engine, const std::string& filePath, bool enableMipmap/*= true*/, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
-		return load2DTexture(engine, filePath.c_str(), enableMipmap, format);
+	TexturePtr Texture::load_2d_texture(VulkanEngine* engine, const std::string& filePath, bool enableMipmap/*= true*/, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
+		return load_2d_texture(engine, filePath.c_str(), enableMipmap, format);
 	}
 
-	TexturePtr Texture::loadCubemapTexture(VulkanEngine* engine, const std::vector<std::string>& filePaths) {
+	TexturePtr Texture::load_cubemap_texture(VulkanEngine* engine, const std::vector<std::string>& filePaths) {
 		int texWidth, texHeight, texChannels;
 		float* pixels[6];
 		for (int i = 0; i < 6; i++) {
@@ -671,7 +671,7 @@ namespace engine {
 			stbi_image_free(pixels[i]);
 		}
 
-		auto pTexture = engine::Texture::createCubemapTexture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT);
+		auto pTexture = engine::Texture::create_cubemap_texture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT);
 
 		pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
@@ -684,7 +684,7 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::loadPrefilteredMapTexture(VulkanEngine* engine, const std::vector<std::vector<std::string>>& filePathLayers) {
+	TexturePtr Texture::load_prefiltered_map_texture(VulkanEngine* engine, const std::vector<std::vector<std::string>>& filePathLayers) {
 
 		auto pTexture = std::make_shared<engine::Texture>();
 
@@ -732,7 +732,7 @@ namespace engine {
 			}
 
 			if (mipLevel == 0) {
-				pTexture = engine::Texture::createCubemapTexture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT, filePathLayers.size());
+				pTexture = engine::Texture::create_cubemap_texture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT, filePathLayers.size());
 			}
 
 			pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);

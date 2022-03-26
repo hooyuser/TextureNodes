@@ -4,7 +4,7 @@
 struct NodePolygon : NodeTypeImageBase {
 
 	struct UBO {
-		NOTE(radius, NumberInputWidgetInfo{ .min = 0, .max = 2, .speed = 0.005, .enable_slider = true })
+		NOTE(radius, NumberInputWidgetInfo{ .min = 0, .max = 2, .speed = 0.005f, .enable_slider = true })
 			FloatData radius {
 			.value = 0.75f
 		};
@@ -14,12 +14,12 @@ struct NodePolygon : NodeTypeImageBase {
 			.value = 0.0f
 		};
 
-		NOTE(sides, NumberInputWidgetInfo{ .min = 0, .max = 128, .speed = 0.1, .enable_slider = false })
+		NOTE(sides, NumberInputWidgetInfo{ .min = 0, .max = 128, .speed = 0.1f, .enable_slider = false })
 			IntData sides {
 			.value = 4
 		};
 
-		NOTE(gradient, NumberInputWidgetInfo{ .min = 0, .max = 1, .speed = 0.0025, .enable_slider = true })
+		NOTE(gradient, NumberInputWidgetInfo{ .min = 0, .max = 1, .speed = 0.0025f, .enable_slider = true })
 			FloatData gradient {
 			.value = 0.0f
 		};

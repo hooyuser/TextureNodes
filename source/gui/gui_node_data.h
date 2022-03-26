@@ -309,7 +309,7 @@ struct ImageData : public NodeData {
 	~ImageData() {
 		engine->node_texture_2d_manager->delete_id(node_texture_id);
 		const std::array cmd_buffers{ image_processing_cmd_buffer, generate_preview_cmd_buffer };
-		vkFreeCommandBuffers(engine->device, engine->commandPool, cmd_buffers.size(), cmd_buffers.data());
+		vkFreeCommandBuffers(engine->device, engine->command_pool, cmd_buffers.size(), cmd_buffers.data());
 		vkDestroyFramebuffer(engine->device, image_processing_framebuffer, nullptr);
 		vkFreeDescriptorSets(engine->device, engine->node_descriptor_pool, 1, &ubo_descriptor_set);
 		vkDestroySemaphore(engine->device, semaphore, nullptr);
@@ -549,7 +549,7 @@ struct ImageData : public NodeData {
 	}
 
 	void create_image_processing_command_buffer() {
-		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
+		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, 1);
 
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &image_processing_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
@@ -615,7 +615,7 @@ struct ImageData : public NodeData {
 	}
 
 	void create_preview_command_buffer() {
-		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
+		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(engine->command_pool, 1);
 
 		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, &generate_preview_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");

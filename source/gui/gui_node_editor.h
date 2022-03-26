@@ -204,7 +204,7 @@ namespace engine {
 		constexpr static inline uint32_t preview_image_size = 128;
 		//constexpr static inline uint32_t max_bindless_node_2d_textures = 300;
 
-		constexpr int get_next_id();
+		int get_next_id() noexcept;
 
 		void update_from(uint32_t node_index);
 
@@ -237,7 +237,7 @@ namespace engine {
 							.pCommandBuffers = &(std::get<ColorRampData>(pin_value).ubo_value->command_buffer),
 						};
 						vkResetFences(engine->device, 1, &fence);
-						vkQueueSubmit(engine->graphicsQueue, 1, &submit_info, fence);
+						vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
 						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 					}
 					else {

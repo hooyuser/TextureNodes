@@ -42,6 +42,6 @@ void immediate_submit(VkDevice device, VkCommandPool command_pool, VkQueue queue
 
 namespace engine {
 	void immediate_submit(VulkanEngine* engine, std::invocable<VkCommandBuffer> auto&& function) {
-		::immediate_submit(engine->device, engine->commandPool, engine->graphicsQueue, engine->immediate_submit_fence, FWD(function));
+		::immediate_submit(engine->device, engine->command_pool, engine->graphics_queue, engine->immediate_submit_fence, FWD(function));
 	}
 }

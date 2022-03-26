@@ -7,7 +7,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 	engine(engine),
 	staging_buffer(engine::Buffer(
 		engine->device,
-		engine->physicalDevice,
+		engine->physical_device,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		RAMP_TEXTURE_SIZE * 4 * sizeof(float))) {
@@ -40,7 +40,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 	const VkMemoryAllocateInfo allocInfo{
 		.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
 		.allocationSize = memory_requirements.size,
-		.memoryTypeIndex = find_memory_type(engine->physicalDevice, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
+		.memoryTypeIndex = find_memory_type(engine->physical_device, memory_requirements.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT),
 	};
 
 	if (vkAllocateMemory(engine->device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
@@ -68,7 +68,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 	}
 
 	const VkSamplerCreateInfo sampler_info = vk_init::samplerCreateInfo(
-		engine->physicalDevice,
+		engine->physical_device,
 		VK_FILTER_LINEAR,
 		1,
 		VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_EDGE);
@@ -139,7 +139,7 @@ RampTexture::~RampTexture() {
 }
 
 void RampTexture::create_command_buffer() {
-	const VkCommandBufferAllocateInfo cmd_allocate_info = vkinit::commandBufferAllocateInfo(engine->commandPool, 1);
+	const VkCommandBufferAllocateInfo cmd_allocate_info = vkinit::commandBufferAllocateInfo(engine->command_pool, 1);
 
 	if (vkAllocateCommandBuffers(engine->device, &cmd_allocate_info, &command_buffer) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");

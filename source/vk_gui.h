@@ -9,8 +9,8 @@ namespace engine {
 	public:
 		VulkanEngine* engine;
 
-		VkRenderPass renderPass;
-		VkCommandPool commandPool;
+		VkRenderPass render_pass;
+		VkCommandPool command_pool;
 		std::vector<VkCommandBuffer> command_buffers;
 		std::vector<VkFramebuffer> framebuffers;
 

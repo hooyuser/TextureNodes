@@ -43,7 +43,7 @@ namespace engine {
 
 		void copyFromBuffer(VulkanEngine* engine, VkBuffer buffer, uint32_t mipLevel = 0);
 
-		void generateMipmaps(VulkanEngine* engine);
+		void generateMipmaps(VulkanEngine* engine) const;
 	};
 
 
@@ -77,19 +77,19 @@ namespace engine {
 
 		static TexturePtr create_device_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspectFlags, VkImageUsageFlags usage_flag, CreateResourceFlagBits imageDescription = SWAPCHAIN_INDEPENDENT_BIT);
 
-		static TexturePtr createCubemapTexture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription);
+		static TexturePtr create_cubemap_texture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription);
 
-		static TexturePtr createCubemapTexture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription, const uint32_t mipLevels);
+		static TexturePtr create_cubemap_texture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription, const uint32_t mipLevels);
 
-		static TexturePtr load2DTextureFromHost(VulkanEngine* engine, void* hostPixels, int texWidth, int texHeight, int texChannels, bool enableMipmap = true, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
+		static TexturePtr load_2d_texture_from_host(VulkanEngine* engine, void const* host_pixels, int tex_width, int texHeight, int texChannels, bool enableMipmap = true, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
 
-		static TexturePtr load2DTexture(VulkanEngine* engine, const char* filePath, bool enableMipmap = true, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
+		static TexturePtr load_2d_texture(VulkanEngine* engine, const char* filePath, bool enableMipmap = true, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
 
-		static TexturePtr load2DTexture(VulkanEngine* engine, const std::string& filePath, bool enableMipmap = true, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
+		static TexturePtr load_2d_texture(VulkanEngine* engine, const std::string& filePath, bool enableMipmap = true, VkFormat format = VK_FORMAT_R8G8B8A8_SRGB);
 
-		static TexturePtr loadCubemapTexture(VulkanEngine* engine, const std::vector<std::string>& filePaths);
+		static TexturePtr load_cubemap_texture(VulkanEngine* engine, const std::vector<std::string>& filePaths);
 
-		static TexturePtr loadPrefilteredMapTexture(VulkanEngine* engine, const std::vector<std::vector<std::string>>& filePathLayers);
+		static TexturePtr load_prefiltered_map_texture(VulkanEngine* engine, const std::vector<std::vector<std::string>>& filePathLayers);
 	};
 	using TexturePtr = std::shared_ptr<engine::Texture>;
 }

@@ -1,6 +1,5 @@
 #include "vk_initializers.h"
 #include "vk_mesh.h"
-#include "vk_material.h"
 #include <array>
 
 
@@ -137,17 +136,6 @@ VkPipelineMultisampleStateCreateInfo vkinit::multisamplingStateCreateInfo(VkSamp
 	return multisamplingInfo;
 }
 
-VkPipelineDepthStencilStateCreateInfo vkinit::depthStencilCreateInfo(VkCompareOp compareOp) {
-	VkPipelineDepthStencilStateCreateInfo depthStencilInfo{ VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO };
-
-	depthStencilInfo.depthTestEnable = VK_TRUE;
-	depthStencilInfo.depthWriteEnable = VK_TRUE;
-	depthStencilInfo.depthCompareOp = compareOp;
-	depthStencilInfo.depthBoundsTestEnable = VK_FALSE;
-	depthStencilInfo.stencilTestEnable = VK_FALSE;
-	return depthStencilInfo;
-}
-
 VkPipelineColorBlendAttachmentState vkinit::colorBlendAttachmentState() {
 	VkPipelineColorBlendAttachmentState colorBlendAttachment = {};
 
@@ -158,7 +146,7 @@ VkPipelineColorBlendAttachmentState vkinit::colorBlendAttachmentState() {
 }
 
 VkPipelineColorBlendStateCreateInfo vkinit::colorBlendAttachmentCreateInfo(VkPipelineColorBlendAttachmentState& colorBlendAttachment, uint32_t attachment_count) {
-	VkPipelineColorBlendStateCreateInfo colorBlending{
+	return {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 		.logicOpEnable = VK_FALSE,
 		.logicOp = VK_LOGIC_OP_COPY,
@@ -166,12 +154,10 @@ VkPipelineColorBlendStateCreateInfo vkinit::colorBlendAttachmentCreateInfo(VkPip
 		.pAttachments = &colorBlendAttachment,
 		.blendConstants{ 0.0f, 0.0f, 0.0f, 0.0f },
 	};
-
-	return colorBlending;
 }
 
 VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo(std::span<VkDescriptorSetLayout> descriptorSetLayouts) {
-	VkPipelineLayoutCreateInfo pipelineLayoutInfo{
+	return {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,
 		.flags = 0,
@@ -180,8 +166,6 @@ VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo(std::span<VkDescript
 		.pushConstantRangeCount = 0,
 		.pPushConstantRanges = nullptr,
 	};
-
-	return pipelineLayoutInfo;
 }
 
 VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent, std::span<VkImageView> attachments) {
@@ -199,29 +183,11 @@ VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass renderPass, V
 }
 
 VkDescriptorSetLayoutBinding vkinit::descriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount /*= 1*/) {
-	VkDescriptorSetLayoutBinding setbind = {};
-	setbind.binding = binding;
-	setbind.descriptorCount = descriptorCount;
-	setbind.descriptorType = type;
-	setbind.pImmutableSamplers = nullptr;
-	setbind.stageFlags = stageFlags;
-
-	return setbind;
-}
-
-VkSemaphoreCreateInfo vkinit::semaphoreCreateInfo(VkSemaphoreCreateFlags flags /*= 0*/) {
-	VkSemaphoreCreateInfo semaphoreInfo = { VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO };
-
-	semaphoreInfo.pNext = nullptr;
-	semaphoreInfo.flags = flags;
-	return semaphoreInfo;
-}
-
-VkFenceCreateInfo vkinit::fenceCreateInfo(VkFenceCreateFlags flags /*= 0*/) {
-	VkFenceCreateInfo fenceInfo = { 
-		.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
-		.pNext = nullptr,
-		.flags = flags,
+	return {
+		.binding = binding,
+		.descriptorType = type,
+		.descriptorCount = descriptorCount,
+		.stageFlags = stageFlags,
+		.pImmutableSamplers = nullptr,
 	};
-	return fenceInfo;
 }

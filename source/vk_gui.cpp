@@ -12,7 +12,7 @@
 namespace engine {
 	void GUI::init_render_pass() {
 		const VkAttachmentDescription color_attachment{
-			.format = engine->swapChainImageFormat,
+			.format = engine->swapchain_image_format,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -49,12 +49,12 @@ namespace engine {
 		renderPassInfo.dependencyCount = 1;
 		renderPassInfo.pDependencies = &dependency;
 
-		if (vkCreateRenderPass(engine->device, &renderPassInfo, nullptr, &renderPass) != VK_SUCCESS) {
+		if (vkCreateRenderPass(engine->device, &renderPassInfo, nullptr, &render_pass) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create render pass!");
 		}
 
 		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyRenderPass(engine->device, renderPass, nullptr);
+			vkDestroyRenderPass(engine->device, render_pass, nullptr);
 			});
 	}
 
@@ -63,10 +63,10 @@ namespace engine {
 
 		for (size_t i = 0; i < engine->swapchain_image_count; i++) {
 			std::array<VkImageView, 1> attachments = {
-				engine->swapChainImageViews[i]
+				engine->swapchain_image_views[i]
 			};
 
-			VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(renderPass, engine->swapChainExtent, attachments);
+			VkFramebufferCreateInfo framebufferInfo = vkinit::framebufferCreateInfo(render_pass, engine->swapchain_extent, attachments);
 
 			if (vkCreateFramebuffer(engine->device, &framebufferInfo, nullptr, &framebuffers[i]) != VK_SUCCESS) {
 				throw std::runtime_error("failed to create framebuffer!");
@@ -79,28 +79,28 @@ namespace engine {
 	}
 
 	void GUI::init_command_pool() {
-		uint32_t queueFamilyIndex = engine->queueFamilyIndices.graphicsFamily.value();
+		uint32_t queueFamilyIndex = engine->queue_family_indices.graphicsFamily.value();
 		VkCommandPoolCreateInfo commandPoolInfo = vkinit::commandPoolCreateInfo(queueFamilyIndex, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-		if (vkCreateCommandPool(engine->device, &commandPoolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+		if (vkCreateCommandPool(engine->device, &commandPoolInfo, nullptr, &command_pool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create graphics command pool!");
 		}
 
 		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyCommandPool(engine->device, commandPool, nullptr);
+			vkDestroyCommandPool(engine->device, command_pool, nullptr);
 			});
 	}
 
 	void GUI::init_command_buffers() {
 		command_buffers.resize(engine->swapchain_image_count);
-		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(commandPool, (uint32_t)command_buffers.size());
+		VkCommandBufferAllocateInfo cmdAllocInfo = vkinit::commandBufferAllocateInfo(command_pool, (uint32_t)command_buffers.size());
 
 		if (vkAllocateCommandBuffers(engine->device, &cmdAllocInfo, command_buffers.data()) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
 
 		engine->main_deletion_queue.push_function([=]() {
-			vkFreeCommandBuffers(engine->device, commandPool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
+			vkFreeCommandBuffers(engine->device, command_pool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
 			});
 	}
 
@@ -154,15 +154,15 @@ namespace engine {
 		//this initializes imgui for Vulkan
 		ImGui_ImplVulkan_InitInfo init_info = {};
 		init_info.Instance = engine->instance;
-		init_info.PhysicalDevice = engine->physicalDevice;
+		init_info.PhysicalDevice = engine->physical_device;
 		init_info.Device = engine->device;
-		init_info.Queue = engine->graphicsQueue;
+		init_info.Queue = engine->graphics_queue;
 		init_info.DescriptorPool = imguiDescriptorPool;
 		init_info.MinImageCount = 3;
 		init_info.ImageCount = 3;
 		init_info.MSAASamples = VK_SAMPLE_COUNT_1_BIT;
 
-		ImGui_ImplVulkan_Init(&init_info, renderPass);
+		ImGui_ImplVulkan_Init(&init_info, render_pass);
 
 		//execute a gpu command to upload imgui font textures
 		static const ImWchar ranges[] = {
@@ -230,11 +230,11 @@ namespace engine {
 
 		const VkRenderPassBeginInfo render_pass_begin_info{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
-			.renderPass = renderPass,
+			.renderPass = render_pass,
 			.framebuffer = framebuffers[image_index],
 			.renderArea = {
 				.offset = {0, 0},
-				.extent = engine->swapChainExtent,
+				.extent = engine->swapchain_extent,
 			},
 			.clearValueCount = 1,
 			.pClearValues = &clearValues,
