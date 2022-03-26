@@ -1,8 +1,8 @@
 #include "vk_camera.h"
 
-void Camera::rotate(float dTheta, float dPhi, float rotFactor) {
-	spherical_coord.theta += dTheta * rotFactor;
-	spherical_coord.phi = glm::clamp(spherical_coord.phi + dPhi * rotFactor, 0.0001f, glm::radians(179.999f));
+void Camera::rotate(float d_theta, float d_phi, float rot_factor) {
+	spherical_coord.theta += d_theta * rot_factor;
+	spherical_coord.phi = glm::clamp(spherical_coord.phi + d_phi * rot_factor, 0.0001f, glm::radians(179.999f));
 	position = to_cartesian();
 }
 

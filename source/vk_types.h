@@ -36,11 +36,11 @@ typedef enum ShaderFlagBits {
 MAKE_ENUM_FLAGS(ShaderFlagBits)
 
 struct QueueFamilyIndices {
-	std::optional<uint32_t> graphicsFamily;
-	std::optional<uint32_t> presentFamily;
+	std::optional<uint32_t> graphics_family;
+	std::optional<uint32_t> present_family;
 
-	bool isComplete() {
-		return graphicsFamily.has_value() && presentFamily.has_value();
+	bool is_complete() const{
+		return graphics_family.has_value() && present_family.has_value();
 	}
 };
 

@@ -463,15 +463,15 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::create_2D_render_target(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspectFlags, CreateResourceFlagBits imageDescription) {
+	TexturePtr Texture::create_2D_render_target(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspectFlags, CreateResourceFlagBits imageDescription, VkSampleCountFlagBits sample_count_flag) {
 		//auto mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
-		VkImageUsageFlagBits usage_flag = (aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		const VkImageUsageFlagBits usage_flag = (aspectFlags == VK_IMAGE_ASPECT_COLOR_BIT) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		auto pTexture = std::make_shared<Texture>(engine->device,
 			engine->physical_device,
 			width,
 			height,
 			1,
-			VK_SAMPLE_COUNT_1_BIT,
+			sample_count_flag,
 			format,
 			VK_IMAGE_TILING_OPTIMAL,
 			usage_flag | VK_IMAGE_USAGE_SAMPLED_BIT,

@@ -123,17 +123,17 @@ VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPo
 }
 
 VkPipelineMultisampleStateCreateInfo vkinit::multisamplingStateCreateInfo(VkSampleCountFlagBits msaaSamples) {
-	VkPipelineMultisampleStateCreateInfo multisamplingInfo = { VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO };
+	return  {
+		.sType = VK_STRUCTURE_TYPE_PIPELINE_MULTISAMPLE_STATE_CREATE_INFO ,
+		.pNext = nullptr,
+		.rasterizationSamples = msaaSamples,
+		.sampleShadingEnable = VK_TRUE,
+		.minSampleShading = 0.2f,
+		.pSampleMask = nullptr,
+		.alphaToCoverageEnable = VK_FALSE,
+		.alphaToOneEnable = VK_FALSE
+	};
 
-	multisamplingInfo.pNext = nullptr;
-	multisamplingInfo.sampleShadingEnable = VK_FALSE;
-	//multisampling defaulted to no multisampling (1 sample per pixel)
-	multisamplingInfo.rasterizationSamples = msaaSamples;
-	// multisamplingInfo.minSampleShading = 1.0f;
-	multisamplingInfo.pSampleMask = nullptr;
-	multisamplingInfo.alphaToCoverageEnable = VK_FALSE;
-	multisamplingInfo.alphaToOneEnable = VK_FALSE;
-	return multisamplingInfo;
 }
 
 VkPipelineColorBlendAttachmentState vkinit::colorBlendAttachmentState() {

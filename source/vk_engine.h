@@ -74,6 +74,7 @@ struct ViewportUI {
 	std::vector<VkFramebuffer> framebuffers;
 	std::vector<TexturePtr> color_textures;
 	std::vector<TexturePtr> depth_textures;
+	std::vector<TexturePtr> color_resolve_textures;
 	std::vector<void*> gui_textures;
 	std::vector<VkCommandBuffer> cmd_buffers;
 };
@@ -129,7 +130,7 @@ public:
 	VkSurfaceKHR surface;
 
 	VkPhysicalDevice physical_device = VK_NULL_HANDLE;
-	VkSampleCountFlagBits msaa_samples = VK_SAMPLE_COUNT_1_BIT;
+	VkSampleCountFlagBits msaa_samples = VK_SAMPLE_COUNT_8_BIT;
 	VkDevice device;
 
 	VkQueue graphics_queue;

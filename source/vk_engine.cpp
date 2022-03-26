@@ -326,8 +326,8 @@ void VulkanEngine::create_logical_device() {
 
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 	std::set<uint32_t> unique_queue_families = {
-		queue_family_indices.graphicsFamily.value(),
-		queue_family_indices.presentFamily.value()
+		queue_family_indices.graphics_family.value(),
+		queue_family_indices.present_family.value()
 	};
 
 	float queue_priority = 1.0f;
@@ -359,6 +359,7 @@ void VulkanEngine::create_logical_device() {
 	};
 
 	VkPhysicalDeviceFeatures device_features{
+		.sampleRateShading = VK_TRUE,
 		.samplerAnisotropy = VK_TRUE,
 	};
 
@@ -384,8 +385,8 @@ void VulkanEngine::create_logical_device() {
 		throw std::runtime_error("failed to create logical device!");
 	}
 
-	vkGetDeviceQueue(device, queue_family_indices.graphicsFamily.value(), 0, &graphics_queue);
-	vkGetDeviceQueue(device, queue_family_indices.presentFamily.value(), 0, &present_queue);
+	vkGetDeviceQueue(device, queue_family_indices.graphics_family.value(), 0, &graphics_queue);
+	vkGetDeviceQueue(device, queue_family_indices.present_family.value(), 0, &present_queue);
 }
 
 void VulkanEngine::create_swap_chain() {
@@ -411,11 +412,11 @@ void VulkanEngine::create_swap_chain() {
 	};
 
 	const std::array queue_family_index_array{
-		queue_family_indices.graphicsFamily.value(),
-		queue_family_indices.presentFamily.value()
+		queue_family_indices.graphics_family.value(),
+		queue_family_indices.present_family.value()
 	};
 
-	if (queue_family_indices.graphicsFamily != queue_family_indices.presentFamily) {
+	if (queue_family_indices.graphics_family != queue_family_indices.present_family) {
 		create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
 		create_info.queueFamilyIndexCount = queue_family_index_array.size();
 		create_info.pQueueFamilyIndices = queue_family_index_array.data();
@@ -839,7 +840,7 @@ void VulkanEngine::create_graphics_pipeline() {
 
 void VulkanEngine::create_command_pool() {
 
-	const uint32_t queue_family_index = queue_family_indices.graphicsFamily.value();
+	const uint32_t queue_family_index = queue_family_indices.graphics_family.value();
 	const VkCommandPoolCreateInfo command_pool_info = vkinit::commandPoolCreateInfo(queue_family_index, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 	if (vkCreateCommandPool(device, &command_pool_info, nullptr, &command_pool) != VK_SUCCESS) {
@@ -888,13 +889,22 @@ void VulkanEngine::create_viewport_attachments() {
 			screen_height,
 			swapchain_image_format,  //color format
 			VK_IMAGE_ASPECT_COLOR_BIT,
-			SWAPCHAIN_INDEPENDENT_BIT));
+			SWAPCHAIN_INDEPENDENT_BIT,
+			msaa_samples));
 
 		viewport_3d.depth_textures.emplace_back(engine::Texture::create_2D_render_target(this,
 			screen_width,
 			screen_height,
 			find_depth_format(),  //depth format
 			VK_IMAGE_ASPECT_DEPTH_BIT,
+			SWAPCHAIN_INDEPENDENT_BIT,
+			msaa_samples));
+
+		viewport_3d.color_resolve_textures.emplace_back(engine::Texture::create_2D_render_target(this,
+			screen_width,
+			screen_height,
+			swapchain_image_format,  //depth format
+			VK_IMAGE_ASPECT_COLOR_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT));
 	}
 }
@@ -902,13 +912,13 @@ void VulkanEngine::create_viewport_attachments() {
 void VulkanEngine::create_viewport_render_pass() {
 	const VkAttachmentDescription color_attachment{
 		.format = swapchain_image_format,
-		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.samples = msaa_samples,
 		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
 		.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 		.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
 		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
-		.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		.finalLayout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 	};
 
 	constexpr VkAttachmentReference color_attachment_ref{
@@ -918,7 +928,7 @@ void VulkanEngine::create_viewport_render_pass() {
 
 	const VkAttachmentDescription depth_attachment{
 		.format = find_depth_format(),
-		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.samples = msaa_samples,
 		.loadOp = VK_ATTACHMENT_LOAD_OP_CLEAR,
 		.storeOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
 		.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
@@ -932,10 +942,27 @@ void VulkanEngine::create_viewport_render_pass() {
 		.layout = VK_IMAGE_LAYOUT_DEPTH_STENCIL_ATTACHMENT_OPTIMAL,
 	};
 
+	VkAttachmentDescription color_attachment_resolve{
+		.format = swapchain_image_format,
+		.samples = VK_SAMPLE_COUNT_1_BIT,
+		.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+		.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
+		.stencilLoadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
+		.stencilStoreOp = VK_ATTACHMENT_STORE_OP_DONT_CARE,
+		.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		.finalLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		};
+
+	constexpr VkAttachmentReference color_attachment_resolve_ref{
+		.attachment = 2,
+		.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
+	};
+
 	const VkSubpassDescription subpass{
 		.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 		.colorAttachmentCount = 1,
 		.pColorAttachments = &color_attachment_ref,
+		.pResolveAttachments = &color_attachment_resolve_ref,
 		.pDepthStencilAttachment = &depth_attachment_ref,
 	};
 
@@ -963,7 +990,11 @@ void VulkanEngine::create_viewport_render_pass() {
 		},
 	};
 
-	std::array attachments = { color_attachment, depth_attachment };
+	std::array attachments = {
+		color_attachment,
+		depth_attachment,
+		color_attachment_resolve,
+	};
 
 	const VkRenderPassCreateInfo render_pass_info{
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
@@ -992,6 +1023,7 @@ void VulkanEngine::create_viewport_framebuffers() {
 		std::array attachments = {
 			viewport_3d.color_textures[i]->imageView,
 			viewport_3d.depth_textures[i]->imageView,
+			viewport_3d.color_resolve_textures[i]->imageView,
 		};
 
 		VkFramebufferCreateInfo framebuffer_info = vkinit::framebufferCreateInfo(viewport_3d.render_pass, VkExtent2D{ screen_width , screen_height }, attachments);
@@ -1621,7 +1653,7 @@ void VulkanEngine::imgui_render(uint32_t image_index) {
 	update_uniform_buffer(image_index);
 	const ImVec2 uv{ viewport_panel_size.x / screen_width , viewport_panel_size.y / screen_height };
 
-	ImGui::Image(static_cast<ImTextureID>(viewport_3d.gui_textures[image_index]), viewport_panel_size, ImVec2{ 0, 0 }, uv);
+	ImGui::Image(viewport_3d.gui_textures[image_index], viewport_panel_size, ImVec2{ 0, 0 }, uv);
 	mouse_hover_viewport = ImGui::IsItemHovered() ? true : false;
 	ImGui::End();
 
@@ -1779,7 +1811,7 @@ bool VulkanEngine::is_device_suitable(VkPhysicalDevice device) {
 	VkPhysicalDeviceFeatures supported_features;
 	vkGetPhysicalDeviceFeatures(device, &supported_features);
 
-	return queue_family_indices.isComplete() && extensions_supported && swap_chain_adequate && supported_features.samplerAnisotropy;
+	return queue_family_indices.is_complete() && extensions_supported && swap_chain_adequate && supported_features.samplerAnisotropy;
 }
 
 bool VulkanEngine::check_device_extension_support(VkPhysicalDevice device) {
@@ -1810,17 +1842,17 @@ QueueFamilyIndices VulkanEngine::find_queue_families(VkPhysicalDevice device) co
 	int i = 0;
 	for (const auto& queueFamily : queueFamilies) {
 		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
-			indices.graphicsFamily = i;
+			indices.graphics_family = i;
 		}
 
 		VkBool32 presentSupport = false;
 		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
 
 		if (presentSupport) {
-			indices.presentFamily = i;
+			indices.present_family = i;
 		}
 
-		if (indices.isComplete()) {
+		if (indices.is_complete()) {
 			break;
 		}
 
