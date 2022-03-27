@@ -87,7 +87,7 @@ template <value_data T>
 constexpr auto get_ubo(T)->typename T::UboType;
 
 template <shader_data T>
-constexpr auto get_ubo(T)->T;
+constexpr auto get_ubo(T)->typename T::UboType;
 
 template <typename NodeDataT>
 using UboOf = std::decay_t<decltype(get_ubo(std::declval<NodeDataT>()))>;
@@ -148,8 +148,11 @@ struct Node {
 		if constexpr (std::derived_from<T, NodeTypeImageBase>) {
 			data = std::make_shared<ref_t<typename T::data_type>>(engine);
 		}
-		else {
+		else if constexpr (std::derived_from<T, NodeTypeValueBase>){
 			data = NodeDataVariant(std::in_place_type<typename T::data_type>);
+		}
+		else if constexpr (std::derived_from<T, NodeTypeShaderBase>){
+			data = NodeDataVariant(typename T::data_type(engine));
 		}
 	}
 

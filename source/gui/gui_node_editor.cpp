@@ -342,6 +342,9 @@ namespace engine {
 										else if constexpr (value_data<NodeDataT>){
 											update_from(node_index);
 										}
+										else if constexpr (shader_data<NodeDataT>) {
+											node_data.update_ubo(pin->default_value, i);
+										}
 									}
 									});
 								}, node.data);
@@ -414,8 +417,12 @@ namespace engine {
 											node_data->update_ubo(pin->default_value, i);
 											update_from(node_index);
 										}
+										else if constexpr (shader_data<NodeDataT>) {
+											node_data.update_ubo(pin->default_value, i);
+											update_from(node_index);
+										}
 										else {
-											assert((image_data<NodeDataT>, "Error occurs during processing FloatTextureIdData"));
+											assert(!"Error occurs during processing FloatTextureIdData");
 										}
 									}
 									});
@@ -550,6 +557,9 @@ namespace engine {
 						if constexpr (image_data<NodeDataT>) {
 							node_data->update_ubo(color_pin.default_value, *color_pin_index);
 							update_from(*color_node_index);
+						}
+						else if constexpr (shader_data<NodeDataT>) {
+							node_data.update_ubo(color_pin.default_value, *color_pin_index);
 						}
 						}, color_node.data);
 				}

@@ -27,7 +27,7 @@ struct NodeAdd : NodeTypeValueBase {
 		)
 	};
 
-	using data_type = NonImageData < UBO, ResultData,
+	using data_type = ValueData < UBO, ResultData,
 		[](FloatData value1, FloatData value2) -> FloatData {
 		return { .value = value1.value + value2.value };
 	} > ;

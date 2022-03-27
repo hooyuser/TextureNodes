@@ -240,19 +240,116 @@ template <typename T>
 concept PinDataConcept = PinTypeList::has_type<T>;
 
 template<typename UniformBufferType, typename ResultT, auto function>
-struct NonImageData : public NodeData {
+struct ValueData : public NodeData {
 	using UboType = UniformBufferType;
 	using ResultType = ResultT;
 
 	inline static decltype(function) calculate = function;
 };
 
+template<typename UniformBufferType>
+struct UboMixin {
+	using UboType = UniformBufferType;
+
+	BufferPtr uniform_buffer;
+
+	explicit UboMixin(const VulkanEngine* engine): uniform_buffer(engine->material_preview_ubo){}
+
+	void update_ubo(const PinVariant& value, size_t index) {  //use value to update the pin at the index  
+		if constexpr (has_field_type_v<UboType, ColorRampData>) {
+			typename UboType::value_t::Class::FieldAt(index, [&](auto& field_v) {
+				using PinValueT = typename std::decay_t<decltype(field_v)>::Type;
+				UboType::Class::FieldAt(index, [&](auto& field) {
+					using PinT = typename std::decay_t<decltype(field)>::Type;
+					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinValueT), field_v.getOffset());
+					});
+				});
+		}
+		else {
+			UboType::Class::FieldAt(index, [&](auto& field) {
+				using PinT = typename std::decay_t<decltype(field)>::Type;
+				if constexpr (std::same_as<PinT, FloatTextureIdData>) {
+					std::visit([&](auto&& v) {
+						using StartPinT = std::decay_t<decltype(v)>;
+						if (std::same_as<StartPinT, FloatData>) {
+							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatData), field.getOffset());
+						}
+						else if (std::same_as<StartPinT, TextureIdData>) {
+							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(FloatData));
+						}
+						else if (std::same_as<StartPinT, FloatTextureIdData>) {
+							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatTextureIdData), field.getOffset());
+						}
+						else {
+							assert((false, "Error occurs when updating ubo. Pin type is FloatTextureIdData"));
+						}
+						}, value);
+				}
+				else if constexpr (std::same_as<PinT, Color4TextureIdData>) {
+					std::visit([&](auto&& v) {
+						using StartPinT = std::decay_t<decltype(v)>;
+						if (std::same_as<StartPinT, Color4Data>) {
+							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(Color4Data), field.getOffset());
+						}
+						else if (std::same_as<StartPinT, TextureIdData>) {
+							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(Color4Data));
+						}
+						else if (std::same_as<StartPinT, Color4TextureIdData>) {
+							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(Color4TextureIdData), field.getOffset());
+						}
+						else {
+							assert((false, "Error occurs when updating ubo. Pin type is Color4TextureIdData"));
+						}
+						}, value);
+				}
+				else {
+					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
+				}
+				});
+		}
+	}
+
+	template<PinDataConcept StartPinT>
+	void update_ubo_by_value(const StartPinT& value, size_t index) {
+		UboType::Class::FieldAt(index, [&](auto& field) {
+			using PinT = typename std::decay_t<decltype(field)>::Type;
+			if constexpr (std::same_as<PinT, FloatTextureIdData>) {
+				std::visit([&](auto&& v) {
+					using StartPinT = std::decay_t<decltype(v)>;
+					if (std::same_as<StartPinT, FloatData>) {
+						uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatData), field.getOffset());
+					}
+					else if (std::same_as<StartPinT, TextureIdData>) {
+						uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(FloatData));
+					}
+					else if (std::same_as<StartPinT, FloatTextureIdData>) {
+						uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatTextureIdData), field.getOffset());
+					}
+					else {
+						assert((false, "Error occurs when updating ubo. Pin type is FloatTextureIdData"));
+					}
+					}, value);
+			}
+			else if constexpr (std::same_as<PinT, StartPinT>) {
+				uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
+			}
+			});
+	}
+};
+
+template<typename UniformBufferType>
+struct ShaderData : public NodeData, public UboMixin<UniformBufferType>{
+	using UboType = UniformBufferType;
+
+	explicit ShaderData(const VulkanEngine* engine): UboMixin<UniformBufferType>(engine){}
+};
+
 template<typename UniformBufferType, StringLiteral ...Shaders>
-struct ImageData : public NodeData {
+struct ImageData : public NodeData, public UboMixin<UniformBufferType> {
 	using UboType = UniformBufferType;
 
 	VulkanEngine* engine;
-	BufferPtr uniform_buffer;
+	//BufferPtr uniform_buffer;
 	TexturePtr texture;
 	TexturePtr preview_texture;
 	void* gui_texture;
@@ -288,13 +385,13 @@ struct ImageData : public NodeData {
 	inline static VkPipeline image_processing_pipeline = nullptr;
 	inline static VkRenderPass image_processing_render_pass = nullptr;
 
-	ImageData(VulkanEngine* engine) :engine(engine) {
+	explicit ImageData(VulkanEngine* engine) :UboMixin<UniformBufferType>(engine), engine(engine) {
 
 		create_semaphore();
 
 		create_texture();
 
-		uniform_buffer = engine::Buffer::create_buffer(engine,
+		this->uniform_buffer = engine::Buffer::create_buffer(engine,
 			sizeof(UboType),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
@@ -382,7 +479,7 @@ struct ImageData : public NodeData {
 	}
 
 	void create_ubo_descriptor_set() {
-		VkDescriptorSetAllocateInfo ubo_descriptor_alloc_info{
+		const VkDescriptorSetAllocateInfo ubo_descriptor_alloc_info{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.descriptorPool = engine->node_descriptor_pool,
 			.descriptorSetCount = 1,
@@ -396,7 +493,7 @@ struct ImageData : public NodeData {
 
 	void update_descriptor_sets() {
 		const VkDescriptorBufferInfo uniform_buffer_info{
-			.buffer = uniform_buffer->buffer,
+			.buffer = this->uniform_buffer->buffer,
 			.offset = 0,
 			.range = sizeof(UboType)
 		};
@@ -823,70 +920,6 @@ struct ImageData : public NodeData {
 			.signalSemaphoreInfoCount = 1,
 			.pSignalSemaphoreInfos = &signal_semaphore_submit_info2,
 		};
-	}
-
-	void update_ubo(const PinVariant& value, size_t index) {
-		if constexpr (has_field_type_v<UboType, ColorRampData>) {
-			typename UboType::value_t::Class::FieldAt(index, [&](auto& field_v) {
-				using PinValueT = typename std::decay_t<decltype(field_v)>::Type;
-				UboType::Class::FieldAt(index, [&](auto& field) {
-					using PinT = typename std::decay_t<decltype(field)>::Type;
-					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinValueT), field_v.getOffset());
-					});
-				});
-		}
-		else {
-			UboType::Class::FieldAt(index, [&](auto& field) {
-				using PinT = typename std::decay_t<decltype(field)>::Type;
-				if constexpr (std::same_as<PinT, FloatTextureIdData>) {
-					std::visit([&](auto&& v) {
-						using StartPinT = std::decay_t<decltype(v)>;
-						if (std::same_as<StartPinT, FloatData>) {
-							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatData), field.getOffset());
-						}
-						else if (std::same_as<StartPinT, TextureIdData>) {
-							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(FloatData));
-						}
-						else if (std::same_as<StartPinT, FloatTextureIdData>) {
-							uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatTextureIdData), field.getOffset());
-						}
-						else {
-							assert((false, "Error occurs when updating ubo. Pin type is FloatTextureIdData"));
-						}
-						}, value);
-				}
-				else {
-					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
-				}
-				});
-		}
-	}
-
-	template<PinDataConcept StartPinT>
-	void update_ubo_by_value(const StartPinT& value, size_t index) {
-		UboType::Class::FieldAt(index, [&](auto& field) {
-			using PinT = typename std::decay_t<decltype(field)>::Type;
-			if constexpr (std::same_as<PinT, FloatTextureIdData>) {
-				std::visit([&](auto&& v) {
-					using StartPinT = std::decay_t<decltype(v)>;
-					if (std::same_as<StartPinT, FloatData>) {
-						uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatData), field.getOffset());
-					}
-					else if (std::same_as<StartPinT, TextureIdData>) {
-						uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(TextureIdData), field.getOffset() + sizeof(FloatData));
-					}
-					else if (std::same_as<StartPinT, FloatTextureIdData>) {
-						uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&v), sizeof(FloatTextureIdData), field.getOffset());
-					}
-					else {
-						assert((false, "Error occurs when updating ubo. Pin type is FloatTextureIdData"));
-					}
-					}, value);
-			}
-			else if constexpr (std::same_as<PinT, StartPinT>) {
-				uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
-			}
-			});
 	}
 };
 

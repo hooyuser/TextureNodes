@@ -19,5 +19,5 @@ void main() {
     gl_Position = cam_ubo.proj * cam_ubo.view * cam_ubo.model * vec4(inPosition, 1.0);
     fragTexCoord = inTexCoord;
     fragNormal = inNormal;
-    fragPos = gl_Position.xyz;
+    fragPos = inPosition;
 }

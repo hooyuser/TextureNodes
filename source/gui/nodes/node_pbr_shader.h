@@ -40,7 +40,7 @@ struct NodePbrShader : NodeTypeShaderBase {
 		)
 	};
 
-	using data_type = UBO;
+	using data_type = ShaderData<UBO>;
 
 	constexpr auto static name() { return "Pbr Shader"; }
 };

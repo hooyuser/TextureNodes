@@ -44,14 +44,21 @@ vec3 Uncharted2Tonemap(vec3 x)
 	return ((x*(A*x+C*B)+D*E)/(x*(A*x+B)+D*F))-E/F;
 }
 
-vec3 prefilteredReflection(vec3 R, float roughness)
-{
-	float lod = 1.01 + roughness * (MAX_REFLECTION_LOD-1.0);
-	float lodf = floor(lod);
-	float lodc = ceil(lod);
-	vec3 a = textureLod(cubemapArray[ubo.prefiltered_map_id], R, lodf).rgb;
-	vec3 b = textureLod(cubemapArray[ubo.prefiltered_map_id], R, lodc).rgb;
-	return mix(a, b, lod - lodf);
+vec3 ACESFilm(vec3 x) {
+    float a = 2.51f;
+    float b = 0.03f;
+    float c = 2.43f;
+    float d = 0.59f;
+    float e = 0.14f;
+    return clamp((x*(a*x+b))/(x*(c*x+d)+e), vec3(0.0), vec3(1.0));
+}
+
+float pow5(float x){
+    return x * x * x * x * x;
+}
+
+vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness){
+	return F0 + (max(vec3(1.0 - roughness), F0) - F0) * pow5(1.0 - cosTheta);
 }
 
 void main() {
@@ -77,26 +84,26 @@ void main() {
     if(ubo.normal_texture_id >= 0) {
         normal = texture(textureArray[ubo.normal_texture_id], fragTexCoord).rgb;
     } else {
-        normal = fragNormal;
+        normal = normalize(fragNormal);
     }
 
-    vec3 F0 = mix(vec3(0.16 * 0.5 * 0.5), base_color, metallic);
-    vec3 F = max(vec3(1.0) - roughness, F0);
-    vec3 diffuse = base_color * (1.0 - metallic) * F * texture(cubemapArray[ubo.irradiance_map_id], normal).xyz / PI;
-
-    float alpha = roughness * roughness;
     vec3 wo = normalize(cam_ubo.pos - fragPos.xyz);
+    float NdotWo = max(dot(normal, wo), 0.0);
+
+    vec3 F0 = mix(vec3(0.16 * 0.5 * 0.5), base_color, metallic);
+	vec3 F = F_SchlickR(NdotWo, F0, roughness);
+
+    vec3 diffuse = base_color * (1.0 - metallic) * (1.0 - F) * texture(cubemapArray[ubo.irradiance_map_id], normal).xyz;
 
     vec3 r = reflect(-wo , normal);
-
-    //vec3 specular1 = prefilteredReflection(r, roughness);
     vec3 specular1 = textureLod(cubemapArray[ubo.prefiltered_map_id], r, roughness * MAX_REFLECTION_LOD).xyz;
 
     vec2 AB = texture(textureArray[ubo.brdf_LUT_id], vec2(max(dot(wo, normal), 0.0), roughness)).xy;
     vec3 specular2 = AB.x * F0 + AB.y;
 
     vec3 color = diffuse + specular1 * specular2;
-    //vec3 color = baseColor;
+  
+    color = ACESFilm(color);
 
     // Tone mapping
 	//color = Uncharted2Tonemap(color);
@@ -104,10 +111,4 @@ void main() {
     //color = pow(color, vec3(1.0f / 2.2f));
 
     outColor = vec4(color, 1.0);
-
-
-    //outColor = vec4(diffuse, 1.0);
-    //outColor = vec4(specular1 * specular2, 1.0);
-    //outColor = vec4(specular2, 1.0);
-    //outColor = vec4(specular1, 1.0);
 }

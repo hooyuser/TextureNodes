@@ -2,6 +2,7 @@
 #include "vk_mesh.h"
 #include "vk_initializers.h"
 #include "vk_engine.h"
+#include <stdexcept>
 
 namespace engine {
 	PipelineBuilder::PipelineBuilder(VulkanEngine* engine, DynamicViewportFlagBits dynamic_viewport, VertexInputFlagBits enable_vertex_input) {
