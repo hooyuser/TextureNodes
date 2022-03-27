@@ -1,6 +1,7 @@
 #pragma once
 #include <type_traits>
 #include <utility>
+#include <memory>
 
 #define FWD(...) ::std::forward<decltype(__VA_ARGS__)>(__VA_ARGS__)
 
@@ -17,7 +18,7 @@ decltype(auto) constexpr_if(Then&& then, OrElse&& or_else) {
 }
 
 template <int N, typename F>
-inline void UNROLL(F&& func) {
+void UNROLL(F&& func) {
     [func = FWD(func)] <std::size_t... I> (std::index_sequence<I...>) {
         (func.template operator() < I > (), ...);
     }(std::make_index_sequence<N>{});

@@ -22,7 +22,7 @@ concept std_variant = requires (T t) {
 
 template <typename T>
 using to_data_type = std::invoke_result_t<
-	decltype([] <template<typename ...> typename TypeList, typename ...Ts>
+	decltype([] <template<typename...> typename TypeList, typename... Ts>
 		(TypeList<Ts...>) consteval -> TypeList<typename Ts::data_type...> {}),
 	T > ;
 
@@ -39,52 +39,61 @@ using NodeTypeList = TypeList<
 	NodeTransform,
 	NodeBlend,
 	NodeColorRamp,
-	NodeAdd
+	NodeAdd,
+	NodePbrShader
 >;
-
-//All Image Node Types
-template <typename T>
-struct ImageBasePredicate : std::bool_constant<std::derived_from<T, NodeTypeImageBase>> {};
-
-using ImageNodeTypeList = NodeTypeList::filtered_by<ImageBasePredicate>;
 
 //Cast node types to their data types
 using NodeDataTypeList = to_data_type<NodeTypeList>;
 
-using ImageNodeDataTypeList = to_data_type<ImageNodeTypeList>;
-
 //Generate aliases for std::variant
 using NodeVariant = NodeTypeList::cast_to<std::variant>;
-
 using NodeDataVariant = NodeDataTypeList::cast_to<std::variant>;
 
-//template <typename T>
-//constexpr bool is_image_data() {
-//	return [] <typename... Ts> (std::tuple<Ts...>) {
-//		return any_of<T, Ts...>;
-//	}(ImageNodeDataTypeTuple{});
-//}
+//Predicate to check whether a class `T` is derived from the class `Base`
+template <typename Base>
+constexpr static inline auto BaseClassPredicate = []<typename T> (T) consteval {
+	return std::derived_from<T, Base>;
+};
 
+//Subset of Node Types
+template <typename Base>
+using NodeTypeSubList= NodeTypeList::filtered_by<BaseClassPredicate<Base>>;
+
+//Subset of Node Data Types
+template <typename Base>
+using NodeDataTypeSubList = to_data_type<NodeTypeSubList<Base>>;
+
+//Check node data of specific types 
+template <typename T, typename Base>
+concept is_node_data_of = NodeDataTypeSubList<Base>::template has_type<T>;
+
+//All Image Node Types
 template <typename T>
-static constexpr bool is_image_data = ImageNodeDataTypeList::has_type<T>;
+concept image_data = is_node_data_of<T, NodeTypeImageBase>;
 
+//All Value Node Types
 template <typename T>
-concept ImageDataConcept = is_image_data<T>;
+concept value_data = is_node_data_of<T, NodeTypeValueBase>;
 
+//All Shader Node Types
 template <typename T>
-concept NonImageDataConcept = NodeDataTypeList::has_type<T> && !is_image_data<T>;
+concept shader_data = is_node_data_of<T, NodeTypeShaderBase>;
 
-template <ImageDataConcept T>
-auto get_ubo(T)->typename ref_t<T>::UboType;
+template <image_data T>
+constexpr auto get_ubo(T)->typename ref_t<T>::UboType;
 
-template <NonImageDataConcept T>
-auto get_ubo(T)->typename T::UboType;
+template <value_data T>
+constexpr auto get_ubo(T)->typename T::UboType;
+
+template <shader_data T>
+constexpr auto get_ubo(T)->T;
 
 template <typename NodeDataT>
 using UboOf = std::decay_t<decltype(get_ubo(std::declval<NodeDataT>()))>;
 
 template <typename UboT>
-using FieldTypeList = typename TypeList<>::from<FieldTypeTuple<UboT>>::remove_ref;
+using FieldTypeList = typename to_type_list<FieldTypeTuple<UboT>>::remove_ref;
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -185,7 +194,6 @@ namespace engine {
 		std::vector<Node> nodes;
 		std::unordered_set<Link> links;
 		VkFence fence;
-		//VkFence fence;
 		int next_id = 1;
 
 		std::optional<size_t> color_pin_index; //implies whether colorpicker should be open
@@ -217,7 +225,7 @@ namespace engine {
 			auto& node = nodes.back();
 
 			using NodeDataType = typename NodeType::data_type;
-			using UboT = UboOf<NodeDataType>;
+			using UboT = typename NodeType::UBO;
 			UboT ubo{};
 
 			node.inputs.reserve(UboT::Class::TotalFields);
@@ -244,13 +252,13 @@ namespace engine {
 						pin_value = value;
 					}
 
-					if constexpr (ImageDataConcept<NodeDataType> && has_field_type_v<UboT, ColorRampData>) {
+					if constexpr (image_data<NodeDataType> && has_field_type_v<UboT, ColorRampData>) {
 						std::get<NodeDataType>(node.data)->update_ubo(pin_value, index);
 					}
 					});
 			}
 
-			if constexpr (ImageDataConcept<NodeDataType>) {
+			if constexpr (image_data<NodeDataType>) {
 				node.outputs.emplace_back(get_next_id(), node_index, "Result", std::in_place_type<TextureIdData>);
 				auto& node_data = std::get<NodeDataType>(node.data);
 				node.outputs[0].default_value = TextureIdData{ .value = node_data->node_texture_id };
@@ -258,7 +266,7 @@ namespace engine {
 					node_data->uniform_buffer->copy_from_host(&ubo);
 				}
 			}
-			else {
+			else if constexpr (value_data<NodeDataType>){
 				NodeDataType::ResultType::Class::ForEachField([&](auto& field) {
 					using PinType = typename std::decay_t<decltype(field)>::Type;
 					node.outputs.emplace_back(get_next_id(), node_index, first_letter_to_upper(field.name), std::in_place_type<PinType>);
@@ -271,10 +279,10 @@ namespace engine {
 		}
 		void create_fence();
 
-		bool is_pin_connection_valid(const PinVariant& pin1, const PinVariant& pin2);
+		static bool is_pin_connection_valid(const PinVariant& pin1, const PinVariant& pin2);
 
 	public:
-		NodeEditor(VulkanEngine* engine);
+		explicit NodeEditor(VulkanEngine* engine);
 
 		void* get_gui_display_texture_handle() const noexcept {
 			return gui_display_texture_handle;
@@ -291,7 +299,7 @@ namespace engine {
 		static bool hold_image_data(const NodeDataVariant& node_data) {
 			return std::visit([&](const NodeDataVariant& data) {
 				using NodeDataT = std::decay_t<decltype(data)>;
-				if constexpr (is_image_data<NodeDataT>) {
+				if constexpr (image_data<NodeDataT>) {
 					return true;
 				}
 				else {

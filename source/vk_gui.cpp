@@ -108,8 +108,8 @@ namespace engine {
 	}
 
 
-	void GUI::init(VulkanEngine* vulkanEngine) {
-		engine = vulkanEngine;
+	void GUI::init(VulkanEngine* vulkan_engine) {
+		engine = vulkan_engine;
 		init_command_pool();
 		init_render_pass();
 		create_framebuffers();
@@ -140,8 +140,8 @@ namespace engine {
 			.pPoolSizes = pool_sizes,
 		};
 	
-		VkDescriptorPool imguiDescriptorPool;
-		if (vkCreateDescriptorPool(engine->device, &pool_info, nullptr, &imguiDescriptorPool) != VK_SUCCESS) {
+		VkDescriptorPool imgui_descriptor_pool;
+		if (vkCreateDescriptorPool(engine->device, &pool_info, nullptr, &imgui_descriptor_pool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor pool for imgui!");
 		}
 
@@ -149,10 +149,10 @@ namespace engine {
 
 		//this initializes the core structures of imgui
 		ImGui::CreateContext();
-		ImGuiIO& io = ImGui::GetIO(); (void)io;
+		ImGuiIO& io = ImGui::GetIO();
 		io.ConfigFlags |= ImGuiConfigFlags_DockingEnable;
 
-		//ImGui::StyleColorsDark();
+		ImGui::StyleColorsDark();
 		ImGui_ImplGlfw_InitForVulkan(engine->window, true);
 
 		//this initializes imgui for Vulkan
@@ -161,7 +161,7 @@ namespace engine {
 			.PhysicalDevice = engine->physical_device,
 			.Device = engine->device,
 			.Queue = engine->graphics_queue,
-			.DescriptorPool = imguiDescriptorPool,
+			.DescriptorPool = imgui_descriptor_pool,
 			.MinImageCount = 3,
 			.ImageCount = 3,
 			.MSAASamples = VK_SAMPLE_COUNT_1_BIT,
@@ -210,7 +210,7 @@ namespace engine {
 
 		//add the destroy the imgui created structures
 		engine->main_deletion_queue.push_function([=]() {
-			vkDestroyDescriptorPool(engine->device, imguiDescriptorPool, nullptr);
+			vkDestroyDescriptorPool(engine->device, imgui_descriptor_pool, nullptr);
 			ImGui_ImplVulkan_Shutdown();
 			ImGui_ImplGlfw_Shutdown();
 			ImGui::DestroyContext();
@@ -233,7 +233,7 @@ namespace engine {
 		};
 		vkBeginCommandBuffer(command_buffers[image_index], &command_buffer_begin_info);
 
-		constexpr VkClearValue clearValues{
+		constexpr VkClearValue clear_value{
 			.color = { {1.0f, 0.0f, 0.0f, 1.0f} }
 		};
 
@@ -246,7 +246,7 @@ namespace engine {
 				.extent = engine->swapchain_extent,
 			},
 			.clearValueCount = 1,
-			.pClearValues = &clearValues,
+			.pClearValues = &clear_value,
 
 		};
 

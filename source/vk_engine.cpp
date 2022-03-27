@@ -754,19 +754,19 @@ void VulkanEngine::create_descriptor_set_layouts() {
 	create_descriptor_set_layout(scene_bindings, scene_set_layout);
 }
 
-void VulkanEngine::create_descriptor_set_layout(std::span<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout) {
+void VulkanEngine::create_descriptor_set_layout(std::span<VkDescriptorSetLayoutBinding> descriptor_set_layout_bindings, VkDescriptorSetLayout& descriptor_set_layout) {
 	const VkDescriptorSetLayoutCreateInfo layout_info{
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
-		.bindingCount = static_cast<uint32_t>(descriptorSetLayoutBindings.size()),
-		.pBindings = descriptorSetLayoutBindings.data(),
+		.bindingCount = static_cast<uint32_t>(descriptor_set_layout_bindings.size()),
+		.pBindings = descriptor_set_layout_bindings.data(),
 	};
 
-	if (vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &descriptorSetLayout) != VK_SUCCESS) {
+	if (vkCreateDescriptorSetLayout(device, &layout_info, nullptr, &descriptor_set_layout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create descriptor set layout!");
 	}
 
 	main_deletion_queue.push_function([=]() {
-		vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
+		vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
 		});
 }
 

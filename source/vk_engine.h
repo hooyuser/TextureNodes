@@ -313,5 +313,5 @@ public:
 
 	void set_camera() const;
 
-	void create_descriptor_set_layout(std::span<VkDescriptorSetLayoutBinding> descriptorSetLayoutBindings, VkDescriptorSetLayout& descriptorSetLayout);
+	void create_descriptor_set_layout(std::span<VkDescriptorSetLayoutBinding> descriptor_set_layout_bindings, VkDescriptorSetLayout& descriptor_set_layout);
 };

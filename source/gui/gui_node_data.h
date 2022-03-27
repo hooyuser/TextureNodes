@@ -197,6 +197,21 @@ namespace nlohmann {
 		}
 	};
 
+	template <>
+	struct adl_serializer<Color4TextureIdData> {
+		static void to_json(json& j, const Color4TextureIdData& data) {
+			j = data.value.color;
+		}
+
+		static void from_json(const json& j, Color4TextureIdData& data) {
+			data = Color4TextureIdData{
+				.value = {
+					.color = j,
+				}
+			};
+		}
+	};
+
 	template <typename ...Args>
 	struct adl_serializer<std::variant<Args...>> {
 		static void to_json(json& j, std::variant<Args...> const& var) {
@@ -215,7 +230,9 @@ using PinTypeList = TypeList<
 	Color4Data,
 	EnumData,
 	ColorRampData,
-	FloatTextureIdData>;
+	FloatTextureIdData,
+	Color4TextureIdData
+>;
 
 using PinVariant = PinTypeList::cast_to<std::variant>;
 
@@ -359,7 +376,7 @@ struct ImageData : public NodeData {
 	}
 
 	void create_ubo_descriptor_set_layout() {
-		auto ubo_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
+		auto const ubo_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
 		std::array layout_bindings = { ubo_layout_binding };
 		engine->create_descriptor_set_layout(layout_bindings, ubo_descriptor_set_layout);
 	}

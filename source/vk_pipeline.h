@@ -40,7 +40,7 @@ namespace engine {
 			VK_DYNAMIC_STATE_SCISSOR
 		};
 
-		PipelineBuilder(VulkanEngine* engine, DynamicViewportFlagBits dynamic_viewport = ENABLE_DYNAMIC_VIEWPORT, VertexInputFlagBits enable_vertex_input = ENABLE_VERTEX_INPUT);
+		explicit PipelineBuilder(VulkanEngine* engine, DynamicViewportFlagBits dynamic_viewport = ENABLE_DYNAMIC_VIEWPORT, VertexInputFlagBits enable_vertex_input = ENABLE_VERTEX_INPUT);
 
 		void set_viewport(float width, float height);
 

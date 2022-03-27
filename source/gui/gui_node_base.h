@@ -6,6 +6,10 @@ struct NodeTypeBase {};
 
 struct NodeTypeImageBase : NodeTypeBase {};
 
+struct NodeTypeValueBase : NodeTypeBase {};
+
+struct NodeTypeShaderBase : NodeTypeBase {};
+
 struct NumberInputWidgetInfo {
 	float min;
 	float max;

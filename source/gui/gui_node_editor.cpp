@@ -78,7 +78,7 @@ namespace engine {
 		for (auto const i : sorted_nodes) {
 			std::visit([&](auto&& node_data) {
 				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
-				if constexpr (is_image_data<NodeDataT>) {
+				if constexpr (image_data<NodeDataT>) {
 					node_data->wait_semaphore_submit_info1.clear();
 				}
 				}, nodes[i].data);
@@ -86,7 +86,8 @@ namespace engine {
 
 		for (auto i : sorted_nodes | std::views::reverse) {
 			std::visit([&](auto&& node_data) {
-				if constexpr (is_image_data<std::decay_t<decltype(node_data)>>) {
+				using NodeDataT = std::decay_t<decltype(node_data)>;
+				if constexpr (image_data<NodeDataT>) {
 					uint64_t counter;
 					vkGetSemaphoreCounterValue(engine->device, node_data->semaphore, &counter);
 					node_data->signal_semaphore_submit_info1.value = counter + 1;
@@ -96,7 +97,7 @@ namespace engine {
 						for (auto const connected_pin : pin.connected_pins) {
 
 							std::visit([&](auto&& connected_node_data) {
-								if constexpr (is_image_data<std::decay_t<decltype(connected_node_data)>>) {
+								if constexpr (image_data<std::decay_t<decltype(connected_node_data)>>) {
 									connected_node_data->wait_semaphore_submit_info1.emplace_back(VkSemaphoreSubmitInfo{
 										.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 										.pNext = nullptr,
@@ -114,14 +115,14 @@ namespace engine {
 					submits.push_back(node_data->submit_info[0]);
 					submits.push_back(node_data->submit_info[1]);
 				}
-				else {
+				else if constexpr (value_data<NodeDataT>){
 					recalculate_node(i);
 					for (auto& output : nodes[i].outputs) {
 						for (Pin* connected_pin : output.connected_pins) {
 							auto& connected_node = nodes[connected_pin->node_index];
 							std::visit([&](auto&& connected_node_data) {
 								using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
-								if constexpr (is_image_data<NodeDataT>) {
+								if constexpr (image_data<NodeDataT>) {
 									connected_node_data->update_ubo(output.default_value, get_input_pin_index(*connected_pin));
 								}
 								}, connected_node.data);
@@ -184,7 +185,7 @@ namespace engine {
 		}
 	}
 
-	bool NodeEditor::is_pin_connection_valid(const PinVariant& output_pin, const PinVariant& input_pin) {
+	bool NodeEditor::is_pin_connection_valid(const PinVariant& output_pin, const PinVariant& input_pin){
 		return (output_pin.index() == input_pin.index()
 			|| std::holds_alternative<FloatData>(output_pin) && std::holds_alternative<FloatTextureIdData>(input_pin)
 			|| std::holds_alternative<TextureIdData>(output_pin) && std::holds_alternative<FloatTextureIdData>(input_pin)
@@ -193,7 +194,7 @@ namespace engine {
 
 	void NodeEditor::draw() {
 		//static bool first = true;
-		auto& io = ImGui::GetIO();
+		auto const& io = ImGui::GetIO();
 
 		if (ImGui::BeginMenuBar()) {
 			if (ImGui::BeginMenu("Add")) {
@@ -334,11 +335,11 @@ namespace engine {
 											(pin->name + " : %d").c_str());
 									}
 									if (response_flag) {
-										if constexpr (is_image_data<NodeDataT>) {
+										if constexpr (image_data<NodeDataT>) {
 											node_data->update_ubo(pin->default_value, i);
 											update_from(node_index);
 										}
-										else {
+										else if constexpr (value_data<NodeDataT>){
 											update_from(node_index);
 										}
 									}
@@ -359,7 +360,21 @@ namespace engine {
 							ImGui::PushItemWidth(100.f);
 							ImGui::SameLine();
 							ImGui::PopItemWidth();
-							if (ImGui::ColorButton(("ColorButton##" + std::to_string(pin->id.Get())).c_str(), std::bit_cast<ImVec4>(default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 40, 20 })) {
+							if (ImGui::ColorButton(("ColorButton##" + std::to_string(pin->id.Get())).c_str(), std::bit_cast<ImVec4>(default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 20 })) {
+								color_node_index = node_index;
+								color_pin_index = i;
+								hit_color_pin = true;
+							}
+						}
+					}
+					else if constexpr (std::is_same_v<PinT, Color4TextureIdData>) {
+						ImGui::Text(pin->name.c_str());
+						rect = imgui_get_item_rect();
+						if (pin->connected_pins.empty()) {
+							ImGui::PushItemWidth(100.f);
+							ImGui::SameLine();
+							ImGui::PopItemWidth();
+							if (ImGui::ColorButton(("ColorButton##" + std::to_string(pin->id.Get())).c_str(), *reinterpret_cast<ImVec4*>(&default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 20 })) {
 								color_node_index = node_index;
 								color_pin_index = i;
 								hit_color_pin = true;
@@ -395,12 +410,12 @@ namespace engine {
 											(pin->name + " : %.3f").c_str());
 									}
 									if (response_flag) {
-										if constexpr (is_image_data<NodeDataT>) {
+										if constexpr (image_data<NodeDataT>) {
 											node_data->update_ubo(pin->default_value, i);
 											update_from(node_index);
 										}
 										else {
-											assert((is_image_data<NodeDataT>, "Error occurs during processing FloatTextureIdData"));
+											assert((image_data<NodeDataT>, "Error occurs during processing FloatTextureIdData"));
 										}
 									}
 									});
@@ -416,7 +431,7 @@ namespace engine {
 					else if constexpr (std::is_same_v<PinT, EnumData>) {
 						std::visit([&](auto&& node_data) {
 							using NodeDataT = std::decay_t<decltype(node_data)>;
-							if constexpr (is_image_data<NodeDataT>) {
+							if constexpr (image_data<NodeDataT>) {
 								UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
 									field.forEachAnnotation([&](auto& items) {
 										using T = std::remove_cvref_t<decltype(items)>;
@@ -440,7 +455,7 @@ namespace engine {
 						if (ImGui::Checkbox((pin->name + "##" + std::to_string(pin->id.Get())).c_str(), &bool_data.value)) {
 							std::visit([&](auto&& node_data) {
 								using NodeT = std::decay_t<decltype(node_data)>;
-								if constexpr (is_image_data<NodeT>) {
+								if constexpr (image_data<NodeT>) {
 									node_data->update_ubo(pin->default_value, i);
 									update_from(node_index);
 								}
@@ -463,7 +478,7 @@ namespace engine {
 					}, pin->default_value);
 
 
-				auto drawList = ImGui::GetWindowDrawList();
+				auto const drawList = ImGui::GetWindowDrawList();
 				ImVec2 pin_center = ImVec2(rect.Min.x - 8.0f, rect.GetCenter().y);
 				drawList->AddCircleFilled(pin_center, radius, ImColor(68, 129, 196, 160), 24);
 				drawList->AddCircle(pin_center, radius, ImColor(68, 129, 196, 255), 24, 1.8);
@@ -484,7 +499,7 @@ namespace engine {
 				ImGui::TextColored(ImVec4(1.0f, 0.324f, 0.0f, 1.0f), "  " ICON_FA_EYE);
 				std::visit([&](auto&& node_data) {
 					using T = std::decay_t<decltype(node_data)>;
-					if constexpr (is_image_data<T>) {
+					if constexpr (image_data<T>) {
 						gui_display_texture_handle = node_data->gui_texture;
 					}
 					else {
@@ -496,7 +511,7 @@ namespace engine {
 			//Draw preview image
 			std::visit([&](auto&& arg) {
 				using T = std::decay_t<decltype(arg)>;
-				if constexpr (is_image_data<T>) {
+				if constexpr (image_data<T>) {
 					ImGui::SetCursorPosX(node_rect.GetCenter().x - preview_image_size * 0.5);
 					ImGui::SetCursorPosY(yy - preview_image_size - 15);
 					static uint64_t counter;
@@ -529,10 +544,10 @@ namespace engine {
 			}
 
 			if (ImGui::BeginPopup(("ColorPopup##" + std::to_string(color_pin.id.Get())).c_str())) {
-				if (ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin.id.Get())).c_str(), reinterpret_cast<float*>(std::get_if<Color4Data>(&(color_pin.default_value))), ImGuiColorEditFlags_None, NULL)) {
+				if (ImGui::ColorPicker4(("##ColorPicker" + std::to_string(color_pin.id.Get())).c_str(), reinterpret_cast<float*>(&color_pin.default_value), ImGuiColorEditFlags_None, nullptr)) {
 					std::visit([&](auto&& node_data) {
 						using NodeDataT = std::decay_t<decltype(node_data)>;
-						if constexpr (is_image_data<NodeDataT>) {
+						if constexpr (image_data<NodeDataT>) {
 							node_data->update_ubo(color_pin.default_value, *color_pin_index);
 							update_from(*color_node_index);
 						}
@@ -557,7 +572,7 @@ namespace engine {
 				if (ImGui::GradientEditor(("ColorRampEditor##" + std::to_string(color_ramp_pin.id.Get())).c_str(), color_ramp_data.ui_value.get(), color_ramp_data.draggingMark, color_ramp_data.selectedMark)) {
 					std::visit([&](auto&& node_data) {
 						using NodeDataT = std::decay_t<decltype(node_data)>;
-						if constexpr (is_image_data<NodeDataT>) {
+						if constexpr (image_data<NodeDataT>) {
 							node_data->update_ubo(color_ramp_pin.default_value, *color_ramp_pin_index);
 							if (vkGetFenceStatus(engine->device, fence) == VK_SUCCESS) {
 								const VkSubmitInfo submit_info{
@@ -591,7 +606,7 @@ namespace engine {
 			if (ImGui::BeginPopup(("EnumPopup##" + std::to_string(enum_pin.id.Get())).c_str())) {
 				std::visit([&](auto&& node_data) {
 					using NodeDataT = std::decay_t<decltype(node_data)>;
-					if constexpr (is_image_data<NodeDataT>) {
+					if constexpr (image_data<NodeDataT>) {
 						UboOf<NodeDataT>::Class::FieldAt(*enum_pin_index, [&](auto& field) {
 							field.forEachAnnotation([&](auto& items) {
 								using T = std::remove_cvref_t<decltype(items)>;
@@ -599,7 +614,7 @@ namespace engine {
 									for (size_t i = 0; i < items.size(); ++i) {
 										if (ImGui::MenuItem(items[i])) {
 											std::get<EnumData>(enum_pin.default_value).value = i;
-											if constexpr (is_image_data<NodeDataT>) {
+											if constexpr (image_data<NodeDataT>) {
 												node_data->update_ubo(enum_pin.default_value, *enum_pin_index);
 											}
 											update_from(*enum_node_index);
@@ -717,7 +732,7 @@ namespace engine {
 
 						std::visit([&](auto&& end_node_data) {
 							using NodeT = std::decay_t<decltype(end_node_data)>;
-							if constexpr (is_image_data<NodeT>) {
+							if constexpr (image_data<NodeT>) {
 								std::visit([&](auto&& end_pin_value) {
 									using PinT = std::decay_t<decltype(end_pin_value)>;
 									if constexpr (std::same_as<PinT, FloatTextureIdData>) {
@@ -762,7 +777,7 @@ namespace engine {
 
 						std::visit([&](auto&& end_node_data) {
 							using NodeT = std::decay_t<decltype(end_node_data)>;
-							if constexpr (is_image_data<NodeT>) {
+							if constexpr (image_data<NodeT>) {
 								std::visit([&](auto&& end_pin_value) {
 									using PinT = std::decay_t<decltype(end_pin_value)>;
 									if constexpr (std::same_as<PinT, TextureIdData>) {
@@ -808,7 +823,6 @@ namespace engine {
 
 		ed::End();
 		ed::SetCurrentEditor(nullptr);
-
 	}
 
 	void NodeEditor::create_fence() {
@@ -839,7 +853,7 @@ namespace engine {
 		});
 	}
 
-	void NodeEditor::serialize(std::string_view file_path) {
+	void NodeEditor::serialize(const std::string_view file_path) {
 		json json_file;
 		ed::SetCurrentEditor(context);
 		for (auto& node : nodes) {
@@ -879,7 +893,7 @@ namespace engine {
 		ed::SetCurrentEditor(nullptr);
 	}
 
-	void NodeEditor::deserialize(std::string_view file_path) {
+	void NodeEditor::deserialize(const std::string_view file_path) {
 		std::ifstream i_file(file_path.data());
 		json json_file;
 		i_file >> json_file;
@@ -920,7 +934,7 @@ namespace engine {
 						}
 						else if constexpr (!std::same_as<PinType, TextureIdData>) {
 							pin_value = json_node["pins"][pin_index].get<PinType>();
-							if constexpr (is_image_data<NodeDataType>) {
+							if constexpr (image_data<NodeDataType>) {
 								std::get<NodeDataType>(node.data)->update_ubo(pin_value, pin_index);
 							}
 						}
@@ -945,7 +959,7 @@ namespace engine {
 
 			std::visit([&](auto&& end_node_data) {
 				using NodeT = std::decay_t<decltype(end_node_data)>;
-				if constexpr (is_image_data<NodeT>) {
+				if constexpr (image_data<NodeT>) {
 					end_node_data->update_ubo(start_pin.default_value, end_pin_index);
 				}
 				}, nodes[end_node_index].data);
@@ -962,14 +976,12 @@ namespace engine {
 		);
 
 		ed::SetCurrentEditor(nullptr);
-
-
 	}
 
 	void NodeEditor::recalculate_node(const size_t index) {
 		std::visit([=](auto&& node_data) {
 			using NodeDataT = std::decay_t<decltype(node_data)>;
-			if constexpr (NonImageDataConcept<NodeDataT>) {
+			if constexpr (value_data<NodeDataT>) {
 				using UboT = UboOf<NodeDataT>;
 				using FieldTypes = FieldTypeList<UboT>;
 				nodes[index].outputs[0].default_value = [&] <std::size_t... I> (std::index_sequence<I...>) {
