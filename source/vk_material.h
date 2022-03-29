@@ -36,11 +36,23 @@ struct Pbr {
 };
 
 struct HDRi {
-
-	int baseColorTextureID = -1;
+	int base_color_texture_id = -1;
 	
 	REFLECT(HDRi,
-		baseColorTextureID)
+		base_color_texture_id)
+};
+
+struct PbrTexture {
+	uint32_t base_color_texture_id = -1;
+	uint32_t matallic_texture_id = -1;
+	uint32_t roughness_texture_id = -1;
+	uint32_t normal_texture_id = -1;
+	
+	REFLECT(PbrTexture,
+		base_color_texture_id,
+		matallic_texture_id,
+		roughness_texture_id,
+		normal_texture_id)
 };
 
 namespace engine {
@@ -52,7 +64,7 @@ namespace engine {
 	template <typename ParaT = Empty_Type>
 	class Material {
 	public:
-		ShaderPtr pShaders;
+		ShaderPtr shaders;
 		ParaT paras;
 		VkPipeline pipeline = VK_NULL_HANDLE;
 		VkPipelineLayout pipelineLayout = VK_NULL_HANDLE;
@@ -61,12 +73,14 @@ namespace engine {
 
 	using PbrMaterial = Material<Pbr>;
 	using HDRiMaterial = Material<HDRi>;
+	using PbrTextureMaterial = Material<PbrTexture>;
 	using MaterialPtr = std::shared_ptr<Material<>>;
 	using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
+	using PbrTextureMaterialPtr = std::shared_ptr<PbrTextureMaterial>;
 	using HDRiMaterialPtr = std::shared_ptr<HDRiMaterial>;
 
-	using MaterialV = std::variant<Material<>, PbrMaterial, HDRiMaterial>;
-	using MaterialPtrV = std::variant<MaterialPtr, PbrMaterialPtr, HDRiMaterialPtr>;
+	using MaterialV = std::variant<PbrMaterial, PbrTextureMaterial, HDRiMaterial>;
+	using MaterialPtrV = std::variant<PbrMaterialPtr, PbrTextureMaterialPtr, HDRiMaterialPtr>;
 }
 
 

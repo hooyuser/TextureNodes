@@ -144,10 +144,9 @@ void VulkanEngine::init_vulkan() {
 	create_viewport_cmd_buffers();
 
 	create_uniform_buffers();
+	load_obj();
 	create_descriptor_sets();
 	create_graphics_pipeline();
-
-	load_obj();
 
 	set_camera();
 
@@ -674,18 +673,18 @@ void VulkanEngine::parse_material_info() {
 
 	if (env_material_info_json["type"].get<std::string>() == "cubemap") {
 		materials.emplace("env_light", std::make_shared<HDRiMaterial>());
-		auto envMat = std::get<HDRiMaterialPtr>(materials["env_light"]);
+		auto const env_mat = std::get<HDRiMaterialPtr>(materials["env_light"]);
 		std::array<std::string, 2> spvFilePaths = {
 			"assets/shaders/env_cubemap.vert.spv",
 			"assets/shaders/env_cubemap.frag.spv"
 		};
-		envMat->pShaders = engine::Shader::createFromSpv(this, std::move(spvFilePaths));
+		env_mat->shaders = engine::Shader::createFromSpv(this, std::move(spvFilePaths));
 		//envMat->textureArrayIndex.emplace("cubemap", loaded_textures.size());
 		//envMat->paras.baseColorTextureID = loaded_textures.size();
-		envMat->paras.baseColorTextureID = texture_manager->add_texture(
+		env_mat->paras.base_color_texture_id = texture_manager->add_texture(
 			engine::Texture::load_cubemap_texture(this,
 				env_material_info_json["filePaths"].get<std::vector<std::string>>()));
-		envMat->textureArrayIndex.emplace("cubemap", envMat->paras.baseColorTextureID);
+		env_mat->textureArrayIndex.emplace("cubemap", env_mat->paras.base_color_texture_id);
 
 		/*for (auto const& mat : loaded_materials) {
 			mat->paras.irradianceMapId = loaded_textures.size();
@@ -741,23 +740,9 @@ void VulkanEngine::create_descriptor_set_layouts() {
 		VK_SHADER_STAGE_FRAGMENT_BIT,
 		1);
 
-	//auto const texture_2d_array_layout_binding = vkinit::descriptorSetLayoutBinding(
-	//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-	//	VK_SHADER_STAGE_FRAGMENT_BIT,
-	//	1,
-	//	loaded_2d_textures.size());
-
-	//auto const cubemap_array_layout_binding = vkinit::descriptorSetLayoutBinding(
-	//	VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-	//	VK_SHADER_STAGE_FRAGMENT_BIT,
-	//	0,
-	//	loaded_cubemap_textures.size());
-
 	std::array scene_bindings{
 		cam_ubo_layout_binding,
 		material_preview_layout_binding,
-		//texture_2d_array_layout_binding,
-		//cubemap_array_layout_binding,
 	};
 
 	create_descriptor_set_layout(scene_bindings, scene_set_layout);
@@ -801,7 +786,7 @@ void VulkanEngine::create_mesh_pipeline() {
 		});
 
 	for (auto const& material : loaded_materials) {
-		pipeline_builder.setShaderStages(material);
+		pipeline_builder.set_shader_stages(material);
 
 		pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
@@ -819,7 +804,7 @@ void VulkanEngine::create_env_light_pipeline() {
 	PipelineBuilder pipeline_builder(this);
 	pipeline_builder.set_msaa(msaa_samples);
 
-	pipeline_builder.setShaderStages(std::get<HDRiMaterialPtr>(materials["env_light"]));
+	pipeline_builder.set_shader_stages(std::get<HDRiMaterialPtr>(materials["env_light"]));
 
 	std::array env_descriptor_set_layouts = { scene_set_layout, texture_manager->descriptor_set_layout };
 
@@ -1237,7 +1222,7 @@ void VulkanEngine::create_descriptor_sets() {
 			nullptr);
 	}
 
-	for (auto const& [index, texture]:texture_manager->textures) {
+	for (auto const& [index, texture] : texture_manager->textures) {
 		VkDescriptorImageInfo descriptor_image_info{
 			.sampler = texture->sampler,
 			.imageView = texture->imageView,
@@ -1253,8 +1238,8 @@ void VulkanEngine::create_descriptor_sets() {
 				.descriptorCount = 1,
 				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
 				.pImageInfo = &descriptor_image_info,
-		},
-	};
+			},
+		};
 
 		vkUpdateDescriptorSets(device,
 			texture_array_writes.size(),
@@ -1338,7 +1323,9 @@ void VulkanEngine::record_viewport_cmd_buffer(const int command_buffer_index) {
 		if (mesh != last_mesh) {
 			if (mesh->material != last_material) {
 				std::visit([&](auto p_material) {
-					vkCmdBindPipeline(cmd, VK_PIPELINE_BIND_POINT_GRAPHICS, p_material->pipeline);
+					vkCmdBindPipeline(cmd,
+						VK_PIPELINE_BIND_POINT_GRAPHICS,
+						p_material->pipeline);
 					}, mesh->material);
 				last_material = mesh->material;
 			}
@@ -1364,28 +1351,28 @@ void VulkanEngine::record_viewport_cmd_buffer(const int command_buffer_index) {
 void VulkanEngine::load_obj() {
 	loaded_meshes.emplace_back(engine::Mesh::load_from_obj(this, "assets/obj_models/rounded_cube.obj"));
 
-
-	auto const& mesh = loaded_meshes.back();
-	auto material = std::make_shared<Material<>>();
+	auto material = std::make_shared<PbrTextureMaterial>();
 	auto const spv_file_paths = std::array{
 		"assets/shaders/pbr_texture.vert.spv"sv,
 		"assets/shaders/pbr_texture.frag.spv"sv
 	};
-	material->pShaders = engine::Shader::createFromSpv(this, spv_file_paths);
+	material->shaders = engine::Shader::createFromSpv(this, spv_file_paths);
 
-	std::apply([this](auto&&... args) {
-		((args = Texture::create_device_texture(this,
+	for_each_field(pbr_material_texture_set,[&](auto& texture, auto index) {
+		texture = Texture::create_device_texture(this,
 			TEXTURE_WIDTH,
 			TEXTURE_HEIGHT,
 			VK_FORMAT_R8G8B8A8_UNORM,
 			VK_IMAGE_ASPECT_COLOR_BIT,
-			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT)), ...);
-		}, class_field_to_tuple(pbr_material_texture_set));
-
-	mesh->material = material;
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+		PbrTexture::Class::FieldAt(material->paras, index, [&](auto& field, auto& value) {
+			value = texture_manager->add_texture(texture);
+		});
+	});
 
 	PipelineBuilder pipeline_builder(this);
 	pipeline_builder.set_msaa(msaa_samples);
+	pipeline_builder.set_shader_stages(material);
 
 	std::array env_descriptor_set_layouts = { scene_set_layout, texture_manager->descriptor_set_layout };
 
@@ -1399,16 +1386,6 @@ void VulkanEngine::load_obj() {
 		vkDestroyPipelineLayout(device, material_preview_pipeline_layout, nullptr);
 		});
 
-	for (auto shaderModule : material->pShaders->shaderModules) {
-		pipeline_builder.shaderStages.emplace_back(VkPipelineShaderStageCreateInfo{
-			.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-			.pNext = nullptr,
-			.stage = shaderModule.stage,
-			.module = shaderModule.shader,
-			.pName = "main",
-			});
-	}
-
 	pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
 
 	pipeline_builder.build_pipeline(device, viewport_3d.render_pass, material_preview_pipeline_layout, material->pipeline);
@@ -1420,7 +1397,8 @@ void VulkanEngine::load_obj() {
 	material->pipelineLayout = material_preview_pipeline_layout;
 
 	material_preview_ubo->copy_from_host(&init_material_preview_ubo);
-
+	auto const& mesh = loaded_meshes.back();
+	mesh->material = std::move(material);
 	renderables.emplace_back(RenderObject{
 		.mesh = mesh,
 		.transform_matrix = glm::mat4{ 1.0f },
@@ -1459,10 +1437,7 @@ void VulkanEngine::create_sync_objects() {
 void VulkanEngine::init_imgui() {
 	gui = std::make_shared<engine::GUI>();
 	gui->init(this);
-
-
-	//node_texture_1d_manager = std::make_shared<TextureManager>(this, max_bindless_node_1d_textures);
-
+	
 	node_editor = std::make_shared<engine::NodeEditor>(this);
 }
 
@@ -1830,22 +1805,22 @@ bool VulkanEngine::check_device_extension_support(VkPhysicalDevice device) {
 QueueFamilyIndices VulkanEngine::find_queue_families(VkPhysicalDevice device) const {
 	QueueFamilyIndices indices;
 
-	uint32_t queueFamilyCount = 0;
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+	uint32_t queue_family_count = 0;
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, nullptr);
 
-	std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-	vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+	std::vector<VkQueueFamilyProperties> queue_families(queue_family_count);
+	vkGetPhysicalDeviceQueueFamilyProperties(device, &queue_family_count, queue_families.data());
 
 	int i = 0;
-	for (const auto& queueFamily : queueFamilies) {
+	for (const auto& queueFamily : queue_families) {
 		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
 			indices.graphics_family = i;
 		}
 
-		VkBool32 presentSupport = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &presentSupport);
+		VkBool32 present_support = false;
+		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
 
-		if (presentSupport) {
+		if (present_support) {
 			indices.present_family = i;
 		}
 
@@ -1860,11 +1835,10 @@ QueueFamilyIndices VulkanEngine::find_queue_families(VkPhysicalDevice device) co
 }
 
 std::vector<const char*> VulkanEngine::get_required_extensions() {
-	uint32_t glfwExtensionCount = 0;
-	const char** glfwExtensions;
-	glfwExtensions = glfwGetRequiredInstanceExtensions(&glfwExtensionCount);
+	uint32_t glfw_extension_count = 0;
+	const char** glfw_extensions = glfwGetRequiredInstanceExtensions(&glfw_extension_count);
 
-	std::vector<const char*> extensions(glfwExtensions, glfwExtensions + glfwExtensionCount);
+	std::vector<const char*> extensions(glfw_extensions, glfw_extensions + glfw_extension_count);
 
 	if constexpr (enableValidationLayers) {
 		extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);

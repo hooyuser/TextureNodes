@@ -1,12 +1,16 @@
 #pragma once
 #include <tuple>
+#include "util.h"
+
+template <typename T>
+concept aggregate = std::is_aggregate_v<std::remove_cvref_t<T>>;
 
 template <size_t I>
 struct any_type {
 	template <class T>
 	constexpr operator T() const noexcept;
 };
-template <class S, size_t... Is>
+template <aggregate S, size_t... Is>
 constexpr size_t detect_fields_count(std::index_sequence<Is...>) noexcept {
 	if constexpr (!requires { S{ std::declval<any_type<Is>>()... }; }) {
 		return sizeof...(Is) - 1;
@@ -16,7 +20,7 @@ constexpr size_t detect_fields_count(std::index_sequence<Is...>) noexcept {
 	}
 }
 
-template <class S>
+template <aggregate S>
 constexpr size_t counter_member_v = detect_fields_count<std::decay_t<S>>(std::make_index_sequence<1>{});
 
 #define MACRO_BUILD0(x)
@@ -114,7 +118,7 @@ constexpr size_t counter_member_v = detect_fields_count<std::decay_t<S>>(std::ma
 #define MACRO_ELSE_IF_FIELD_COUNT(N) else MACRO_IF_FIELD_COUNT(N)
 
 
-template <class T>
+template <aggregate T>
 constexpr auto class_field_to_tuple(T&& s) noexcept {
 	constexpr auto count = counter_member_v<T>;
 	MACRO_IF_FIELD_COUNT(79)
@@ -199,5 +203,19 @@ constexpr auto class_field_to_tuple(T&& s) noexcept {
 		MACRO_ELSE_IF_FIELD_COUNT(0)
 }
 
-template<typename Class> requires std::is_aggregate_v<Class>
+template<aggregate Class>
 using FieldTypeTuple = std::decay_t<decltype(class_field_to_tuple(std::declval<Class>()))>;
+
+template <typename T, typename Func>
+concept apply_func_to_field_tuple = aggregate<T> && std::invoke(
+	[] <std::size_t... I> (std::index_sequence<I...>) {
+		return (std::invocable<Func, std::tuple_element_t<I, FieldTypeTuple<T>>, uint32_t> && ...);
+	}, std::make_index_sequence<counter_member_v<T>>{});
+
+template <typename T, typename Func> //requires apply_func_to_field_tuple<T, Func>
+constexpr decltype(auto) for_each_field(T&& s, Func&& func) {
+	uint32_t i = 0;
+	return std::apply([&](auto&&... args) {
+		((FWD(func)(args, i++)), ...);
+	}, class_field_to_tuple(FWD(s)));
+}

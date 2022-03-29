@@ -4,6 +4,11 @@
 #define PI 3.14159265359
 #define MAX_REFLECTION_LOD 4.0
 
+layout (constant_id = 0) const uint base_color_texture_id = -1;                                               
+layout (constant_id = 1) const uint matallic_texture_id = -1;  
+layout (constant_id = 2) const uint roughness_texture_id = -1;        
+layout (constant_id = 3) const uint normal_texture_id = -1; 
+
 layout(set = 0, binding = 0) uniform CameraUniformBufferObject {
     mat4 model;
     mat4 view;
@@ -13,12 +18,12 @@ layout(set = 0, binding = 0) uniform CameraUniformBufferObject {
 
 layout(set = 0, binding = 1) uniform UniformBufferObject {
     vec4 base_color;
-    int base_color_texture_id;
+    int src_base_color_texture;
     float metallic;
-    int metallic_texture_id;
+    int src_metallic_texture;
     float roughness;
-    int roughness_texture_id;
-    int normal_texture_id;
+    int src_roughness_texture;
+    int src_normal_texture;
     int irradiance_map_id; 
     int brdf_LUT_id;    
     int prefiltered_map_id;
@@ -63,26 +68,26 @@ vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness){
 
 void main() {
     vec3 base_color;
-    if(ubo.base_color_texture_id >= 0) {
-        base_color = texture(textureArray[ubo.base_color_texture_id], fragTexCoord).rgb;
+    if(ubo.src_base_color_texture >= 0) {
+        base_color = texture(textureArray[base_color_texture_id], fragTexCoord).rgb;
     } else {
         base_color = ubo.base_color.rgb;
     }
     float metallic;
-    if(ubo.metallic_texture_id >= 0) {
-        metallic = texture(textureArray[ubo.metallic_texture_id], fragTexCoord).r;
+    if(ubo.src_metallic_texture >= 0) {
+        metallic = texture(textureArray[matallic_texture_id], fragTexCoord).r;
     } else {
         metallic = ubo.metallic;
     }
     float roughness;
-    if(ubo.roughness_texture_id >= 0) {
-        roughness = texture(textureArray[ubo.roughness_texture_id], fragTexCoord).r;
+    if(ubo.src_roughness_texture >= 0) {
+        roughness = texture(textureArray[roughness_texture_id], fragTexCoord).r;
     } else {
         roughness = ubo.roughness;
     }
     vec3 normal;
-    if(ubo.normal_texture_id >= 0) {
-        normal = texture(textureArray[ubo.normal_texture_id], fragTexCoord).rgb;
+    if(ubo.src_normal_texture >= 0) {
+        normal = texture(textureArray[normal_texture_id], fragTexCoord).rgb;
     } else {
         normal = normalize(fragNormal);
     }

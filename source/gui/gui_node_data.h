@@ -627,7 +627,7 @@ struct ImageData : public NodeData, public UboMixin<UniformBufferType> {
 		((shader_files[i++] = Shaders.value), ...);
 		auto shaders = engine::Shader::createFromSpv(engine, shader_files);
 
-		for (auto shader_module : shaders->shaderModules) {
+		for (auto shader_module : shaders->shader_modules) {
 			VkPipelineShaderStageCreateInfo shader_info{
 				.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
 				.pNext = nullptr,

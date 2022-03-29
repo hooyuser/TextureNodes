@@ -37,6 +37,7 @@ struct DeletionQueue {
 struct SwapChainSupportDetails;
 class Camera;
 struct Pbr;
+struct PbrTexture;
 struct HDRi;
 struct TextureManager;
 
@@ -53,10 +54,12 @@ namespace engine {
 
 	using PbrMaterial = Material<Pbr>;
 	using HDRiMaterial = Material<HDRi>;
+	using PbrTextureMaterial = Material<PbrTexture>;
 	using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
 	using HDRiMaterialPtr = std::shared_ptr<HDRiMaterial>;
-	using MaterialPtr = std::shared_ptr<Material<Empty_Type>>;
-	using MaterialPtrV = std::variant<MaterialPtr, PbrMaterialPtr, HDRiMaterialPtr>;
+	using PbrTextureMaterialPtr = std::shared_ptr<PbrTextureMaterial>;
+	using MaterialV = std::variant<PbrMaterial, PbrTextureMaterial, HDRiMaterial>;
+	using MaterialPtrV = std::variant<PbrMaterialPtr, PbrTextureMaterialPtr, HDRiMaterialPtr>;
 }
 
 using MeshPtr = std::shared_ptr<engine::Mesh>;
@@ -93,12 +96,12 @@ struct PbrMaterialTextureSet {
 
 struct MaterialPreviewUBO {
 	glm::vec4 base_color{ 0.8f, 0.8f, 0.8f, 1.0f };
-	int base_color_texture_id = -1;
+	int base_color_texture = -1;
 	float metallic = 0.0f;
-	int metallic_texture_id = -1;
+	int metallic_texture = -1;
 	float roughness = 0.4f;
-	int roughness_texture_id = -1;
-	int normal_texture_id = -1;
+	int roughness_texture = -1;
+	int normal_texture = -1;
 	int irradiance_map_id = -1;
 	int brdf_LUT_id = -1;
 	int prefiltered_map_id = -1;

@@ -46,55 +46,51 @@ namespace engine {
 
 		void set_msaa(VkSampleCountFlagBits msaaSamples);
 
-		template<typename ParaT>
-		void setShaderStages(std::shared_ptr<Material<ParaT>> pMaterial);
-
 		void build_pipeline(const VkDevice& device, const VkRenderPass& pass, const VkPipelineLayout& pipelineLayout, VkPipeline& pipeline);
-	};
 
-	template<typename ParaT>
-	void PipelineBuilder::setShaderStages(std::shared_ptr<Material<ParaT>> pMaterial) {
-		shaderStages.clear();
-		for (auto shaderModule : pMaterial->pShaders->shaderModules) {
-			if (shaderModule.stage == VK_SHADER_STAGE_FRAGMENT_BIT) {
-				constexpr auto paraNum = ParaT::Class::TotalFields;
-				specializationMapEntries.resize(paraNum);
+		template<typename ParaT>
+		void set_shader_stages(const std::shared_ptr<Material<ParaT>>& pMaterial) {
+			shaderStages.clear();
+			for (auto shader_module : pMaterial->shaders->shader_modules) {
+				if (shader_module.stage == VK_SHADER_STAGE_FRAGMENT_BIT) {
+					constexpr auto para_num = ParaT::Class::TotalFields;
+					specializationMapEntries.resize(para_num);
 
-				for (uint32_t i = 0; i < paraNum; i++) {
-					ParaT::Class::FieldAt(pMaterial->paras, i, [&](auto& field, auto& value) {
-						specializationMapEntries[i].constantID = i;
-						specializationMapEntries[i].offset = static_cast<uint32_t>(field.getOffset());
-						specializationMapEntries[i].size = sizeof(value);
-						});
+					for (uint32_t i = 0; i < para_num; i++) {
+						ParaT::Class::FieldAt(pMaterial->paras, i, [&](auto& field, auto& value) {
+							specializationMapEntries[i].constantID = i;
+							specializationMapEntries[i].offset = static_cast<uint32_t>(field.getOffset());
+							specializationMapEntries[i].size = sizeof(value);
+							});
+					}
+
+					specializationInfo.mapEntryCount = para_num;
+					specializationInfo.pMapEntries = specializationMapEntries.data();
+					specializationInfo.dataSize = sizeof(ParaT);
+					specializationInfo.pData = &pMaterial->paras;
+
+					shaderStages.emplace_back(VkPipelineShaderStageCreateInfo {
+						.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+						.pNext = nullptr,
+						.stage = shader_module.stage,
+						.module = shader_module.shader,
+						.pName = "main",
+						.pSpecializationInfo = &specializationInfo,
+					});
 				}
-
-				specializationInfo.mapEntryCount = paraNum;
-				specializationInfo.pMapEntries = specializationMapEntries.data();
-				specializationInfo.dataSize = sizeof(ParaT);
-				specializationInfo.pData = &pMaterial->paras;
-
-				VkPipelineShaderStageCreateInfo info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-
-				info.pNext = nullptr;
-				info.stage = shaderModule.stage;
-				info.module = shaderModule.shader;
-				info.pName = "main";
-				info.pSpecializationInfo = &specializationInfo;
-
-				shaderStages.emplace_back(std::move(info));
-			}
-			else {
-				VkPipelineShaderStageCreateInfo info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
-
-				info.pNext = nullptr;
-				info.stage = shaderModule.stage;
-				info.module = shaderModule.shader;
-				info.pName = "main";
-
-				shaderStages.emplace_back(std::move(info));
+				else {
+					shaderStages.emplace_back(VkPipelineShaderStageCreateInfo {
+						.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+						.pNext = nullptr,
+						.stage = shader_module.stage,
+						.module = shader_module.shader,
+						.pName = "main",
+					});
+				}
 			}
 		}
-	}
+	};
+
 }
 
 

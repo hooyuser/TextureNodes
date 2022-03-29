@@ -22,7 +22,7 @@ namespace engine {
 	public:
 
 		VkDevice device = VK_NULL_HANDLE;
-		std::vector<ShaderModule> shaderModules;
+		std::vector<ShaderModule> shader_modules;
 
 		Shader(VkDevice device, std::vector<ShaderModule>&& shaderModules);
 

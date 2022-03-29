@@ -30,6 +30,6 @@ namespace engine {
 		return buffer;
 	}
 
-	Shader::Shader(VkDevice device, std::vector<ShaderModule>&& shaderModules): device(device), shaderModules(shaderModules){}
+	Shader::Shader(VkDevice device, std::vector<ShaderModule>&& shaderModules): device(device), shader_modules(shaderModules){}
 
 }
