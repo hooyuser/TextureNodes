@@ -111,12 +111,12 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 		.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 	};
 
-	color_ramp_texture_id = engine->node_texture_1d_manager->get_id();
+	color_ramp_texture_id = engine->texture_manager->get_id();
 
 	const std::array descriptor_writes{
 		VkWriteDescriptorSet {
 			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-			.dstSet = engine->node_texture_1d_manager->descriptor_set,
+			.dstSet = engine->texture_manager->descriptor_set,
 			.dstBinding = 0,
 			.dstArrayElement = color_ramp_texture_id,
 			.descriptorCount = 1,
@@ -131,7 +131,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 }
 
 RampTexture::~RampTexture() {
-	engine->node_texture_1d_manager->delete_id(color_ramp_texture_id);
+	engine->texture_manager->delete_id(color_ramp_texture_id);
 	vkDestroySampler(engine->device, sampler, nullptr);
 	vkDestroyImageView(engine->device, image_view, nullptr);
 	vkDestroyImage(engine->device, image, nullptr);

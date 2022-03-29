@@ -421,11 +421,11 @@ struct ImageData : public NodeData, public UboMixin<UniformBufferType> {
 	}
 
 	~ImageData() {
-		engine->node_texture_2d_manager->delete_id(node_texture_id);
+		engine->texture_manager->delete_id(node_texture_id);
 		const std::array cmd_buffers{ image_processing_cmd_buffer, generate_preview_cmd_buffer };
 		vkFreeCommandBuffers(engine->device, engine->command_pool, cmd_buffers.size(), cmd_buffers.data());
 		vkDestroyFramebuffer(engine->device, image_processing_framebuffer, nullptr);
-		vkFreeDescriptorSets(engine->device, engine->node_descriptor_pool, 1, &ubo_descriptor_set);
+		vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, 1, &ubo_descriptor_set);
 		vkDestroySemaphore(engine->device, semaphore, nullptr);
 	}
 
@@ -469,7 +469,7 @@ struct ImageData : public NodeData, public UboMixin<UniformBufferType> {
 		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		gui_preview_texture = ImGui_ImplVulkan_AddTexture(preview_texture->sampler, preview_texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		node_texture_id = engine->node_texture_2d_manager->get_id();
+		node_texture_id = engine->texture_manager->add_texture(texture);
 	}
 
 	void create_ubo_descriptor_set_layout() {
@@ -481,7 +481,7 @@ struct ImageData : public NodeData, public UboMixin<UniformBufferType> {
 	void create_ubo_descriptor_set() {
 		const VkDescriptorSetAllocateInfo ubo_descriptor_alloc_info{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-			.descriptorPool = engine->node_descriptor_pool,
+			.descriptorPool = engine->dynamic_descriptor_pool,
 			.descriptorSetCount = 1,
 			.pSetLayouts = &ubo_descriptor_set_layout,
 		};
@@ -516,7 +516,7 @@ struct ImageData : public NodeData, public UboMixin<UniformBufferType> {
 			},
 			VkWriteDescriptorSet {
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.dstSet = engine->node_texture_2d_manager->descriptor_set,
+				.dstSet = engine->texture_manager->descriptor_set,
 				.dstBinding = 0,
 				.dstArrayElement = static_cast<uint32_t>(node_texture_id),
 				.descriptorCount = 1,
@@ -598,17 +598,10 @@ struct ImageData : public NodeData, public UboMixin<UniformBufferType> {
 	void create_image_processing_pipeline_layout() {
 
 		auto descriptor_set_layouts = [&]() {
-			if constexpr (has_field_type_v<UboType, ColorRampData> && has_field_type_v<UboType, TextureIdData>) {
+			if constexpr (has_field_type_v<UboType, ColorRampData> || has_field_type_v<UboType, TextureIdData>) {
 				return std::array{
 					ubo_descriptor_set_layout,
-					engine->node_texture_2d_manager->descriptor_set_layout,
-					engine->node_texture_1d_manager->descriptor_set_layout
-				};
-			}
-			else if constexpr (has_field_type_v<UboType, TextureIdData>) {
-				return std::array{
-					ubo_descriptor_set_layout,
-					engine->node_texture_2d_manager->descriptor_set_layout
+					engine->texture_manager->descriptor_set_layout,
 				};
 			}
 			else {
@@ -698,17 +691,10 @@ struct ImageData : public NodeData, public UboMixin<UniformBufferType> {
 		};
 
 		auto descriptor_sets = [&]() {
-			if constexpr (has_field_type_v<UboType, ColorRampData> && has_field_type_v<UboType, TextureIdData>) {
+			if constexpr (has_field_type_v<UboType, ColorRampData> || has_field_type_v<UboType, TextureIdData>) {
 				return std::array{
 					ubo_descriptor_set,
-					engine->node_texture_2d_manager->descriptor_set,
-					engine->node_texture_1d_manager->descriptor_set,
-				};
-			}
-			else if constexpr (has_field_type_v<UboType, TextureIdData>) {
-				return std::array{
-					ubo_descriptor_set,
-					engine->node_texture_2d_manager->descriptor_set
+					engine->texture_manager->descriptor_set,
 				};
 			}
 			else {

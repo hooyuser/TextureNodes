@@ -11,14 +11,14 @@ using json = nlohmann::json;
 
 constexpr bool SHOW_IMGUI_DEMO = false;
 
+template <typename T, typename ArrayElementT>
+concept std_array = requires (T t) {
+    [] <size_t I> (std::array<ArrayElementT, I>) {}(t);
+};
+
 void to_json(json& j, const ImVec2& p) {
 	j = std::array{ p.x, p.y };
 }
-
-template <typename T, typename ArrayElementT>
-concept std_array = requires (T t) {
-	[] <size_t I> (std::array<ArrayElementT, I>) {}(t);
-};
 
 static ImRect imgui_get_item_rect() {
 	return ImRect(ImGui::GetItemRectMin(), ImGui::GetItemRectMax());
@@ -186,10 +186,9 @@ namespace engine {
 	}
 
 	bool NodeEditor::is_pin_connection_valid(const PinVariant& output_pin, const PinVariant& input_pin){
-		return (output_pin.index() == input_pin.index()
+		return output_pin.index() == input_pin.index()
 			|| std::holds_alternative<FloatData>(output_pin) && std::holds_alternative<FloatTextureIdData>(input_pin)
-			|| std::holds_alternative<TextureIdData>(output_pin) && std::holds_alternative<FloatTextureIdData>(input_pin)
-			);
+			|| std::holds_alternative<TextureIdData>(output_pin) && std::holds_alternative<FloatTextureIdData>(input_pin);
 	}
 
 	void NodeEditor::draw() {
@@ -807,10 +806,8 @@ namespace engine {
 			}
 
 			ed::NodeId deleted_node_id;
-			while (ed::QueryDeletedNode(&deleted_node_id))
-			{
-				if (ed::AcceptDeletedItem())
-				{
+			while (ed::QueryDeletedNode(&deleted_node_id)) {
+				if (ed::AcceptDeletedItem()) {
 					auto deleted_node = std::ranges::find_if(nodes, [=](auto& node) {
 						return node.id == deleted_node_id;
 						});

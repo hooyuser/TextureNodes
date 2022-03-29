@@ -5,7 +5,6 @@
 #include <cstdint>
 #include <deque>
 #include <variant>
-#include <span>
 #include <ranges>
 #include <unordered_map>
 
@@ -39,7 +38,7 @@ struct SwapChainSupportDetails;
 class Camera;
 struct Pbr;
 struct HDRi;
-struct NodeTextureManager;
+struct TextureManager;
 
 namespace engine {
 	class Mesh;
@@ -93,7 +92,7 @@ struct PbrMaterialTextureSet {
 };
 
 struct MaterialPreviewUBO {
-	glm::vec4 base_color{ 0.8f, 0.8f , 0.8f ,1.0f };
+	glm::vec4 base_color{ 0.8f, 0.8f, 0.8f, 1.0f };
 	int base_color_texture_id = -1;
 	float metallic = 0.0f;
 	int metallic_texture_id = -1;
@@ -155,12 +154,11 @@ public:
 	std::unordered_map<std::string, engine::MaterialPtrV> materials;
 	std::vector<engine::PbrMaterialPtr> loaded_materials;
 	std::vector<MeshPtr> loaded_meshes;
-	std::vector<TexturePtr> loaded_2d_textures;
-	std::vector<TexturePtr> loaded_cubemap_textures;
+	//std::vector<TexturePtr> loaded_textures;
 
 	std::vector<BufferPtr> uniform_buffers;
 
-	VkDescriptorPool descriptor_pool;
+	VkDescriptorPool static_descriptor_pool;
 	std::vector<VkDescriptorSet> scene_descriptor_sets;
 
 	VkDescriptorSet material_preview_descriptor_set;
@@ -192,11 +190,10 @@ public:
 
 	uint32_t swapchain_image_count;
 
-	constexpr static inline uint32_t max_bindless_node_2d_textures = 300;
-	constexpr static inline uint32_t max_bindless_node_1d_textures = 50;
-	VkDescriptorPool node_descriptor_pool;
-	std::shared_ptr<NodeTextureManager> node_texture_2d_manager;
-	std::shared_ptr<NodeTextureManager> node_texture_1d_manager;
+	constexpr static inline uint32_t max_bindless_textures = 400;
+	//constexpr static inline uint32_t max_bindless_node_1d_textures = 50;
+	VkDescriptorPool dynamic_descriptor_pool;
+	std::shared_ptr<TextureManager> texture_manager;
 
 	VkFence immediate_submit_fence;
 
@@ -267,6 +264,8 @@ public:
 	VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription);
 
 	void create_uniform_buffers();
+
+	void create_texture_manager();
 
 	void create_descriptor_pool();
 

@@ -11,10 +11,7 @@ layout(set = 0, binding = 0) uniform CameraUniformBufferObject {
     vec3 pos;
 } cam_ubo;
 
-layout(set = 0, binding = 1) uniform sampler2D textureArray[];
-layout(set = 0, binding = 2) uniform samplerCube cubemapArray[];
-
-layout(set = 0, binding = 3) uniform UniformBufferObject {
+layout(set = 0, binding = 1) uniform UniformBufferObject {
     vec4 base_color;
     int base_color_texture_id;
     float metallic;
@@ -26,6 +23,9 @@ layout(set = 0, binding = 3) uniform UniformBufferObject {
     int brdf_LUT_id;    
     int prefiltered_map_id;
 } ubo;
+
+layout(set = 1, binding = 0) uniform sampler2D textureArray[];
+layout(set = 1, binding = 0) uniform samplerCube cubemapArray[];
 
 layout(location = 0) in vec2 fragTexCoord;
 layout(location = 1) in vec3 fragNormal;

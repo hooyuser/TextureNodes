@@ -37,11 +37,9 @@ struct Pbr {
 
 struct HDRi {
 
-	int textureCubemapArraySize = 0;
 	int baseColorTextureID = -1;
 	
 	REFLECT(HDRi,
-		textureCubemapArraySize, 
 		baseColorTextureID)
 };
 

@@ -1,9 +1,9 @@
-#version 450
+#version 460
+#extension GL_EXT_nonuniform_qualifier:enable
 
-layout (constant_id = 0) const int textureCubemapArraySize = 1;
-layout (constant_id = 1) const int baseColorTextureId = -1;
+layout (constant_id = 0) const int baseColorTextureId = -1;
 
-layout(set = 0, binding = 2) uniform samplerCube cubemapSampler[textureCubemapArraySize];
+layout(set = 1, binding = 0) uniform samplerCube cubemapSampler[];
 
 layout(location = 0) in vec3 fragTexCoord;
 

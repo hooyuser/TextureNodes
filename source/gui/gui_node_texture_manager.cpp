@@ -4,38 +4,41 @@
 #include <ranges>
 #include <stdexcept>
 
-NodeTextureManager::NodeTextureManager(VulkanEngine* engine, uint32_t max_textures) {
+TextureManager::TextureManager(VulkanEngine* engine, uint32_t max_textures) {
 	
-	create_node_descriptor_set_layouts(engine);
-	create_node_texture_descriptor_set(engine);
+	create_texture_array_descriptor_set_layouts(engine);
+	create_texture_array_descriptor_set(engine);
 
 	for (auto i : std::views::iota(0u, max_textures)) {
 		unused_id.emplace(i);
 	}
 }
 
-void NodeTextureManager::create_node_descriptor_set_layouts(VulkanEngine* engine) {
+void TextureManager::create_texture_array_descriptor_set_layouts(VulkanEngine* engine) {
 	std::array node_descriptor_set_layout_bindings{
 		VkDescriptorSetLayoutBinding{
 			.binding = 0,
 			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-			.descriptorCount = engine->max_bindless_node_2d_textures,
+			.descriptorCount = engine->max_bindless_textures,
 			.stageFlags = VK_SHADER_STAGE_FRAGMENT_BIT,
 		},
 	};
 
 	constexpr auto binding_num = node_descriptor_set_layout_bindings.size();
 
-	std::array<VkDescriptorBindingFlags, binding_num> descriptor_binding_flags;
-	descriptor_binding_flags[0] = VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT | VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT;
+	constexpr std::array<VkDescriptorBindingFlags, binding_num> descriptor_binding_flags{
+		VK_DESCRIPTOR_BINDING_VARIABLE_DESCRIPTOR_COUNT_BIT |
+		VK_DESCRIPTOR_BINDING_PARTIALLY_BOUND_BIT | 
+		VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT
+	};
 
-	VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_create_info{
+	const VkDescriptorSetLayoutBindingFlagsCreateInfo binding_flags_create_info{
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_BINDING_FLAGS_CREATE_INFO,
 		.bindingCount = descriptor_binding_flags.size(),
 		.pBindingFlags = descriptor_binding_flags.data(),
 	};
 
-	VkDescriptorSetLayoutCreateInfo node_descriptor_layout_info = {
+	const VkDescriptorSetLayoutCreateInfo node_descriptor_layout_info = {
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_LAYOUT_CREATE_INFO,
 		.pNext = &binding_flags_create_info,
 		.flags = VK_DESCRIPTOR_SET_LAYOUT_CREATE_UPDATE_AFTER_BIND_POOL_BIT,
@@ -52,17 +55,17 @@ void NodeTextureManager::create_node_descriptor_set_layouts(VulkanEngine* engine
 		});
 }
 
-void NodeTextureManager::create_node_texture_descriptor_set(VulkanEngine* engine) {
+void TextureManager::create_texture_array_descriptor_set(VulkanEngine* engine) {
 	VkDescriptorSetVariableDescriptorCountAllocateInfo variabl_descriptor_count_info{
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_VARIABLE_DESCRIPTOR_COUNT_ALLOCATE_INFO,
 		.descriptorSetCount = 1,
-		.pDescriptorCounts = &engine->max_bindless_node_2d_textures,
+		.pDescriptorCounts = &engine->max_bindless_textures,
 	};
 
-	VkDescriptorSetAllocateInfo descriptor_alloc_info{
+	const VkDescriptorSetAllocateInfo descriptor_alloc_info{
 		.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 		.pNext = &variabl_descriptor_count_info,
-		.descriptorPool = engine->node_descriptor_pool,
+		.descriptorPool = engine->dynamic_descriptor_pool,
 		.descriptorSetCount = 1,
 		.pSetLayouts = &descriptor_set_layout,
 	};
