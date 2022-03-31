@@ -26,6 +26,8 @@ using to_data_type = std::invoke_result_t<
 		(TypeList<Ts...>) consteval -> TypeList<typename Ts::data_type...> {}),
 	T > ;
 
+template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
+
 enum class PinInOut {
 	INPUT,
 	OUTPUT
@@ -58,7 +60,7 @@ constexpr static inline auto BaseClassPredicate = []<typename T> (T) consteval {
 
 //Subset of Node Types
 template <typename Base>
-using NodeTypeSubList= NodeTypeList::filtered_by<BaseClassPredicate<Base>>;
+using NodeTypeSubList = NodeTypeList::filtered_by<BaseClassPredicate<Base>>;
 
 //Subset of Node Data Types
 template <typename Base>
@@ -148,10 +150,10 @@ struct Node {
 		if constexpr (std::derived_from<T, NodeTypeImageBase>) {
 			data = std::make_shared<ref_t<typename T::data_type>>(engine);
 		}
-		else if constexpr (std::derived_from<T, NodeTypeValueBase>){
+		else if constexpr (std::derived_from<T, NodeTypeValueBase>) {
 			data = NodeDataVariant(std::in_place_type<typename T::data_type>);
 		}
-		else if constexpr (std::derived_from<T, NodeTypeShaderBase>){
+		else if constexpr (std::derived_from<T, NodeTypeShaderBase>) {
 			data = NodeDataVariant(typename T::data_type(engine));
 		}
 	}
@@ -187,7 +189,20 @@ namespace std {
 	};
 }
 
-//using NodePtr = std::unique_ptr<Node>;
+enum class PbrTextureFLagBits {
+	NONE = 0x00000000,
+	BASE_COLOR = 0x00000001,
+	MATALLIC = 0x00000002,
+	ROUGHNESS = 0x00000004,
+	NORMAL = 0x00000008,
+};
+MAKE_ENUM_FLAGS(PbrTextureFLagBits)
+
+struct CopyImageSubmitInfo {
+	VkSemaphoreSubmitInfo wait_semaphore_submit_info;
+	VkCommandBufferSubmitInfo cmd_buffer_submit_info;
+	//VkSubmitInfo2 submit_info;
+};
 
 namespace engine {
 	class NodeEditor {
@@ -205,8 +220,9 @@ namespace engine {
 
 		ed::NodeId display_node_id = ed::NodeId::Invalid;
 		void* gui_display_texture_handle = nullptr;
-		//uint64_t semophore_counter = 0;
 
+		//std::array<VkSubmitInfo2, counter_member_v<PbrMaterialTextureSet>> copy_image_submit_infos;
+		
 		VkSemaphoreWaitInfo preview_semaphore_wait_info{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
 			.semaphoreCount = 1,
@@ -245,7 +261,7 @@ namespace engine {
 						const VkSubmitInfo submit_info{
 							.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 							.commandBufferCount = 1,
-							.pCommandBuffers = &(std::get<ColorRampData>(pin_value).ubo_value->command_buffer),
+							.pCommandBuffers = &std::get_if<ColorRampData>(&pin_value)->ubo_value->command_buffer,
 						};
 						vkResetFences(engine->device, 1, &fence);
 						vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
@@ -269,7 +285,7 @@ namespace engine {
 					node_data->uniform_buffer->copy_from_host(&ubo);
 				}
 			}
-			else if constexpr (value_data<NodeDataType>){
+			else if constexpr (value_data<NodeDataType>) {
 				NodeDataType::ResultType::Class::ForEachField([&](auto& field) {
 					using PinType = typename std::decay_t<decltype(field)>::Type;
 					node.outputs.emplace_back(get_next_id(), node_index, first_letter_to_upper(field.name), std::in_place_type<PinType>);

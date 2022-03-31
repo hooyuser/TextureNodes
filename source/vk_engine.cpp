@@ -1365,6 +1365,7 @@ void VulkanEngine::load_obj() {
 			VK_FORMAT_R8G8B8A8_UNORM,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+		texture->transitionImageLayout(this, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		PbrTexture::Class::FieldAt(material->paras, index, [&](auto& field, auto& value) {
 			value = texture_manager->add_texture(texture);
 		});
@@ -1399,10 +1400,7 @@ void VulkanEngine::load_obj() {
 	material_preview_ubo->copy_from_host(&init_material_preview_ubo);
 	auto const& mesh = loaded_meshes.back();
 	mesh->material = std::move(material);
-	renderables.emplace_back(RenderObject{
-		.mesh = mesh,
-		.transform_matrix = glm::mat4{ 1.0f },
-		});
+	renderables.emplace_back(mesh, glm::mat4{ 1.0f });
 }
 
 void VulkanEngine::create_sync_objects() {

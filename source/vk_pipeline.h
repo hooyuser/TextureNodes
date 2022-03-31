@@ -69,23 +69,25 @@ namespace engine {
 					specializationInfo.dataSize = sizeof(ParaT);
 					specializationInfo.pData = &pMaterial->paras;
 
-					shaderStages.emplace_back(VkPipelineShaderStageCreateInfo {
-						.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-						.pNext = nullptr,
-						.stage = shader_module.stage,
-						.module = shader_module.shader,
-						.pName = "main",
-						.pSpecializationInfo = &specializationInfo,
-					});
+					shaderStages.emplace_back(
+						/*sType              */ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+						/*pNext              */ nullptr,
+						/*flags              */ 0,
+						/*stage              */ shader_module.stage,
+						/*module             */ shader_module.shader,
+						/*pName              */ "main",
+						/*pSpecializationInfo*/ &specializationInfo
+					);
 				}
 				else {
-					shaderStages.emplace_back(VkPipelineShaderStageCreateInfo {
-						.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-						.pNext = nullptr,
-						.stage = shader_module.stage,
-						.module = shader_module.shader,
-						.pName = "main",
-					});
+					shaderStages.emplace_back(
+						/*sType */ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+						/*pNext */ nullptr,
+						/*flags */ 0,
+						/*stage */ shader_module.stage,
+						/*module*/ shader_module.shader,
+						/*pName */ "main"
+					);
 				}
 			}
 		}

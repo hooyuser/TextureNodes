@@ -13,7 +13,7 @@ constexpr bool SHOW_IMGUI_DEMO = false;
 
 template <typename T, typename ArrayElementT>
 concept std_array = requires (T t) {
-    [] <size_t I> (std::array<ArrayElementT, I>) {}(t);
+	[] <size_t I> (std::array<ArrayElementT, I>) {}(t);
 };
 
 void to_json(json& j, const ImVec2& p) {
@@ -38,7 +38,7 @@ std::string first_letter_to_upper(std::string_view str) {
 }
 
 namespace engine {
-	int NodeEditor::get_next_id() noexcept{
+	int NodeEditor::get_next_id() noexcept {
 		return next_id++;
 	}
 
@@ -73,7 +73,9 @@ namespace engine {
 
 	void NodeEditor::execute_graph(const std::vector<uint32_t>& sorted_nodes) {
 		std::vector<VkSubmitInfo2> submits;
-		submits.reserve(sorted_nodes.size() * 2);
+		submits.reserve(sorted_nodes.size() * 2 + 2);
+		std::vector<CopyImageSubmitInfo> copy_image_submits;
+		copy_image_submits.reserve(PbrMaterialTextureNum);
 
 		for (auto const i : sorted_nodes) {
 			std::visit([&](auto&& node_data) {
@@ -89,6 +91,7 @@ namespace engine {
 				using NodeDataT = std::decay_t<decltype(node_data)>;
 				if constexpr (image_data<NodeDataT>) {
 					uint64_t counter;
+					bool connect_to_shader = false;
 					vkGetSemaphoreCounterValue(engine->device, node_data->semaphore, &counter);
 					node_data->signal_semaphore_submit_info1.value = counter + 1;
 					node_data->wait_semaphore_submit_info2.value = counter + 1;
@@ -97,14 +100,30 @@ namespace engine {
 						for (auto const connected_pin : pin.connected_pins) {
 
 							std::visit([&](auto&& connected_node_data) {
-								if constexpr (image_data<std::decay_t<decltype(connected_node_data)>>) {
-									connected_node_data->wait_semaphore_submit_info1.emplace_back(VkSemaphoreSubmitInfo{
-										.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-										.pNext = nullptr,
-										.semaphore = node_data->semaphore,
-										.value = counter + 2,
-										.stageMask = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
-										});
+								using NodeDataT = std::decay_t<decltype(connected_node_data)>;
+								if constexpr (image_data<NodeDataT>) {
+									connected_node_data->wait_semaphore_submit_info1.emplace_back(
+										 VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+										 nullptr,
+										 node_data->semaphore,
+										 counter + 2,
+										 VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
+								}
+								else if constexpr (shader_data<NodeDataT>) {
+									connect_to_shader = true;
+									copy_image_submits.emplace_back(
+										VkSemaphoreSubmitInfo {
+											.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+											.pNext = nullptr,
+											.semaphore = node_data->semaphore,
+											.value = counter + 2,
+											.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+										},
+										VkCommandBufferSubmitInfo {
+											.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+											.commandBuffer = node_data->copy_image_cmd_buffers[get_input_pin_index(*connected_pin)],
+										}
+									);
 								}
 								}, nodes[connected_pin->node_index].data);
 						}
@@ -114,8 +133,19 @@ namespace engine {
 
 					submits.push_back(node_data->submit_info[0]);
 					submits.push_back(node_data->submit_info[1]);
+					if(connect_to_shader) {
+						submits.emplace_back(
+							VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+							nullptr,
+							0,
+							1,
+							&copy_image_submits.back().wait_semaphore_submit_info,
+							1,
+							&copy_image_submits.back().cmd_buffer_submit_info
+						);
+					}
 				}
-				else if constexpr (value_data<NodeDataT>){
+				else if constexpr (value_data<NodeDataT>) {
 					recalculate_node(i);
 					for (auto& output : nodes[i].outputs) {
 						for (Pin* connected_pin : output.connected_pins) {
@@ -124,6 +154,9 @@ namespace engine {
 								using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
 								if constexpr (image_data<NodeDataT>) {
 									connected_node_data->update_ubo(output.default_value, get_input_pin_index(*connected_pin));
+								}
+								else if constexpr (shader_data<NodeDataT>) {
+									connected_node_data.update_ubo(output.default_value, get_input_pin_index(*connected_pin));
 								}
 								}, connected_node.data);
 						}
@@ -185,10 +218,13 @@ namespace engine {
 		}
 	}
 
-	bool NodeEditor::is_pin_connection_valid(const PinVariant& output_pin, const PinVariant& input_pin){
+	bool NodeEditor::is_pin_connection_valid(const PinVariant& output_pin, const PinVariant& input_pin) {
 		return output_pin.index() == input_pin.index()
 			|| std::holds_alternative<FloatData>(output_pin) && std::holds_alternative<FloatTextureIdData>(input_pin)
-			|| std::holds_alternative<TextureIdData>(output_pin) && std::holds_alternative<FloatTextureIdData>(input_pin);
+			|| std::holds_alternative<Color4Data>(output_pin) && std::holds_alternative<Color4TextureIdData>(input_pin)
+			|| std::holds_alternative<TextureIdData>(output_pin) &&
+			(std::holds_alternative<FloatTextureIdData>(input_pin) ||
+				std::holds_alternative<Color4TextureIdData>(input_pin));
 	}
 
 	void NodeEditor::draw() {
@@ -338,7 +374,7 @@ namespace engine {
 											node_data->update_ubo(pin->default_value, i);
 											update_from(node_index);
 										}
-										else if constexpr (value_data<NodeDataT>){
+										else if constexpr (value_data<NodeDataT>) {
 											update_from(node_index);
 										}
 										else if constexpr (shader_data<NodeDataT>) {
@@ -530,9 +566,6 @@ namespace engine {
 					}
 					ImGui::Image(static_cast<ImTextureID>(arg->gui_texture), ImVec2{ preview_image_size, preview_image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
 				}
-				else if constexpr (std::is_same_v<T, NodeAdd::data_type>) {
-
-				}
 				}, node.data);
 		}
 
@@ -655,7 +688,7 @@ namespace engine {
 					int end_pin_index = -1;
 
 					for (auto& node : nodes) {
-						for (size_t i = 0; auto& output: node.outputs) {
+						for (size_t i = 0; auto & output: node.outputs) {
 							if (output.id == start_pin_id) {
 								start_pin = &output;
 								start_pin_index = i;
@@ -666,7 +699,7 @@ namespace engine {
 							}
 							++i;
 						}
-						for (size_t i = 0; auto& input: node.inputs) {
+						for (size_t i = 0; auto & input: node.inputs) {
 							if (input.id == start_pin_id) {
 								start_pin = &input;
 								start_pin_index = i;
@@ -740,17 +773,41 @@ namespace engine {
 						links.emplace(ed::LinkId(get_next_id()), start_pin, end_pin);
 
 						std::visit([&](auto&& end_node_data) {
-							using NodeT = std::decay_t<decltype(end_node_data)>;
-							if constexpr (image_data<NodeT>) {
-								std::visit([&](auto&& end_pin_value) {
-									using PinT = std::decay_t<decltype(end_pin_value)>;
-									if constexpr (std::same_as<PinT, FloatTextureIdData>) {
-										if (std::holds_alternative<FloatData>(start_pin->default_value)) {
-											end_pin_value.value.id = -1;
-										}
-									}
-									}, end_pin->default_value);
+							using EndNodeT = std::decay_t<decltype(end_node_data)>;
+							if constexpr (image_data<EndNodeT>) {
+								if (std::holds_alternative<FloatData>(start_pin->default_value) &&
+									std::holds_alternative<FloatTextureIdData>(end_pin->default_value)) {
+									std::get_if<FloatTextureIdData>(&end_pin->default_value)->value.id = -1;
+								}
 								end_node_data->update_ubo(start_pin->default_value, end_pin_index);
+							}
+							else if constexpr (shader_data<EndNodeT>) {
+								if (std::holds_alternative<FloatData>(start_pin->default_value) &&
+									std::holds_alternative<FloatTextureIdData>(end_pin->default_value)) {
+									std::get_if<FloatTextureIdData>(&end_pin->default_value)->value.id = -1;
+								}
+								else if (std::holds_alternative<Color4Data>(start_pin->default_value) &&
+									std::holds_alternative<Color4TextureIdData>(end_pin->default_value)) {
+									std::get_if<Color4TextureIdData>(&end_pin->default_value)->value.id = -1;
+								}
+								end_node_data.update_ubo(start_pin->default_value, end_pin_index);
+
+								VkSubmitInfo submit_info{
+									.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+									.commandBufferCount = 1,
+								};
+
+								std::visit([&](auto&& start_node_data) {
+									using StartNodeT = std::decay_t<decltype(start_node_data)>;
+									if constexpr (image_data<StartNodeT>) {
+										submit_info.pCommandBuffers = &start_node_data->copy_image_cmd_buffers[end_pin_index];
+									}
+									}, nodes[start_pin->node_index].data);
+
+								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+								vkResetFences(engine->device, 1, &fence);
+								vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
+								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 							}
 							}, nodes[end_pin->node_index].data);
 
@@ -785,18 +842,24 @@ namespace engine {
 						links.erase(deleted_link);
 
 						std::visit([&](auto&& end_node_data) {
-							using NodeT = std::decay_t<decltype(end_node_data)>;
-							if constexpr (image_data<NodeT>) {
+							using EndNodeT = std::decay_t<decltype(end_node_data)>;
+							if constexpr (image_data<EndNodeT> || shader_data<EndNodeT>) {
 								std::visit([&](auto&& end_pin_value) {
 									using PinT = std::decay_t<decltype(end_pin_value)>;
 									if constexpr (std::same_as<PinT, TextureIdData>) {
 										end_pin_value.value = -1;
 									}
-									else if constexpr (std::same_as<PinT, FloatTextureIdData>) {
+									else if constexpr (std::same_as<PinT, FloatTextureIdData> || std::same_as<PinT, Color4TextureIdData>) {
 										end_pin_value.value.id = -1;
 									}
 									}, link_end_pin->default_value);
-								end_node_data->update_ubo(link_end_pin->default_value, get_input_pin_index(*link_end_pin));
+								if constexpr (image_data<EndNodeT>) {
+									end_node_data->update_ubo(link_end_pin->default_value, get_input_pin_index(*link_end_pin));
+								}
+								else if constexpr (shader_data<EndNodeT>){
+									end_node_data.update_ubo(link_end_pin->default_value, get_input_pin_index(*link_end_pin));
+								}
+								
 							}
 							}, nodes[link_end_pin->node_index].data);
 

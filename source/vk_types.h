@@ -11,6 +11,7 @@
 #include <optional>
 
 #include "util/flag_bit_enum.h"
+#include "util/class_field_counter.h"
 
 inline constexpr uint64_t VULKAN_WAIT_TIMEOUT = 3000000000;
 
@@ -23,17 +24,30 @@ typedef enum CreateResourceFlagBits {
 	SWAPCHAIN_DEPENDENT_BIT = 0x00000003,  //resource should be recreated if the swapchain is recreated
 } CreateResourceFlagBits;
 
-typedef enum TextureSetFlagBits {  //deprecated
-	None = 0x00000000,
-	BASE_COLOR = 0x00000001,
-} TextureSetFlagBits;
-MAKE_ENUM_FLAGS(TextureSetFlagBits)
+//typedef enum TextureSetFlagBits {  //deprecated
+//None = 0x00000000,
+//	BASE_COLOR = 0x00000001,
+//} TextureSetFlagBits;
+//MAKE_ENUM_FLAGS(TextureSetFlagBits)
 
 typedef enum ShaderFlagBits {
 	FLAT = 0x00000000,
 	PBR = 0x00000001,
 } ShaderFlagBits;
 MAKE_ENUM_FLAGS(ShaderFlagBits)
+
+namespace engine {
+	struct Texture;
+}
+
+using TexturePtr = std::shared_ptr<engine::Texture>;
+struct PbrMaterialTextureSet {
+	TexturePtr base_color;
+	TexturePtr metalness;
+	TexturePtr roughness;
+	TexturePtr normal;
+};
+constexpr static inline auto PbrMaterialTextureNum = count_member_v<PbrMaterialTextureSet>;
 
 struct QueueFamilyIndices {
 	std::optional<uint32_t> graphics_family;

@@ -87,21 +87,14 @@ struct RenderObject {
 	glm::mat4 transform_matrix;
 };
 
-struct PbrMaterialTextureSet {
-	TexturePtr base_color;
-	TexturePtr metalness;
-	TexturePtr roughness;
-	TexturePtr normal;
-};
-
 struct MaterialPreviewUBO {
 	glm::vec4 base_color{ 0.8f, 0.8f, 0.8f, 1.0f };
-	int base_color_texture = -1;
+	int src_base_color_texture = -1;
 	float metallic = 0.0f;
-	int metallic_texture = -1;
+	int src_metallic_texture = -1;
 	float roughness = 0.4f;
-	int roughness_texture = -1;
-	int normal_texture = -1;
+	int src_roughness_texture = -1;
+	int src_normal_texture = -1;
 	int irradiance_map_id = -1;
 	int brdf_LUT_id = -1;
 	int prefiltered_map_id = -1;
@@ -157,7 +150,6 @@ public:
 	std::unordered_map<std::string, engine::MaterialPtrV> materials;
 	std::vector<engine::PbrMaterialPtr> loaded_materials;
 	std::vector<MeshPtr> loaded_meshes;
-	//std::vector<TexturePtr> loaded_textures;
 
 	std::vector<BufferPtr> uniform_buffers;
 
