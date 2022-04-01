@@ -240,6 +240,12 @@ using PinVariant = PinTypeList::cast_to<std::variant>;
 template <typename T>
 concept PinDataConcept = PinTypeList::has_type<T>;
 
+template <typename UboType>
+constexpr static inline bool has_texture_field = has_field_type_v<UboType, ColorRampData> ||
+								   has_field_type_v<UboType, TextureIdData> ||
+								   has_field_type_v<UboType, Color4TextureIdData> ||
+								   has_field_type_v<UboType, FloatTextureIdData>;
+
 template<typename UniformBufferType, typename ResultT, auto function>
 struct ValueData : NodeData {
 	using UboType = UniformBufferType;
@@ -374,9 +380,6 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 	std::array<VkSubmitInfo2, 2> submit_info;
 
-	//VkImageMemoryBarrier2 image_memory_barrier;
-	VkDependencyInfo dependency_info;
-
 	int node_texture_id = -1;
 
 	uint32_t width = 1024;
@@ -390,8 +393,6 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 	explicit ImageData(VulkanEngine* engine) :UboMixin<UniformBufferType>(engine), engine(engine) {
 
 		create_semaphore();
-
-		//create_texture();//
 
 		this->uniform_buffer = engine::Buffer::create_buffer(engine,
 			sizeof(UboType),
@@ -407,28 +408,13 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 		update_ubo_descriptor_sets();
 
-		//update_image_descriptor_sets();//
-
-		//create_image_processing_render_pass();//
-
 		if (image_processing_pipeline_layout == nullptr) {
 			create_image_processing_pipeline_layout();
 		}
 
 		create_texture_resource(UboType::format);
-		
-		//create_image_processing_pipeline();//
-
-		//create_framebuffer();
-
-		//create_image_processing_command_buffer();//
-
-		//create_preview_command_buffer();//
 
 		create_cmd_buffer_submit_info();
-
-		//create_copy_image_cmd_buffers();//
-
 	}
 
 	void create_texture_resource(VkFormat format) {
@@ -653,7 +639,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 	void create_image_processing_pipeline_layout() {
 
 		auto descriptor_set_layouts = [&]() {
-			if constexpr (has_field_type_v<UboType, ColorRampData> || has_field_type_v<UboType, TextureIdData>) {
+			if constexpr (has_texture_field<UboType>) {
 				return std::array{
 					ubo_descriptor_set_layout,
 					engine->texture_manager->descriptor_set_layout,
@@ -798,8 +784,8 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			.extent = image_extent,
 		};
 
-		auto descriptor_sets = [&]() {
-			if constexpr (has_field_type_v<UboType, ColorRampData> || has_field_type_v<UboType, TextureIdData>) {
+		auto descriptor_sets = [&] {
+			if constexpr (has_texture_field<UboType>) {
 				return std::array{
 					ubo_descriptor_set,
 					engine->texture_manager->descriptor_set,

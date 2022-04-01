@@ -17,12 +17,18 @@ struct NodeBlend : NodeTypeImageBase {
 			}
 		};
 
-		TextureIdData texture1{
-			.value = -1
+		alignas(16) Color4TextureIdData texture1{
+			.value = {
+				.color = {1.0f, 1.0f, 1.0f, 1.0f},
+				.id = -1 
+			}
 		};
 
-		TextureIdData texture2{
-			.value = -1
+		alignas(16) Color4TextureIdData texture2{
+			.value = {
+				.color = {1.0f, 1.0f, 1.0f, 1.0f},
+				.id = -1 
+			}
 		};
 
 		constexpr auto static inline format = VK_FORMAT_R8G8B8A8_SRGB;

@@ -5,8 +5,10 @@ layout(std140, set = 0, binding = 0) uniform UniformBufferObject {
     uint mode;
     float opacity_value;
     int opacity_texture_id;
-    int foreground;
-    int background;
+    vec4 foreground_color;
+    int foreground_texture_id;
+    vec4 background_color;
+    int background_texture_id;
 } ubo;
 
 layout(set = 1, binding = 0) uniform sampler2D nodeTextures[];
@@ -20,8 +22,22 @@ float screen(float fg, float bg) {
 }
 
 void main() {
-    vec4 colA = texture(nodeTextures[ubo.foreground], fragUV);
-    vec4 colB = texture(nodeTextures[ubo.background], fragUV);
+    vec4 colA;
+    if(ubo.foreground_texture_id<0){ 
+        colA = ubo.foreground_color;
+    }
+    else{
+        colA = texture(nodeTextures[ubo.foreground_texture_id], fragUV);
+    }
+
+    vec4 colB;
+    if(ubo.background_texture_id<0){ 
+        colB = ubo.background_color;
+    }
+    else{
+        colB = texture(nodeTextures[ubo.background_texture_id], fragUV);
+    }
+
     float opacity;
     if(ubo.opacity_texture_id<0){
         opacity = ubo.opacity_value;

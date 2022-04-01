@@ -330,6 +330,7 @@ namespace engine {
 				ed::BeginPin(pin->id, ed::PinKind::Input);
 				//ed::PinPivotRect(rect.GetCenter(), rect.GetCenter());
 				//ed::PinRect(rect.GetTL(), rect.GetBR());
+				
 
 				ImRect rect;
 				std::visit([&](auto&& default_value) {
@@ -339,12 +340,13 @@ namespace engine {
 
 						if (pin->connected_pins.empty()) {
 							ImGui::PushItemWidth(150.f);
-							//ImGui::SameLine();
 							bool response_flag = false;
 							std::visit([&](auto&& node_data) {
 								using NodeDataT = std::decay_t<decltype(node_data)>;
 								UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
 									auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
+									ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,3.0f);
+									ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2{3.0f, 1.0f});
 									if constexpr (std::is_same_v<PinT, FloatData>) {
 										if (widget_info.enable_slider) {
 											response_flag |= ImGui::SliderFloat(("##" + std::to_string(pin->id.Get())).c_str(),
@@ -370,6 +372,7 @@ namespace engine {
 											static_cast<int>(widget_info.max),
 											(pin->name + " : %d").c_str());
 									}
+									ImGui::PopStyleVar(2);
 									if (response_flag) {
 										if constexpr (image_data<NodeDataT>) {
 											node_data->update_ubo(pin->default_value, i);
@@ -399,11 +402,13 @@ namespace engine {
 							ImGui::PushItemWidth(100.f);
 							ImGui::SameLine();
 							ImGui::PopItemWidth();
-							if (ImGui::ColorButton(("ColorButton##" + std::to_string(pin->id.Get())).c_str(), std::bit_cast<ImVec4>(default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 20 })) {
+							ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,3.0f);
+							if (ImGui::ColorButton(("ColorButton##" + std::to_string(pin->id.Get())).c_str(), std::bit_cast<ImVec4>(default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 25 })) {
 								color_node_index = node_index;
 								color_pin_index = i;
 								hit_color_pin = true;
 							}
+							ImGui::PopStyleVar(1);
 						}
 					}
 					else if constexpr (std::is_same_v<PinT, Color4TextureIdData>) {
@@ -413,11 +418,13 @@ namespace engine {
 							ImGui::PushItemWidth(100.f);
 							ImGui::SameLine();
 							ImGui::PopItemWidth();
-							if (ImGui::ColorButton(("ColorButton##" + std::to_string(pin->id.Get())).c_str(), *reinterpret_cast<ImVec4*>(&default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 20 })) {
+							ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,3.0f);
+							if (ImGui::ColorButton(("ColorButton##" + std::to_string(pin->id.Get())).c_str(), *reinterpret_cast<ImVec4*>(&default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 25 })) {
 								color_node_index = node_index;
 								color_pin_index = i;
 								hit_color_pin = true;
 							}
+							ImGui::PopStyleVar(1);
 						}
 					}
 					else if constexpr (std::is_same_v<PinT, TextureIdData>) {
@@ -433,6 +440,7 @@ namespace engine {
 								using NodeDataT = std::decay_t<decltype(node_data)>;
 								UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
 									auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
+									ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,3.0f);
 									if (widget_info.enable_slider) {
 										response_flag = ImGui::SliderFloat(("##" + std::to_string(pin->id.Get())).c_str(),
 											&(std::get_if<PinT>(&pin->default_value)->value.number),
@@ -448,6 +456,7 @@ namespace engine {
 											widget_info.max,
 											(pin->name + " : %.3f").c_str());
 									}
+									ImGui::PopStyleVar(1);
 									if (response_flag) {
 										if constexpr (image_data<NodeDataT>) {
 											node_data->update_ubo(pin->default_value, i);
@@ -472,25 +481,28 @@ namespace engine {
 						rect = imgui_get_item_rect();
 					}
 					else if constexpr (std::is_same_v<PinT, EnumData>) {
+						ImGui::Text(pin->name.c_str());
+						rect = imgui_get_item_rect();
+						ImGui::SameLine();
 						std::visit([&](auto&& node_data) {
 							using NodeDataT = std::decay_t<decltype(node_data)>;
-							if constexpr (image_data<NodeDataT>) {
-								UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
-									field.forEachAnnotation([&](auto& items) {
-										using T = std::remove_cvref_t<decltype(items)>;
-										if constexpr (std_array<T, const char*>) {
-											ImGui::PushItemWidth(50.f);
-											if (ImGui::Button((items[default_value.value] + std::string("##") + std::to_string(pin->id.Get())).c_str())) {
-												enum_node_index = node_index;
-												enum_pin_index = i;
-												hit_enum_pin = true;
-											}
-											ImGui::PopItemWidth();
-											rect = imgui_get_item_rect();
+							UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
+								field.forEachAnnotation([&](auto& items) {
+									using T = std::remove_cvref_t<decltype(items)>;
+									if constexpr (std_array<T, const char*>) {
+										ImGui::PushItemWidth(50.f);
+										ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,3.0f);
+										ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign,ImVec2{0.0f,0.0f});
+										if (ImGui::Button((items[default_value.value] + std::string("##") + std::to_string(pin->id.Get())).c_str(),ImVec2{90,28})) {
+											enum_node_index = node_index;
+											enum_pin_index = i;
+											hit_enum_pin = true;
 										}
-										});
+										ImGui::PopStyleVar(2);
+										ImGui::PopItemWidth();
+									}
 									});
-							}
+								});
 							}, node.data);
 					}
 					else if constexpr (std::is_same_v<PinT, BoolData>) {
