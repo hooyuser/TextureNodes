@@ -518,10 +518,10 @@ namespace engine {
 				aspectFlags,
 				VK_FILTER_LINEAR,
 				VkComponentMapping{
-					VK_COMPONENT_SWIZZLE_IDENTITY,
 					VK_COMPONENT_SWIZZLE_R,
 					VK_COMPONENT_SWIZZLE_R,
-					VK_COMPONENT_SWIZZLE_IDENTITY});
+					VK_COMPONENT_SWIZZLE_R,
+					VK_COMPONENT_SWIZZLE_ONE});
 		}
 		else {
 			pTexture = std::make_shared<Texture>(engine->device,

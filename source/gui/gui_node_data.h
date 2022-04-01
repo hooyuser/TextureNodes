@@ -253,7 +253,7 @@ struct UboMixin {
 
 	BufferPtr uniform_buffer;
 
-	explicit UboMixin(const VulkanEngine* engine): uniform_buffer(engine->material_preview_ubo){}
+	explicit UboMixin(const VulkanEngine* engine) : uniform_buffer(engine->material_preview_ubo) {}
 
 	void update_ubo(const PinVariant& value, size_t index) {  //use value to update the pin at the index  
 		if constexpr (has_field_type_v<UboType, ColorRampData>) {
@@ -338,10 +338,10 @@ struct UboMixin {
 };
 
 template<typename UniformBufferType>
-struct ShaderData : NodeData, UboMixin<UniformBufferType>{
+struct ShaderData : NodeData, UboMixin<UniformBufferType> {
 	using UboType = UniformBufferType;
 
-	explicit ShaderData(const VulkanEngine* engine): UboMixin<UniformBufferType>(engine){}
+	explicit ShaderData(const VulkanEngine* engine) : UboMixin<UniformBufferType>(engine) {}
 };
 
 template<typename UniformBufferType, StringLiteral ...Shaders>
@@ -351,6 +351,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 	VulkanEngine* engine;
 	TexturePtr texture;
 	TexturePtr preview_texture;
+	VkImageView render_target_image_view;
 	void* gui_texture;
 	void* gui_preview_texture;
 
@@ -419,14 +420,15 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 		create_cmd_buffer_submit_info();
 
-		if(!UboType::format == VK_FORMAT_R16_SFLOAT) {
+		if (!UboType::format == VK_FORMAT_R16_SFLOAT) {
 			create_copy_image_cmd_buffers();
 		}
-		
+
 	}
 
 	~ImageData() {
 		engine->texture_manager->delete_id(node_texture_id);
+		vkDestroyImageView(engine->device, render_target_image_view, nullptr);
 		const std::array cmd_buffers{ image_processing_cmd_buffer, generate_preview_cmd_buffer };
 		vkFreeCommandBuffers(engine->device, engine->command_pool, cmd_buffers.size(), cmd_buffers.data());
 		vkDestroyFramebuffer(engine->device, image_processing_framebuffer, nullptr);
@@ -466,7 +468,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		preview_texture = engine::Texture::create_device_texture(engine,
 			PREVIEW_IMAGE_SIZE,
 			PREVIEW_IMAGE_SIZE,
-			UboType::format,// == VK_FORMAT_R16_SFLOAT ? VK_FORMAT_R16G16B16A16_UNORM : UboType::format,
+			UboType::format,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT,
@@ -582,7 +584,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		//	}
 		//};
 
-		constexpr std::array attachments { color_attachment };
+		constexpr std::array attachments{ color_attachment };
 
 		constexpr VkRenderPassCreateInfo render_pass_info{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
@@ -655,9 +657,34 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 	}
 
 	void create_framebuffer() {
-		std::array framebuffer_attachments = { texture->imageView };
+		VkFramebufferAttachmentImageInfo framebuffer_attachment_image_info{
+			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_ATTACHMENT_IMAGE_INFO,
+			.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+			.width = width,
+			.height = height,
+			.layerCount = 1,
+			.viewFormatCount = 1,
+			.pViewFormats = &texture->format,
+		};
 
-		const VkFramebufferCreateInfo framebuffer_info = vkinit::framebufferCreateInfo(image_processing_render_pass, VkExtent2D{ width , height }, framebuffer_attachments);
+		VkFramebufferAttachmentsCreateInfo framebuffer_attachments_create_info{
+			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_ATTACHMENTS_CREATE_INFO,
+			.attachmentImageInfoCount = 1,
+			.pAttachmentImageInfos = &framebuffer_attachment_image_info,
+		};
+
+		const VkFramebufferCreateInfo framebuffer_info{
+			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
+			.pNext = &framebuffer_attachments_create_info,
+			.flags = VK_FRAMEBUFFER_CREATE_IMAGELESS_BIT,
+			.renderPass = image_processing_render_pass,
+			.attachmentCount = 1,
+			.width = width,
+			.height = height,
+			.layers = 1,
+		};
+
+		//VkFramebufferCreateInfo framebuffer_info = vkinit::framebufferCreateInfo(image_processing_render_pass, VkExtent2D{ width , height }, framebuffer_attachments);
 
 		if (vkCreateFramebuffer(engine->device, &framebuffer_info, nullptr, &image_processing_framebuffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create framebuffer!");
@@ -681,7 +708,32 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 		VkExtent2D image_extent{ width, height };
 
-		const VkRenderPassBeginInfo render_pass_info = vkinit::renderPassBeginInfo(image_processing_render_pass, image_extent, image_processing_framebuffer);
+		const VkImageViewCreateInfo render_target_view_info{
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.image = texture->image,
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = UboType::format,
+			.subresourceRange = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			}
+		};
+
+		if (vkCreateImageView(engine->device, &render_target_view_info, nullptr, &render_target_image_view) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create texture image view!");
+		}
+
+		const VkRenderPassAttachmentBeginInfo attachment_begin_info{
+			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_ATTACHMENT_BEGIN_INFO,
+			.attachmentCount = 1,
+			.pAttachments = &render_target_image_view,
+		};
+
+		VkRenderPassBeginInfo render_pass_info = vkinit::renderPassBeginInfo(image_processing_render_pass, image_extent, image_processing_framebuffer);
+		render_pass_info.pNext = &attachment_begin_info;
 
 		vkCmdBeginRenderPass(image_processing_cmd_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -1036,7 +1088,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			if (vkEndCommandBuffer(copy_image_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to record command buffer!");
 			}
-		});
+			});
 	}
 };
 

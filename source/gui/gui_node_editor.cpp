@@ -564,7 +564,7 @@ namespace engine {
 						preview_semaphore_wait_info.pValues = &wait_value;
 						vkWaitSemaphores(engine->device, &preview_semaphore_wait_info, VULKAN_WAIT_TIMEOUT);
 					}
-					ImGui::Image(static_cast<ImTextureID>(arg->gui_texture), ImVec2{ preview_image_size, preview_image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
+					ImGui::Image(static_cast<ImTextureID>(arg->gui_preview_texture), ImVec2{ preview_image_size, preview_image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
 				}
 				}, node.data);
 		}

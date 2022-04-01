@@ -351,6 +351,7 @@ void VulkanEngine::create_logical_device() {
 		.descriptorBindingPartiallyBound = VK_TRUE,
 		.descriptorBindingVariableDescriptorCount = VK_TRUE,
 		.runtimeDescriptorArray = VK_TRUE,
+		.imagelessFramebuffer = VK_TRUE,
 		.timelineSemaphore = VK_TRUE,
 	};
 
