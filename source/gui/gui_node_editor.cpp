@@ -103,23 +103,23 @@ namespace engine {
 								using NodeDataT = std::decay_t<decltype(connected_node_data)>;
 								if constexpr (image_data<NodeDataT>) {
 									connected_node_data->wait_semaphore_submit_info1.emplace_back(
-										 VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-										 nullptr,
-										 node_data->semaphore,
-										 counter + 2,
-										 VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
+										VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+										nullptr,
+										node_data->semaphore,
+										counter + 2,
+										VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
 								}
 								else if constexpr (shader_data<NodeDataT>) {
 									connect_to_shader = true;
 									copy_image_submits.emplace_back(
-										VkSemaphoreSubmitInfo {
+										VkSemaphoreSubmitInfo{
 											.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 											.pNext = nullptr,
 											.semaphore = node_data->semaphore,
 											.value = counter + 2,
 											.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
 										},
-										VkCommandBufferSubmitInfo {
+										VkCommandBufferSubmitInfo{
 											.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
 											.commandBuffer = node_data->copy_image_cmd_buffers[get_input_pin_index(*connected_pin)],
 										}
@@ -133,7 +133,8 @@ namespace engine {
 
 					submits.push_back(node_data->submit_info[0]);
 					submits.push_back(node_data->submit_info[1]);
-					if(connect_to_shader) {
+
+					if (connect_to_shader) {
 						submits.emplace_back(
 							VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
 							nullptr,
@@ -551,20 +552,33 @@ namespace engine {
 			}
 
 			//Draw preview image
-			std::visit([&](auto&& arg) {
-				using T = std::decay_t<decltype(arg)>;
+			std::visit([&](auto&& node_data) {
+				using T = std::decay_t<decltype(node_data)>;
 				if constexpr (image_data<T>) {
 					ImGui::SetCursorPosX(node_rect.GetCenter().x - preview_image_size * 0.5);
 					ImGui::SetCursorPosY(yy - preview_image_size - 15);
-					static uint64_t counter;
-					vkGetSemaphoreCounterValue(engine->device, arg->semaphore, &counter);
+					uint64_t counter;
+					vkGetSemaphoreCounterValue(engine->device, node_data->semaphore, &counter);
 					if (counter & 1) { //counter is odd implies the preview texture is being written
 						const uint64_t wait_value = counter + 1;
-						preview_semaphore_wait_info.pSemaphores = &arg->semaphore;
+						preview_semaphore_wait_info.pSemaphores = &node_data->semaphore;
 						preview_semaphore_wait_info.pValues = &wait_value;
 						vkWaitSemaphores(engine->device, &preview_semaphore_wait_info, VULKAN_WAIT_TIMEOUT);
 					}
-					ImGui::Image(static_cast<ImTextureID>(arg->gui_preview_texture), ImVec2{ preview_image_size, preview_image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
+					ImGui::Image(static_cast<ImTextureID>(node_data->gui_preview_texture), ImVec2{ preview_image_size, preview_image_size }, ImVec2{ 0, 0 }, ImVec2{ 1, 1 });
+					ImGui::SetCursorPosX(node_rect.GetCenter().x - preview_image_size * 0.5);
+					ImGui::SetCursorPosY(yy - preview_image_size - 40);
+
+					std::string_view format_str = "";
+					switch (node_data->texture->format) {
+					case VK_FORMAT_R16_UNORM:
+						format_str = "R16_UNORM";
+						break;
+					case VK_FORMAT_R8G8B8A8_SRGB:
+						format_str = "C8_SRGB";
+						break;
+					}
+					ImGui::Text(format_str.data());
 				}
 				}, node.data);
 		}
@@ -775,6 +789,20 @@ namespace engine {
 						std::visit([&](auto&& end_node_data) {
 							using EndNodeT = std::decay_t<decltype(end_node_data)>;
 							if constexpr (image_data<EndNodeT>) {
+								UboOf<EndNodeT>::Class::FieldAt(end_pin_index, [&](auto& field) {
+									if (field.template getAnnotation<AutoFormat>() == AutoFormat::True) {
+										std::visit([&](auto&& start_node_data) {
+											using StartNodeT = std::decay_t<decltype(start_node_data)>;
+											if constexpr (image_data<StartNodeT>) {
+												auto format = start_node_data->texture->format;
+												if (format != end_node_data->texture->format) {
+													vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+													end_node_data->recreate_texture_resource(format);
+												}
+											}
+											}, nodes[start_pin->node_index].data);
+									}
+									});
 								if (std::holds_alternative<FloatData>(start_pin->default_value) &&
 									std::holds_alternative<FloatTextureIdData>(end_pin->default_value)) {
 									std::get_if<FloatTextureIdData>(&end_pin->default_value)->value.id = -1;
@@ -856,12 +884,12 @@ namespace engine {
 								if constexpr (image_data<EndNodeT>) {
 									end_node_data->update_ubo(link_end_pin->default_value, get_input_pin_index(*link_end_pin));
 								}
-								else if constexpr (shader_data<EndNodeT>){
+								else if constexpr (shader_data<EndNodeT>) {
 									end_node_data.update_ubo(link_end_pin->default_value, get_input_pin_index(*link_end_pin));
 								}
 							}
 							}, nodes[link_end_pin->node_index].data);
-
+						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 						update_from(link_end_pin->node_index);
 					}
 				}
@@ -875,6 +903,19 @@ namespace engine {
 						});
 
 					if (deleted_node != nodes.end()) {
+						color_pin_index.reset();
+						color_ramp_pin_index.reset();
+						enum_pin_index.reset();
+
+						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+						for (auto iter = deleted_node + 1; iter != nodes.end(); ++iter) {
+							for (auto& input : iter->inputs) {
+								--input.node_index;
+							}
+							for (auto& output : iter->outputs) {
+								--output.node_index;
+							}
+						}
 						nodes.erase(deleted_node);
 					}
 				}

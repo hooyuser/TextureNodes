@@ -16,3 +16,8 @@ struct NumberInputWidgetInfo {
 	float speed;
 	bool enable_slider;
 };
+
+enum class AutoFormat {
+	False = 0,
+	True = 1
+};

@@ -5,6 +5,7 @@ struct NodeTransform : NodeTypeImageBase {
 
 	struct UBO {
 
+		NOTE(texture, AutoFormat::True)
 		TextureIdData texture{
 			.value = -1
 		};
@@ -38,7 +39,7 @@ struct NodeTransform : NodeTypeImageBase {
 			.value = false
 		};
 
-		constexpr auto static inline format = VK_FORMAT_R16_SFLOAT; 
+		constexpr auto static inline format = VK_FORMAT_R16_UNORM; 
 
 		REFLECT(UBO,
 			texture,

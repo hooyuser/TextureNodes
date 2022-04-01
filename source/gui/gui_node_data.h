@@ -10,6 +10,7 @@
 #include "imgui_color_gradient.h"
 
 #include <imgui_impl_vulkan.h>
+#include <unordered_map>
 
 
 constexpr static inline uint32_t PREVIEW_IMAGE_SIZE = 128;
@@ -357,8 +358,8 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 	VkDescriptorSet ubo_descriptor_set;
 	VkFramebuffer image_processing_framebuffer;
-	VkCommandBuffer image_processing_cmd_buffer;
-	VkCommandBuffer generate_preview_cmd_buffer;
+	VkCommandBuffer image_processing_cmd_buffer = nullptr;
+	VkCommandBuffer generate_preview_cmd_buffer = nullptr;
 	std::array<VkCommandBuffer, PbrMaterialTextureNum> copy_image_cmd_buffers;
 
 	VkSemaphore semaphore;
@@ -383,14 +384,14 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 	inline static VkDescriptorSetLayout ubo_descriptor_set_layout = nullptr;
 	inline static VkPipelineLayout image_processing_pipeline_layout = nullptr;
-	inline static VkPipeline image_processing_pipeline = nullptr;
-	inline static VkRenderPass image_processing_render_pass = nullptr;
+	inline static std::unordered_map<VkFormat, VkPipeline> image_processing_pipelines;
+	inline static std::unordered_map<VkFormat, VkRenderPass> image_processing_render_passes;
 
 	explicit ImageData(VulkanEngine* engine) :UboMixin<UniformBufferType>(engine), engine(engine) {
 
 		create_semaphore();
 
-		create_texture();
+		//create_texture();//
 
 		this->uniform_buffer = engine::Buffer::create_buffer(engine,
 			sizeof(UboType),
@@ -404,34 +405,60 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 		create_ubo_descriptor_set();
 
-		update_descriptor_sets();
+		update_ubo_descriptor_sets();
 
-		if (image_processing_render_pass == nullptr) {
-			create_image_processing_render_pass();
+		//update_image_descriptor_sets();//
+
+		//create_image_processing_render_pass();//
+
+		if (image_processing_pipeline_layout == nullptr) {
 			create_image_processing_pipeline_layout();
-			create_image_processing_pipeline();
 		}
 
-		create_framebuffer();
+		create_texture_resource(UboType::format);
+		
+		//create_image_processing_pipeline();//
 
-		create_image_processing_command_buffer();
+		//create_framebuffer();
 
-		create_preview_command_buffer();
+		//create_image_processing_command_buffer();//
+
+		//create_preview_command_buffer();//
 
 		create_cmd_buffer_submit_info();
 
-		if (!UboType::format == VK_FORMAT_R16_SFLOAT) {
-			create_copy_image_cmd_buffers();
-		}
+		//create_copy_image_cmd_buffers();//
 
 	}
 
-	~ImageData() {
-		engine->texture_manager->delete_id(node_texture_id);
+	void create_texture_resource(VkFormat format) {
+		create_textures(format);
+		update_image_descriptor_sets();
+		create_image_processing_render_pass(format);
+		create_image_processing_pipeline(format);
+		create_framebuffer(format);
+		create_image_processing_command_buffer(format);
+		create_preview_command_buffer();
+		create_copy_image_cmd_buffers();
+	}
+
+	void recreate_texture_resource(VkFormat format) {
+		clear();
+		create_texture_resource(format);
+		cmd_buffer_submit_info1.commandBuffer = image_processing_cmd_buffer;
+		cmd_buffer_submit_info2.commandBuffer = generate_preview_cmd_buffer;
+	}
+
+	void clear() const{
 		vkDestroyImageView(engine->device, render_target_image_view, nullptr);
 		const std::array cmd_buffers{ image_processing_cmd_buffer, generate_preview_cmd_buffer };
 		vkFreeCommandBuffers(engine->device, engine->command_pool, cmd_buffers.size(), cmd_buffers.data());
 		vkDestroyFramebuffer(engine->device, image_processing_framebuffer, nullptr);
+	}
+
+	~ImageData() {
+		engine->texture_manager->delete_id(node_texture_id);
+		clear();
 		vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, 1, &ubo_descriptor_set);
 		vkDestroySemaphore(engine->device, semaphore, nullptr);
 	}
@@ -453,26 +480,28 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		vkCreateSemaphore(engine->device, &semaphore_create_info, nullptr, &semaphore);
 	}
 
-	void create_texture() {
+	void create_textures(VkFormat format) {
+		const bool is_gray_scale = (format == VK_FORMAT_R16_UNORM || format == VK_FORMAT_R16_SFLOAT);
+
 		texture = engine::Texture::create_device_texture(engine,
 			width,
 			height,
-			UboType::format,
+			format,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT,
-			UboType::format == VK_FORMAT_R16_SFLOAT);
+			is_gray_scale);
 
 		texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		preview_texture = engine::Texture::create_device_texture(engine,
 			PREVIEW_IMAGE_SIZE,
 			PREVIEW_IMAGE_SIZE,
-			UboType::format,
+			format,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT,
-			UboType::format == VK_FORMAT_R16_SFLOAT);
+			is_gray_scale);
 
 		preview_texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
@@ -480,7 +509,12 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		gui_preview_texture = ImGui_ImplVulkan_AddTexture(preview_texture->sampler, preview_texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		node_texture_id = engine->texture_manager->add_texture(texture);
+		if (node_texture_id == -1) {
+			node_texture_id = engine->texture_manager->add_texture(texture);
+		}
+		else {
+			engine->texture_manager->textures[node_texture_id] = texture;
+		}
 	}
 
 	void create_ubo_descriptor_set_layout() {
@@ -502,17 +536,11 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		}
 	}
 
-	void update_descriptor_sets() {
+	void update_ubo_descriptor_sets() {
 		const VkDescriptorBufferInfo uniform_buffer_info{
 			.buffer = this->uniform_buffer->buffer,
 			.offset = 0,
 			.range = sizeof(UboType)
-		};
-
-		const VkDescriptorImageInfo image_info{
-			.sampler = texture->sampler,
-			.imageView = texture->imageView,
-			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 		};
 
 		const std::array descriptor_writes{
@@ -525,6 +553,20 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 				.pBufferInfo = &uniform_buffer_info,
 			},
+		};
+
+		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+
+	}
+
+	void update_image_descriptor_sets() const{
+		const VkDescriptorImageInfo image_info{
+			.sampler = texture->sampler,
+			.imageView = texture->imageView,
+			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		};
+
+		const std::array descriptor_writes{
 			VkWriteDescriptorSet {
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				.dstSet = engine->texture_manager->descriptor_set,
@@ -537,12 +579,14 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		};
 
 		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
-
 	}
 
-	void create_image_processing_render_pass() {
-		constexpr VkAttachmentDescription color_attachment{
-			.format = UboType::format,
+	void create_image_processing_render_pass(VkFormat format) {
+		if (image_processing_render_passes.contains(format)) {
+			return;
+		}
+		const VkAttachmentDescription color_attachment{
+			.format = format,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,
@@ -584,7 +628,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		//	}
 		//};
 
-		constexpr std::array attachments{ color_attachment };
+		const std::array attachments{ color_attachment };
 
 		constexpr VkRenderPassCreateInfo render_pass_info{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
@@ -597,11 +641,11 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			.pDependencies = nullptr, //dependencies.data(),
 		};
 
-		if (vkCreateRenderPass(engine->device, &render_pass_info, nullptr, &image_processing_render_pass) != VK_SUCCESS) {
+		if (vkCreateRenderPass(engine->device, &render_pass_info, nullptr, &image_processing_render_passes[format]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create render pass!");
 		}
 
-		engine->main_deletion_queue.push_function([device = engine->device, render_pass = image_processing_render_pass]() {
+		engine->main_deletion_queue.push_function([device = engine->device, render_pass = image_processing_render_passes[format]]() {
 			vkDestroyRenderPass(device, render_pass, nullptr);
 		});
 	}
@@ -631,7 +675,10 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		});
 	}
 
-	void create_image_processing_pipeline() {
+	void create_image_processing_pipeline(VkFormat format) {
+		if (image_processing_pipelines.contains(format)) {
+			return;
+		}
 		engine::PipelineBuilder pipeline_builder(engine, engine::ENABLE_DYNAMIC_VIEWPORT, engine::DISABLE_VERTEX_INPUT);
 		std::array<std::string, sizeof...(Shaders)> shader_files;;
 		size_t i = 0;
@@ -649,14 +696,14 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			pipeline_builder.shaderStages.emplace_back(std::move(shader_info));
 		}
 
-		pipeline_builder.build_pipeline(engine->device, image_processing_render_pass, image_processing_pipeline_layout, image_processing_pipeline);
+		pipeline_builder.build_pipeline(engine->device, image_processing_render_passes[format], image_processing_pipeline_layout, image_processing_pipelines[format]);
 
-		engine->main_deletion_queue.push_function([device = engine->device, pipeline = image_processing_pipeline]() {
+		engine->main_deletion_queue.push_function([device = engine->device, pipeline = image_processing_pipelines[format]]() {
 			vkDestroyPipeline(device, pipeline, nullptr);
 		});
 	}
 
-	void create_framebuffer() {
+	void create_framebuffer(VkFormat format) {
 		VkFramebufferAttachmentImageInfo framebuffer_attachment_image_info{
 			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_ATTACHMENT_IMAGE_INFO,
 			.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
@@ -677,7 +724,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO,
 			.pNext = &framebuffer_attachments_create_info,
 			.flags = VK_FRAMEBUFFER_CREATE_IMAGELESS_BIT,
-			.renderPass = image_processing_render_pass,
+			.renderPass = image_processing_render_passes[format],
 			.attachmentCount = 1,
 			.width = width,
 			.height = height,
@@ -691,7 +738,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		}
 	}
 
-	void create_image_processing_command_buffer() {
+	void create_image_processing_command_buffer(VkFormat format) {
 		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, 1);
 
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &image_processing_cmd_buffer) != VK_SUCCESS) {
@@ -712,7 +759,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.image = texture->image,
 			.viewType = VK_IMAGE_VIEW_TYPE_2D,
-			.format = UboType::format,
+			.format = format,
 			.subresourceRange = {
 				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 				.baseMipLevel = 0,
@@ -732,7 +779,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			.pAttachments = &render_target_image_view,
 		};
 
-		VkRenderPassBeginInfo render_pass_info = vkinit::renderPassBeginInfo(image_processing_render_pass, image_extent, image_processing_framebuffer);
+		VkRenderPassBeginInfo render_pass_info = vkinit::renderPassBeginInfo(image_processing_render_passes[format], image_extent, image_processing_framebuffer);
 		render_pass_info.pNext = &attachment_begin_info;
 
 		vkCmdBeginRenderPass(image_processing_cmd_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
@@ -766,7 +813,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		vkCmdSetViewport(image_processing_cmd_buffer, 0, 1, &viewport);
 		vkCmdSetScissor(image_processing_cmd_buffer, 0, 1, &scissor);
 		vkCmdBindDescriptorSets(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_processing_pipeline_layout, 0, descriptor_sets.size(), descriptor_sets.data(), 0, nullptr);
-		vkCmdBindPipeline(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_processing_pipeline);
+		vkCmdBindPipeline(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_GRAPHICS, image_processing_pipelines[format]);
 		vkCmdDraw(image_processing_cmd_buffer, 3, 1, 0, 0);
 		vkCmdEndRenderPass(image_processing_cmd_buffer);
 
@@ -994,6 +1041,128 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
 					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
 					.srcAccessMask = VK_ACCESS_2_NONE,
+					.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					.newLayout = layout,
+					.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+					.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+					.image = texture->image,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.levelCount = 1,
+						.layerCount = 1,
+					},
+				};
+
+				const auto dependency_info = VkDependencyInfo{
+					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+					.imageMemoryBarrierCount = 1,
+					.pImageMemoryBarriers = &image_memory_barrier,
+				};
+
+				vkCmdPipelineBarrier2(copy_image_cmd_buffer, &dependency_info);
+			}
+	
+			VkImageBlit2 image_blit_region{
+				.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
+				.srcSubresource = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.mipLevel = 0,
+					.baseArrayLayer = 0,
+					.layerCount = 1,
+				},
+				.srcOffsets = {
+					{0, 0, 0},
+					{static_cast<int32_t>(texture->width), static_cast<int32_t>(texture->height), 1},
+				},
+				.dstSubresource = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.mipLevel = 0,
+					.baseArrayLayer = 0,
+					.layerCount = 1,
+				},
+				.dstOffsets = {
+					{0, 0, 0},
+					{static_cast<int32_t>(dst_texture->width), static_cast<int32_t>(dst_texture->height), 1},
+				},
+			};
+
+			VkBlitImageInfo2 blit_image_info{
+				.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
+				.srcImage = texture->image,
+				.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				.dstImage = dst_texture->image,
+				.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				.regionCount = 1,
+				.pRegions = &image_blit_region,
+				.filter =VK_FILTER_LINEAR,
+			};
+
+			vkCmdBlitImage2(copy_image_cmd_buffer, &blit_image_info);
+
+			for (auto const& [texture, layout] : {
+				std::tuple{texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+				std::tuple{dst_texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
+
+				auto image_memory_barrier = VkImageMemoryBarrier2{
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+					.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+					.dstAccessMask = VK_ACCESS_2_NONE,
+					.oldLayout = layout,
+					.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+					.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+					.image = texture->image,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.levelCount = 1,
+						.layerCount = 1,
+					},
+				};
+
+				auto dependency_info = VkDependencyInfo{
+					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+					.imageMemoryBarrierCount = 1,
+					.pImageMemoryBarriers = &image_memory_barrier,
+				};
+
+				vkCmdPipelineBarrier2(copy_image_cmd_buffer, &dependency_info);
+			}
+
+			if (vkEndCommandBuffer(copy_image_cmd_buffer) != VK_SUCCESS) {
+				throw std::runtime_error("failed to record command buffer!");
+			}
+		});
+	}
+
+	/*void create_copy_image_cmd_buffers() {
+		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, copy_image_cmd_buffers.size());
+
+		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, copy_image_cmd_buffers.data()) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate command buffers!");
+		}
+
+		for_each_field(engine->pbr_material_texture_set, [&](auto& dst_texture, auto index) {
+			auto& copy_image_cmd_buffer = copy_image_cmd_buffers[index];
+			const VkCommandBufferBeginInfo begin_info{
+				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			};
+
+			if (vkBeginCommandBuffer(copy_image_cmd_buffer, &begin_info) != VK_SUCCESS) {
+				throw std::runtime_error("failed to begin recording command buffer!");
+			}
+
+			for (auto const& [texture, layout] : {
+				std::tuple{texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+				std::tuple{dst_texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
+
+				auto image_memory_barrier = VkImageMemoryBarrier2{
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+					.srcAccessMask = VK_ACCESS_2_NONE,
 					.dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
 					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
 					.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
@@ -1089,7 +1258,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 				throw std::runtime_error("failed to record command buffer!");
 			}
 			});
-	}
+	}*/
 };
 
 template<typename UboType, StringLiteral ...Shaders>
