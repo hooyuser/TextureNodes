@@ -25,6 +25,8 @@ struct NodeBlend : NodeTypeImageBase {
 			.value = -1
 		};
 
+		constexpr auto static inline format = VK_FORMAT_R8G8B8A8_SRGB;
+
 		REFLECT(UBO,
 			mode,
 			factor,

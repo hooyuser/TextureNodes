@@ -27,7 +27,7 @@ static ImRect imgui_get_item_rect() {
 std::string first_letter_to_upper(std::string_view str) {
 	auto split = str
 		| std::views::split('_')
-		| std::views::transform([](auto&& str) {return std::string_view(&*str.begin(), std::ranges::distance(str)); });
+		| std::views::transform([](auto&& str_v) {return std::string_view(&*str_v.begin(), std::ranges::distance(str_v)); });
 
 	std::string upper_str = "";
 	std::string_view separator = "";
@@ -347,14 +347,14 @@ namespace engine {
 									if constexpr (std::is_same_v<PinT, FloatData>) {
 										if (widget_info.enable_slider) {
 											response_flag |= ImGui::SliderFloat(("##" + std::to_string(pin->id.Get())).c_str(),
-												&std::get<PinT>(pin->default_value).value,
+												&std::get_if<PinT>(&pin->default_value)->value,
 												widget_info.min,
 												widget_info.max,
 												(pin->name + " : %.3f").c_str());
 										}
 										else {
 											response_flag |= ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(),
-												&std::get<PinT>(pin->default_value).value,
+												&std::get_if<PinT>(&pin->default_value)->value,
 												widget_info.speed,
 												widget_info.min,
 												widget_info.max,
@@ -363,7 +363,7 @@ namespace engine {
 									}
 									else if constexpr (std::is_same_v<PinT, IntData>) {
 										response_flag |= ImGui::DragInt(("##" + std::to_string(pin->id.Get())).c_str(),
-											&std::get<PinT>(pin->default_value).value,
+											&std::get_if<PinT>(&pin->default_value)->value,
 											widget_info.speed,
 											static_cast<int>(widget_info.min),
 											static_cast<int>(widget_info.max),
@@ -434,14 +434,14 @@ namespace engine {
 									auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
 									if (widget_info.enable_slider) {
 										response_flag = ImGui::SliderFloat(("##" + std::to_string(pin->id.Get())).c_str(),
-											&std::get<PinT>(pin->default_value).value.number,
+											&(std::get_if<PinT>(&pin->default_value)->value.number),
 											widget_info.min,
 											widget_info.max,
 											(pin->name + " : %.3f").c_str());
 									}
 									else {
 										response_flag = ImGui::DragFloat(("##" + std::to_string(pin->id.Get())).c_str(),
-											&std::get<PinT>(pin->default_value).value.number,
+											&(std::get_if<PinT>(&pin->default_value)->value.number),
 											widget_info.speed,
 											widget_info.min,
 											widget_info.max,
@@ -493,8 +493,8 @@ namespace engine {
 							}, node.data);
 					}
 					else if constexpr (std::is_same_v<PinT, BoolData>) {
-						auto& bool_data = std::get<BoolData>(node.inputs[i].default_value);
-						if (ImGui::Checkbox((pin->name + "##" + std::to_string(pin->id.Get())).c_str(), &bool_data.value)) {
+						BoolData* bool_data = std::get_if<BoolData>(&node.inputs[i].default_value);
+						if (ImGui::Checkbox((pin->name + "##" + std::to_string(pin->id.Get())).c_str(), &bool_data->value)) {
 							std::visit([&](auto&& node_data) {
 								using NodeT = std::decay_t<decltype(node_data)>;
 								if constexpr (image_data<NodeT>) {
@@ -510,7 +510,7 @@ namespace engine {
 						ImGui::Dummy(ImVec2(2.0f, 25.0f));
 						rect = imgui_get_item_rect();
 						ImGui::SameLine();
-						auto& color_ramp_data = *std::get<ColorRampData>(node.inputs[i].default_value).ui_value;
+						auto& color_ramp_data = *(std::get_if<ColorRampData>(&node.inputs[i].default_value)->ui_value);
 						if (ImGui::GradientButton((std::string("GradientBar##") + std::to_string(pin->id.Get())).c_str(), &color_ramp_data, 140.0f)) {
 							color_ramp_node_index = node_index;
 							color_ramp_pin_index = i;
@@ -610,7 +610,7 @@ namespace engine {
 			}
 
 			if (ImGui::BeginPopup(("ColorRampPopup##" + std::to_string(color_ramp_pin.id.Get())).c_str())) {
-				auto& color_ramp_data = std::get<ColorRampData>(color_ramp_pin.default_value);
+				auto& color_ramp_data = *std::get_if<ColorRampData>(&color_ramp_pin.default_value);
 				if (ImGui::GradientEditor(("ColorRampEditor##" + std::to_string(color_ramp_pin.id.Get())).c_str(), color_ramp_data.ui_value.get(), color_ramp_data.draggingMark, color_ramp_data.selectedMark)) {
 					std::visit([&](auto&& node_data) {
 						using NodeDataT = std::decay_t<decltype(node_data)>;
@@ -655,7 +655,7 @@ namespace engine {
 								if constexpr (std_array<T, const char*>) {
 									for (size_t i = 0; i < items.size(); ++i) {
 										if (ImGui::MenuItem(items[i])) {
-											std::get<EnumData>(enum_pin.default_value).value = i;
+											std::get_if<EnumData>(&enum_pin.default_value)->value = i;
 											if constexpr (image_data<NodeDataT>) {
 												node_data->update_ubo(enum_pin.default_value, *enum_pin_index);
 											}
@@ -859,7 +859,6 @@ namespace engine {
 								else if constexpr (shader_data<EndNodeT>){
 									end_node_data.update_ubo(link_end_pin->default_value, get_input_pin_index(*link_end_pin));
 								}
-								
 							}
 							}, nodes[link_end_pin->node_index].data);
 
@@ -986,7 +985,7 @@ namespace engine {
 						auto& pin_value = node.inputs[pin_index].default_value;
 
 						if constexpr (std::same_as<PinType, ColorRampData>) {
-							auto const& ramp_ui_value = std::get<ColorRampData>(pin_value).ui_value;
+							auto const& ramp_ui_value = std::get_if<ColorRampData>(&pin_value)->ui_value;
 							ramp_ui_value->clear_marks();
 							for (auto& json_mark : json_node["pins"][pin_index]) {
 								ramp_ui_value->insert_mark(json_mark["position"].get<float>(), json_mark["color"].get<ImColor>());
@@ -996,7 +995,7 @@ namespace engine {
 							const VkSubmitInfo submit_info{
 								.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 								.commandBufferCount = 1,
-								.pCommandBuffers = &(std::get<ColorRampData>(pin_value).ubo_value->command_buffer),
+								.pCommandBuffers = &(std::get_if<ColorRampData>(&pin_value)->ubo_value->command_buffer),
 							};
 							vkResetFences(engine->device, 1, &fence);
 							vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
@@ -1005,7 +1004,7 @@ namespace engine {
 						else if constexpr (!std::same_as<PinType, TextureIdData>) {
 							pin_value = json_node["pins"][pin_index].get<PinType>();
 							if constexpr (image_data<NodeDataType>) {
-								std::get<NodeDataType>(node.data)->update_ubo(pin_value, pin_index);
+								(*std::get_if<NodeDataType>(&node.data))->update_ubo(pin_value, pin_index);
 							}
 						}
 					});
@@ -1056,7 +1055,7 @@ namespace engine {
 				using FieldTypes = FieldTypeList<UboT>;
 				nodes[index].outputs[0].default_value = [&] <std::size_t... I> (std::index_sequence<I...>) {
 					return NodeDataT::calculate(
-						std::get<FieldTypes::template at<I>>(nodes[index].evaluate_input(I))...);
+						*std::get_if<FieldTypes::template at<I>>(&nodes[index].evaluate_input(I))...);
 				}(std::make_index_sequence<UboT::Class::TotalFields>{});
 			}
 			}, nodes[index].data);

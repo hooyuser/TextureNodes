@@ -51,7 +51,7 @@ namespace vk_init {
 namespace engine {
 	Image::Image(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 		VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-		VkImageAspectFlags aspectFlags) : device(device), width(width), height(height), format(format), mipLevels(mipLevels) {
+		VkImageAspectFlags aspectFlags, VkComponentMapping components) : device(device), width(width), height(height), format(format), mipLevels(mipLevels) {
 
 		VkImageCreateInfo imageInfo{
 			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -89,54 +89,63 @@ namespace engine {
 
 		vkBindImageMemory(device, image, memory, 0);
 
-		VkImageViewCreateInfo viewInfo{};
-		viewInfo.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-		viewInfo.image = image;
-		viewInfo.viewType = VK_IMAGE_VIEW_TYPE_2D;
-		viewInfo.format = format;
-		viewInfo.subresourceRange.aspectMask = aspectFlags;
-		viewInfo.subresourceRange.baseMipLevel = 0;
-		viewInfo.subresourceRange.levelCount = mipLevels;
-		viewInfo.subresourceRange.baseArrayLayer = 0;
-		viewInfo.subresourceRange.layerCount = 1;
-
-		if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
+		const VkImageViewCreateInfo view_info{
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.image = image,
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = format,
+			.components = components,
+			.subresourceRange={
+				.aspectMask = aspectFlags,
+				.baseMipLevel = 0,
+				.levelCount = mipLevels,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			}
+		};
+	
+		if (vkCreateImageView(device, &view_info, nullptr, &imageView) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create texture image view!");
 		}
 	}
 
 	Image::Image(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 		VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-		VkImageAspectFlags aspectFlags, VkImageCreateFlagBits imageFlag, uint32_t layerCount) : device(device), width(width), height(height),
+		VkImageAspectFlags aspectFlags, VkMemoryPropertyFlags imageFlag, uint32_t layerCount) : device(device), width(width), height(height),
 		format(format), mipLevels(mipLevels), layerCount(layerCount) {
 
-		VkImageCreateInfo imageInfo{};
-		imageInfo.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO;
-		imageInfo.imageType = VK_IMAGE_TYPE_2D;
-		imageInfo.extent.width = width;
-		imageInfo.extent.height = width;
-		imageInfo.extent.depth = 1;
-		imageInfo.mipLevels = mipLevels;
-		imageInfo.arrayLayers = layerCount;
-		imageInfo.format = format;
-		imageInfo.tiling = tiling;
-		imageInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
-		imageInfo.usage = usage;
-		imageInfo.samples = VK_SAMPLE_COUNT_1_BIT;
-		imageInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-		imageInfo.flags = imageFlag;
+		const VkImageCreateInfo image_info{
+			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
+			.flags = imageFlag,
+			.imageType = VK_IMAGE_TYPE_2D,
+			.format = format,
+			.extent = {
+				.width = width,
+				.height = width,
+				.depth = 1,
+			},
+			.mipLevels = mipLevels,
+			.arrayLayers = layerCount,
+			.samples = numSamples,
+			.tiling = tiling,
+			.usage = usage,
+			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
+			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
+		};
+	
 
-		if (vkCreateImage(device, &imageInfo, nullptr, &image) != VK_SUCCESS) {
+		if (vkCreateImage(device, &image_info, nullptr, &image) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create image!");
 		}
 
 		VkMemoryRequirements memRequirements;
 		vkGetImageMemoryRequirements(device, image, &memRequirements);
 
-		VkMemoryAllocateInfo allocInfo{};
-		allocInfo.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO;
-		allocInfo.allocationSize = memRequirements.size;
-		allocInfo.memoryTypeIndex = find_memory_type(physicalDevice, memRequirements.memoryTypeBits, properties);
+		VkMemoryAllocateInfo allocInfo{
+			.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
+			.allocationSize = memRequirements.size,
+			.memoryTypeIndex = find_memory_type(physicalDevice, memRequirements.memoryTypeBits, properties),
+		};
 
 		if (vkAllocateMemory(device, &allocInfo, nullptr, &memory) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate image memory!");
@@ -360,10 +369,10 @@ namespace engine {
 
 	Texture::Texture(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 		VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
-		VkImageAspectFlags aspectFlags, VkFilter filters) :
-		Image(device, physicalDevice, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags) {
+		VkImageAspectFlags aspectFlags, VkFilter filters, VkComponentMapping components) :
+		Image(device, physicalDevice, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags, components) {
 
-		VkSamplerCreateInfo samplerInfo = vk_init::samplerCreateInfo(physicalDevice, filters, mipLevels);
+		const VkSamplerCreateInfo samplerInfo = vk_init::samplerCreateInfo(physicalDevice, filters, mipLevels);
 
 		if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create texture sampler!");
@@ -493,19 +502,42 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::create_device_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspectFlags, VkImageUsageFlags usage_flag, CreateResourceFlagBits imageDescription) {
-		auto pTexture = std::make_shared<Texture>(engine->device,
-			engine->physical_device,
-			width,
-			height,
-			1,
-			VK_SAMPLE_COUNT_1_BIT,
-			format,
-			VK_IMAGE_TILING_OPTIMAL,
-			usage_flag,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-			aspectFlags,
-			VK_FILTER_LINEAR);
+	TexturePtr Texture::create_device_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspectFlags, VkImageUsageFlags usage_flag, CreateResourceFlagBits imageDescription, bool greyscale) {
+		TexturePtr pTexture;
+		if(greyscale) {
+			pTexture = std::make_shared<Texture>(engine->device,
+				engine->physical_device,
+				width,
+				height,
+				1,
+				VK_SAMPLE_COUNT_1_BIT,
+				format,
+				VK_IMAGE_TILING_OPTIMAL,
+				usage_flag,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+				aspectFlags,
+				VK_FILTER_LINEAR,
+				VkComponentMapping{
+					VK_COMPONENT_SWIZZLE_IDENTITY,
+					VK_COMPONENT_SWIZZLE_R,
+					VK_COMPONENT_SWIZZLE_R,
+					VK_COMPONENT_SWIZZLE_IDENTITY});
+		}
+		else {
+			pTexture = std::make_shared<Texture>(engine->device,
+				engine->physical_device,
+				width,
+				height,
+				1,
+				VK_SAMPLE_COUNT_1_BIT,
+				format,
+				VK_IMAGE_TILING_OPTIMAL,
+				usage_flag,
+				VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+				aspectFlags,
+				VK_FILTER_LINEAR);
+		}
+		
 		if (imageDescription & 0x00000001) {
 			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);

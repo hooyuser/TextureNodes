@@ -673,7 +673,7 @@ void VulkanEngine::parse_material_info() {
 
 	if (env_material_info_json["type"].get<std::string>() == "cubemap") {
 		materials.emplace("env_light", std::make_shared<HDRiMaterial>());
-		auto const env_mat = std::get<HDRiMaterialPtr>(materials["env_light"]);
+		auto const env_mat = *std::get_if<HDRiMaterialPtr>(&materials["env_light"]);
 		std::array<std::string, 2> spvFilePaths = {
 			"assets/shaders/env_cubemap.vert.spv",
 			"assets/shaders/env_cubemap.frag.spv"
@@ -1358,18 +1358,21 @@ void VulkanEngine::load_obj() {
 	};
 	material->shaders = engine::Shader::createFromSpv(this, spv_file_paths);
 
-	for_each_field(pbr_material_texture_set,[&](auto& texture, auto index) {
+	for_each_field(pbr_material_texture_set, [&](auto& texture, auto index) {
+
 		texture = Texture::create_device_texture(this,
 			TEXTURE_WIDTH,
 			TEXTURE_HEIGHT,
-			VK_FORMAT_R8G8B8A8_UNORM,
+			(index == 0) ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+
+
 		texture->transitionImageLayout(this, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		PbrTexture::Class::FieldAt(material->paras, index, [&](auto& field, auto& value) {
 			value = texture_manager->add_texture(texture);
+			});
 		});
-	});
 
 	PipelineBuilder pipeline_builder(this);
 	pipeline_builder.set_msaa(msaa_samples);
@@ -1435,7 +1438,7 @@ void VulkanEngine::create_sync_objects() {
 void VulkanEngine::init_imgui() {
 	gui = std::make_shared<engine::GUI>();
 	gui->init(this);
-	
+
 	node_editor = std::make_shared<engine::NodeEditor>(this);
 }
 

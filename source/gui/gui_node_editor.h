@@ -189,19 +189,9 @@ namespace std {
 	};
 }
 
-enum class PbrTextureFLagBits {
-	NONE = 0x00000000,
-	BASE_COLOR = 0x00000001,
-	MATALLIC = 0x00000002,
-	ROUGHNESS = 0x00000004,
-	NORMAL = 0x00000008,
-};
-MAKE_ENUM_FLAGS(PbrTextureFLagBits)
-
 struct CopyImageSubmitInfo {
 	VkSemaphoreSubmitInfo wait_semaphore_submit_info;
 	VkCommandBufferSubmitInfo cmd_buffer_submit_info;
-	//VkSubmitInfo2 submit_info;
 };
 
 namespace engine {
@@ -220,17 +210,14 @@ namespace engine {
 
 		ed::NodeId display_node_id = ed::NodeId::Invalid;
 		void* gui_display_texture_handle = nullptr;
-
-		//std::array<VkSubmitInfo2, counter_member_v<PbrMaterialTextureSet>> copy_image_submit_infos;
-		
+				
 		VkSemaphoreWaitInfo preview_semaphore_wait_info{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
 			.semaphoreCount = 1,
 		};
 
 		constexpr static inline uint32_t preview_image_size = 128;
-		//constexpr static inline uint32_t max_bindless_node_2d_textures = 300;
-
+	
 		int get_next_id() noexcept;
 
 		void update_from(uint32_t node_index);
@@ -272,14 +259,14 @@ namespace engine {
 					}
 
 					if constexpr (image_data<NodeDataType> && has_field_type_v<UboT, ColorRampData>) {
-						std::get<NodeDataType>(node.data)->update_ubo(pin_value, index);
+						(*std::get_if<NodeDataType>(&node.data))->update_ubo(pin_value, index);
 					}
 					});
 			}
 
 			if constexpr (image_data<NodeDataType>) {
 				node.outputs.emplace_back(get_next_id(), node_index, "Result", std::in_place_type<TextureIdData>);
-				auto& node_data = std::get<NodeDataType>(node.data);
+				auto& node_data = *std::get_if<NodeDataType>(&node.data);
 				node.outputs[0].default_value = TextureIdData{ .value = node_data->node_texture_id };
 				if constexpr (!has_field_type_v<UboT, ColorRampData>) {
 					node_data->uniform_buffer->copy_from_host(&ubo);

@@ -19,6 +19,8 @@ struct NodeColorRamp : NodeTypeImageBase {
 
 		ColorRampData color_ramp;
 
+		constexpr auto static inline format = VK_FORMAT_R8G8B8A8_SRGB; 
+
 		REFLECT(UBO,
 			texture,
 			color_ramp

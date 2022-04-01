@@ -130,7 +130,7 @@ struct ColorRampData : NodeData {
 		ui_value = nullptr;
 		ubo_value = nullptr;
 	}
-	ColorRampData(VulkanEngine* engine) {
+	explicit ColorRampData(VulkanEngine* engine) {
 		ubo_value = std::make_unique<RampTexture>(engine);
 		value = ubo_value->color_ramp_texture_id;
 		ui_value = std::make_unique<ImGradient>(static_cast<float*>(ubo_value->staging_buffer.mapped_buffer));
@@ -261,7 +261,7 @@ struct UboMixin {
 				using PinValueT = typename std::decay_t<decltype(field_v)>::Type;
 				UboType::Class::FieldAt(index, [&](auto& field) {
 					using PinT = typename std::decay_t<decltype(field)>::Type;
-					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinValueT), field_v.getOffset());
+					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(std::get_if<PinT>(&value)), sizeof(PinValueT), field_v.getOffset());
 					});
 				});
 		}
@@ -303,7 +303,7 @@ struct UboMixin {
 						}, value);
 				}
 				else {
-					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
+					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(std::get_if<PinT>(&value)), sizeof(PinT), field.getOffset());
 				}
 				});
 		}
@@ -331,7 +331,7 @@ struct UboMixin {
 					}, value);
 			}
 			else if constexpr (std::same_as<PinT, StartPinT>) {
-				uniform_buffer->copy_from_host(reinterpret_cast<const char*>(&std::get<PinT>(value)), sizeof(PinT), field.getOffset());
+				uniform_buffer->copy_from_host(reinterpret_cast<const char*>(std::get_if<PinT>(&value)), sizeof(PinT), field.getOffset());
 			}
 			});
 	}
@@ -419,7 +419,10 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 		create_cmd_buffer_submit_info();
 
-		create_copy_image_cmd_buffers();
+		if(!UboType::format == VK_FORMAT_R16_SFLOAT) {
+			create_copy_image_cmd_buffers();
+		}
+		
 	}
 
 	~ImageData() {
@@ -452,18 +455,22 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		texture = engine::Texture::create_device_texture(engine,
 			width,
 			height,
-			VK_FORMAT_R8G8B8A8_UNORM,
+			UboType::format,
 			VK_IMAGE_ASPECT_COLOR_BIT,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT);
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+			SWAPCHAIN_INDEPENDENT_BIT,
+			UboType::format == VK_FORMAT_R16_SFLOAT);
 
 		texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		preview_texture = engine::Texture::create_device_texture(engine,
 			PREVIEW_IMAGE_SIZE,
 			PREVIEW_IMAGE_SIZE,
-			VK_FORMAT_R8G8B8A8_UNORM,
+			UboType::format,// == VK_FORMAT_R16_SFLOAT ? VK_FORMAT_R16G16B16A16_UNORM : UboType::format,
 			VK_IMAGE_ASPECT_COLOR_BIT,
-			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			SWAPCHAIN_INDEPENDENT_BIT,
+			UboType::format == VK_FORMAT_R16_SFLOAT);
 
 		preview_texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
@@ -533,7 +540,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 	void create_image_processing_render_pass() {
 		constexpr VkAttachmentDescription color_attachment{
-			.format = VK_FORMAT_R8G8B8A8_UNORM,
+			.format = UboType::format,
 			.samples = VK_SAMPLE_COUNT_1_BIT,
 			.loadOp = VK_ATTACHMENT_LOAD_OP_DONT_CARE,
 			.storeOp = VK_ATTACHMENT_STORE_OP_STORE,

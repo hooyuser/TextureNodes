@@ -6,6 +6,8 @@ struct NodeUniformColor : NodeTypeImageBase {
 	struct UBO {
 		Color4Data color;
 
+		constexpr auto static inline format = VK_FORMAT_R8G8B8A8_SRGB;
+
 		REFLECT(UBO,
 			color
 		)

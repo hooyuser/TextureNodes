@@ -27,11 +27,11 @@ namespace engine {
 
 		Image(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 			VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags);
+			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkComponentMapping components = {VK_COMPONENT_SWIZZLE_IDENTITY});
 
 		Image(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 			VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkImageCreateFlagBits imageFlag, uint32_t layerCount);
+			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkImageCreateFlags imageFlag, uint32_t layerCount);
 
 		~Image();
 
@@ -56,7 +56,7 @@ namespace engine {
 
 		Texture(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 			VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkFilter filters);
+			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkFilter filters, VkComponentMapping components = {VK_COMPONENT_SWIZZLE_IDENTITY});
 
 		Texture(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 			VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
@@ -75,7 +75,7 @@ namespace engine {
 
 		static TexturePtr create_2D_render_target(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspectFlags, CreateResourceFlagBits imageDescription = SWAPCHAIN_INDEPENDENT_BIT, VkSampleCountFlagBits sample_count_flag = VK_SAMPLE_COUNT_1_BIT);
 
-		static TexturePtr create_device_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspectFlags, VkImageUsageFlags usage_flag, CreateResourceFlagBits imageDescription = SWAPCHAIN_INDEPENDENT_BIT);
+		static TexturePtr create_device_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspectFlags, VkImageUsageFlags usage_flag, CreateResourceFlagBits imageDescription = SWAPCHAIN_INDEPENDENT_BIT, bool greyscale = false);
 
 		static TexturePtr create_cubemap_texture(VulkanEngine* engine, uint32_t width, VkFormat format, CreateResourceFlagBits imageDescription);
 
