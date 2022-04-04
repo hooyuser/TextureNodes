@@ -39,7 +39,7 @@ struct NodeTransform : NodeTypeImageBase {
 			.value = false
 		};
 
-		constexpr auto static inline format = VK_FORMAT_R16_UNORM; 
+		constexpr auto static inline default_format = VK_FORMAT_R16_UNORM; 
 
 		REFLECT(UBO,
 			texture,

@@ -3,9 +3,11 @@
 
 struct NodeColorRamp : NodeTypeImageBase {
 	struct UboValue {
+		EnumData::value_t format_v;
 		TextureIdData::value_t texture_v;
 		ColorRampData::value_t color_ramp_v;
 		REFLECT(UboValue,
+			format_v,
 			texture_v,
 			color_ramp_v
 		)
@@ -13,15 +15,22 @@ struct NodeColorRamp : NodeTypeImageBase {
 
 	struct UBO {
 		using value_t = UboValue;
+
+		NOTE(format, format_str_array, FormatEnum::True)
+		EnumData format {
+			.value = 0
+		};
+
 		TextureIdData texture{
 			.value = -1
 		};
 
 		ColorRampData color_ramp;
 
-		constexpr auto static inline format = VK_FORMAT_R8G8B8A8_SRGB; 
+		constexpr auto static inline default_format = VK_FORMAT_R8G8B8A8_SRGB; 
 
 		REFLECT(UBO,
+			format,
 			texture,
 			color_ramp
 		)

@@ -24,7 +24,7 @@ struct NodePolygon : NodeTypeImageBase {
 			.value = 0.0f
 		};
 
-		constexpr auto static inline format = VK_FORMAT_R16_UNORM; 
+		constexpr auto static inline default_format = VK_FORMAT_R16_UNORM; 
 
 		REFLECT(UBO,
 			radius,

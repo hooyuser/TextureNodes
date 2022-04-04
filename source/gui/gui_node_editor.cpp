@@ -12,7 +12,7 @@ using json = nlohmann::json;
 constexpr bool SHOW_IMGUI_DEMO = false;
 
 template <typename T, typename ArrayElementT>
-concept std_array = requires (T t) {
+concept std_array = requires (std::remove_cvref_t<T> t) {
 	[] <size_t I> (std::array<ArrayElementT, I>) {}(t);
 };
 
@@ -330,7 +330,7 @@ namespace engine {
 				ed::BeginPin(pin->id, ed::PinKind::Input);
 				//ed::PinPivotRect(rect.GetCenter(), rect.GetCenter());
 				//ed::PinRect(rect.GetTL(), rect.GetBR());
-				
+
 
 				ImRect rect;
 				std::visit([&](auto&& default_value) {
@@ -345,8 +345,8 @@ namespace engine {
 								using NodeDataT = std::decay_t<decltype(node_data)>;
 								UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
 									auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
-									ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,3.0f);
-									ImGui::PushStyleVar(ImGuiStyleVar_FramePadding,ImVec2{3.0f, 1.0f});
+									ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
+									ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 3.0f, 1.0f });
 									if constexpr (std::is_same_v<PinT, FloatData>) {
 										if (widget_info.enable_slider) {
 											response_flag |= ImGui::SliderFloat(("##" + std::to_string(pin->id.Get())).c_str(),
@@ -402,7 +402,7 @@ namespace engine {
 							ImGui::PushItemWidth(100.f);
 							ImGui::SameLine();
 							ImGui::PopItemWidth();
-							ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,3.0f);
+							ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 							if (ImGui::ColorButton(("ColorButton##" + std::to_string(pin->id.Get())).c_str(), std::bit_cast<ImVec4>(default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 25 })) {
 								color_node_index = node_index;
 								color_pin_index = i;
@@ -418,7 +418,7 @@ namespace engine {
 							ImGui::PushItemWidth(100.f);
 							ImGui::SameLine();
 							ImGui::PopItemWidth();
-							ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,3.0f);
+							ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 							if (ImGui::ColorButton(("ColorButton##" + std::to_string(pin->id.Get())).c_str(), *reinterpret_cast<ImVec4*>(&default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 25 })) {
 								color_node_index = node_index;
 								color_pin_index = i;
@@ -440,7 +440,7 @@ namespace engine {
 								using NodeDataT = std::decay_t<decltype(node_data)>;
 								UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
 									auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
-									ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,3.0f);
+									ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 									if (widget_info.enable_slider) {
 										response_flag = ImGui::SliderFloat(("##" + std::to_string(pin->id.Get())).c_str(),
 											&(std::get_if<PinT>(&pin->default_value)->value.number),
@@ -491,9 +491,9 @@ namespace engine {
 									using T = std::remove_cvref_t<decltype(items)>;
 									if constexpr (std_array<T, const char*>) {
 										ImGui::PushItemWidth(50.f);
-										ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding,3.0f);
-										ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign,ImVec2{0.0f,0.0f});
-										if (ImGui::Button((items[default_value.value] + std::string("##") + std::to_string(pin->id.Get())).c_str(),ImVec2{90,28})) {
+										ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
+										ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.0f,0.0f });
+										if (ImGui::Button((items[default_value.value] + std::string("##") + std::to_string(pin->id.Get())).c_str(), ImVec2{ 90,28 })) {
 											enum_node_index = node_index;
 											enum_pin_index = i;
 											hit_enum_pin = true;
@@ -581,16 +581,7 @@ namespace engine {
 					ImGui::SetCursorPosX(node_rect.GetCenter().x - preview_image_size * 0.5);
 					ImGui::SetCursorPosY(yy - preview_image_size - 40);
 
-					std::string_view format_str = "";
-					switch (node_data->texture->format) {
-					case VK_FORMAT_R16_UNORM:
-						format_str = "R16_UNORM";
-						break;
-					case VK_FORMAT_R8G8B8A8_SRGB:
-						format_str = "C8_SRGB";
-						break;
-					}
-					ImGui::Text(format_str.data());
+					ImGui::Text(str_format_map.at(node_data->texture->format));
 				}
 				}, node.data);
 		}
@@ -677,13 +668,19 @@ namespace engine {
 					if constexpr (image_data<NodeDataT>) {
 						UboOf<NodeDataT>::Class::FieldAt(*enum_pin_index, [&](auto& field) {
 							field.forEachAnnotation([&](auto& items) {
-								using T = std::remove_cvref_t<decltype(items)>;
-								if constexpr (std_array<T, const char*>) {
+								using AnnotationT = std::remove_cvref_t<decltype(items)>;
+								if constexpr (std_array<AnnotationT, const char*>) {
 									for (size_t i = 0; i < items.size(); ++i) {
 										if (ImGui::MenuItem(items[i])) {
 											std::get_if<EnumData>(&enum_pin.default_value)->value = i;
 											if constexpr (image_data<NodeDataT>) {
-												node_data->update_ubo(enum_pin.default_value, *enum_pin_index);
+												if (field.template getAnnotation<FormatEnum>() == FormatEnum::True) {
+													vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+													node_data->recreate_texture_resource(str_format_map.at(items[i]));
+												}
+												else {
+													node_data->update_ubo(enum_pin.default_value, *enum_pin_index);
+												}
 											}
 											update_from(*enum_node_index);
 											ImGui::CloseCurrentPopup();

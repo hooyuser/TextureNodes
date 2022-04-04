@@ -2,6 +2,7 @@
 #extension GL_EXT_nonuniform_qualifier:enable
 
 layout(std140, set = 0, binding = 0) uniform UniformBufferObject {
+    uint format;
     uint mode;
     float opacity_value;
     int opacity_texture_id;

@@ -412,7 +412,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			create_image_processing_pipeline_layout();
 		}
 
-		create_texture_resource(UboType::format);
+		create_texture_resource(UboType::default_format);
 
 		create_cmd_buffer_submit_info();
 	}

@@ -4,6 +4,11 @@
 struct NodeBlend : NodeTypeImageBase {
 
 	struct UBO {
+		NOTE(format, format_str_array, FormatEnum::True)
+		EnumData format {
+			.value = 0
+		};
+
 		NOTE(mode, std::array{"Normal", "Add", "Substract", "Multiply", "Divide"})
 		EnumData mode {
 			.value = 0
@@ -31,9 +36,10 @@ struct NodeBlend : NodeTypeImageBase {
 			}
 		};
 
-		constexpr auto static inline format = VK_FORMAT_R8G8B8A8_SRGB;
+		constexpr auto static inline default_format = VK_FORMAT_R8G8B8A8_SRGB;
 
 		REFLECT(UBO,
+			format,
 			mode,
 			factor,
 			texture1,
