@@ -675,11 +675,11 @@ void VulkanEngine::parse_material_info() {
 	if (env_material_info_json["type"].get<std::string>() == "cubemap") {
 		materials.emplace("env_light", std::make_shared<HDRiMaterial>());
 		auto const env_mat = *std::get_if<HDRiMaterialPtr>(&materials["env_light"]);
-		std::array<std::string, 2> spvFilePaths = {
+		std::array spvFilePaths = {
 			"assets/shaders/env_cubemap.vert.spv",
 			"assets/shaders/env_cubemap.frag.spv"
 		};
-		env_mat->shaders = engine::Shader::createFromSpv(this, std::move(spvFilePaths));
+		env_mat->shaders = engine::Shader::createFromSpv(this, spvFilePaths);
 		//envMat->textureArrayIndex.emplace("cubemap", loaded_textures.size());
 		//envMat->paras.baseColorTextureID = loaded_textures.size();
 		env_mat->paras.base_color_texture_id = texture_manager->add_texture(
@@ -1333,9 +1333,9 @@ void VulkanEngine::load_obj() {
 	loaded_meshes.emplace_back(engine::Mesh::load_from_obj(this, "assets/obj_models/rounded_cube.obj"));
 
 	auto material = std::make_shared<PbrTextureMaterial>();
-	auto const spv_file_paths = std::array{
-		"assets/shaders/pbr_texture.vert.spv"sv,
-		"assets/shaders/pbr_texture.frag.spv"sv
+	const std::array spv_file_paths{
+		"assets/shaders/pbr_texture.vert.spv",
+		"assets/shaders/pbr_texture.frag.spv"
 	};
 	material->shaders = engine::Shader::createFromSpv(this, spv_file_paths);
 

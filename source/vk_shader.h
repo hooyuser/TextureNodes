@@ -6,7 +6,7 @@
 
 
 namespace engine {
-	std::vector<char> readFile(const std::string& filename);
+	std::vector<char> read_file(std::string_view filename);
 
 	struct ShaderModule {
 		VkShaderStageFlagBits stage;
@@ -26,17 +26,17 @@ namespace engine {
 
 		Shader(VkDevice device, std::vector<ShaderModule>&& shaderModules);
 
-		static ShaderPtr createFromSpv(VulkanEngine* engine, Matrix<char> auto const& spvFilePaths) {
+		static ShaderPtr createFromSpv(VulkanEngine* engine, const std::span<const char* const> spv_file_paths) {
 			std::vector<ShaderModule> shaderModuleVector;
-			for (auto const& spvFilePath : spvFilePaths) {
-				auto spvCode = readFile(std::string{ spvFilePath });
+			for (auto const& spv_file_path : spv_file_paths) {
+				auto spvCode = read_file(spv_file_path);
 				VkShaderModuleCreateInfo createInfo{};
 				createInfo.sType = VK_STRUCTURE_TYPE_SHADER_MODULE_CREATE_INFO;
 				createInfo.codeSize = spvCode.size();
 				createInfo.pCode = reinterpret_cast<const uint32_t*>(spvCode.data());
 
 				ShaderModule shaderModule;
-				auto extension = std::filesystem::path(spvFilePath).stem().extension().string();
+				auto extension = std::filesystem::path(spv_file_path).stem().extension().string();
 				if (extension == ".vert") {
 					shaderModule.stage = VK_SHADER_STAGE_VERTEX_BIT;
 				}

@@ -216,7 +216,7 @@ namespace engine {
 			.semaphoreCount = 1,
 		};
 
-		constexpr static inline uint32_t preview_image_size = 128;
+		constexpr static uint32_t preview_image_size = 128;
 
 		int get_next_id() noexcept;
 

@@ -24,20 +24,22 @@ struct NodePolygon : NodeTypeImageBase {
 			.value = 0.0f
 		};
 
-		constexpr auto static inline default_format = VK_FORMAT_R16_UNORM; 
-
 		REFLECT(UBO,
 			radius,
 			angle,
 			sides,
 			gradient
 		)
+
+		constexpr static std::array shader_file_paths{
+			"assets/shaders/node_shared_out_uv.vert.spv",
+			"assets/shaders/node_polygon.frag.spv"
+		};
+
+		constexpr auto static default_format = VK_FORMAT_R16_UNORM; 
 	};
 
-	using data_type = std::shared_ptr<ImageData<UBO,
-		"assets/shaders/node_shared_out_uv.vert.spv",
-		"assets/shaders/node_polygon.frag.spv"
-		>>;
+	using data_type = std::shared_ptr<ImageData<UBO>>;
 
 	constexpr auto static name() { return "Polygon"; }
 };

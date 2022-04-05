@@ -594,7 +594,7 @@ namespace engine {
 		}
 
 		//Processing color pin popup
-		if (color_pin_index.has_value()) {
+		if (color_node_index.has_value() && color_pin_index.has_value()) {
 			ed::Suspend();
 			auto& color_node = nodes[*color_node_index];
 			auto& color_pin = color_node.inputs[*color_pin_index];
@@ -621,7 +621,7 @@ namespace engine {
 		}
 
 		//Processing color ramp pin popup
-		if (color_ramp_pin_index.has_value()) {
+		if (color_ramp_node_index.has_value() && color_ramp_pin_index.has_value()) {
 			ed::Suspend();
 			auto& color_ramp_node = nodes[*color_ramp_node_index];
 			auto& color_ramp_pin = color_ramp_node.inputs[*color_ramp_pin_index];
@@ -656,7 +656,7 @@ namespace engine {
 		}
 
 		//Processing enum pin popup
-		if (enum_node_index.has_value()) {
+		if (enum_node_index.has_value() && enum_pin_index.has_value()) {
 			ed::Suspend();
 			auto& enum_node = nodes[*enum_node_index];
 			auto& enum_pin = enum_node.inputs[*enum_pin_index];
@@ -865,12 +865,11 @@ namespace engine {
 									using StartNodeT = std::decay_t<decltype(start_node_data)>;
 									if constexpr (image_data<StartNodeT>) {
 										submit_info.pCommandBuffers = &start_node_data->copy_image_cmd_buffers[end_pin_index];
+										vkResetFences(engine->device, 1, &fence);
+										vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
+										vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 									}
 									}, nodes[start_pin->node_index].data);
-
-								vkResetFences(engine->device, 1, &fence);
-								vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
-								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 							}
 							}, nodes[end_pin->node_index].data);
 

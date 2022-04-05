@@ -19,14 +19,14 @@ namespace engine {
 	class Shader;
 }
 
-template<size_t N>
-struct StringLiteral {
-	constexpr StringLiteral(const char(&str)[N]) {
-		std::copy_n(str, N, value);
-	}
-
-	char value[N];
-};
+//template<size_t N>
+//struct StringLiteral {
+//	constexpr StringLiteral(const char(&str)[N]) {
+//		std::copy_n(str, N, value);
+//	}
+//
+//	char value[N];
+//};
 
 template <typename T, typename FieldType>
 struct count_field_type {
@@ -246,12 +246,12 @@ has_field_type_v<UboType, TextureIdData> ||
 has_field_type_v<UboType, Color4TextureIdData> ||
 has_field_type_v<UboType, FloatTextureIdData>;
 
-template<typename UniformBufferType, typename ResultT, auto function>
+template<typename UniformBufferType, typename ResultT>
 struct ValueData : NodeData {
 	using UboType = UniformBufferType;
 	using ResultType = ResultT;
 
-	inline static decltype(function) calculate = function;
+	inline constexpr static auto calculate = UniformBufferType::operation;
 };
 
 template<typename UniformBufferType>
@@ -351,7 +351,7 @@ struct ShaderData : NodeData, UboMixin<UniformBufferType> {
 	explicit ShaderData(const VulkanEngine* engine) : UboMixin<UniformBufferType>(engine) {}
 };
 
-template<typename UniformBufferType, StringLiteral ...Shaders>
+template<typename UniformBufferType>
 struct ImageData : NodeData, UboMixin<UniformBufferType> {
 	using UboType = UniformBufferType;
 
@@ -666,10 +666,8 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			return;
 		}
 		engine::PipelineBuilder pipeline_builder(engine, engine::ENABLE_DYNAMIC_VIEWPORT, engine::DISABLE_VERTEX_INPUT);
-		std::array<std::string, sizeof...(Shaders)> shader_files;;
-		size_t i = 0;
-		((shader_files[i++] = Shaders.value), ...);
-		auto shaders = engine::Shader::createFromSpv(engine, shader_files);
+	
+		auto shaders = engine::Shader::createFromSpv(engine, UboType::shader_file_paths);
 
 		for (auto shader_module : shaders->shader_modules) {
 			VkPipelineShaderStageCreateInfo shader_info{
@@ -1250,5 +1248,5 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 	//}
 };
 
-template<typename UboType, StringLiteral ...Shaders>
-using ImageDataPtr = std::shared_ptr<ImageData<UboType, Shaders...>>;
+template<typename UboType>
+using ImageDataPtr = std::shared_ptr<ImageData<UboType>>;

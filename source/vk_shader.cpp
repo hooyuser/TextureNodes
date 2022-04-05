@@ -12,8 +12,8 @@ namespace engine {
 	ShaderModule::ShaderModule(ShaderModule&& shaderModule) noexcept: stage(shaderModule.stage), shader(shaderModule.shader) {}
 
 
-	std::vector<char> readFile(const std::string& filename) {
-		std::ifstream file(filename, std::ios::ate | std::ios::binary);
+	std::vector<char> read_file(const std::string_view filename) {
+		std::ifstream file(filename.data(), std::ios::ate | std::ios::binary);
 
 		if (!file.is_open()) {
 			throw std::runtime_error("failed to open file!");

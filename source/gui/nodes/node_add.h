@@ -13,6 +13,10 @@ struct NodeAdd : NodeTypeValueBase {
 			.value = 0.0f
 		};
 
+		inline constexpr auto static operation = [](FloatData value1, FloatData value2) -> FloatData {
+			return { .value = value1.value + value2.value };
+		};
+
 		REFLECT(UBO,
 			value1,
 			value2
@@ -21,16 +25,13 @@ struct NodeAdd : NodeTypeValueBase {
 
 	struct ResultData {
 		FloatData result;
-		//std::tuple calc { [&](FloatData value1, FloatData value2)-> FloatData {return FloatData{.value=value1.value+ value2.value} };
+
 		REFLECT(ResultData,
 			result
 		)
 	};
 
-	using data_type = ValueData < UBO, ResultData,
-		[](FloatData value1, FloatData value2) -> FloatData {
-		return { .value = value1.value + value2.value };
-	} > ;
+	using data_type = ValueData<UBO, ResultData>;
 
 	//constexpr inline static auto name = "Add";
 	constexpr auto static name() { return "Add"; }
