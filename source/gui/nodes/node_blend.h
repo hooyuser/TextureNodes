@@ -5,34 +5,34 @@ struct NodeBlend : NodeTypeImageBase {
 
 	struct UBO {
 		NOTE(format, format_str_array, FormatEnum::True)
-		EnumData format {
+			EnumData format {
 			.value = 0
 		};
 
-		NOTE(mode, std::array{"Normal", "Add", "Substract", "Multiply", "Divide"})
-		EnumData mode {
+		NOTE(mode, std::array{ "Normal", "Add", "Substract", "Multiply", "Divide" })
+			EnumData mode {
 			.value = 0
 		};
 
 		NOTE(factor, NumberInputWidgetInfo{ .min = 0, .max = 1, .speed = 0.005f, .enable_slider = true })
-		FloatTextureIdData factor {
+			FloatTextureIdData factor {
 			.value = {
 				.number = 0.5f,
-				.id = -1 
+				.id = -1
 			}
 		};
 
-		alignas(16) Color4TextureIdData texture1{
+		alignas(16) Color4TextureIdData texture1 {
 			.value = {
 				.color = {1.0f, 1.0f, 1.0f, 1.0f},
-				.id = -1 
+				.id = -1
 			}
 		};
 
-		alignas(16) Color4TextureIdData texture2{
+		alignas(16) Color4TextureIdData texture2 {
 			.value = {
 				.color = {1.0f, 1.0f, 1.0f, 1.0f},
-				.id = -1 
+				.id = -1
 			}
 		};
 

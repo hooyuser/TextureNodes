@@ -95,7 +95,7 @@ namespace engine {
 			.viewType = VK_IMAGE_VIEW_TYPE_2D,
 			.format = format,
 			.components = components,
-			.subresourceRange={
+			.subresourceRange = {
 				.aspectMask = aspectFlags,
 				.baseMipLevel = 0,
 				.levelCount = mipLevels,
@@ -103,8 +103,8 @@ namespace engine {
 				.layerCount = 1,
 			}
 		};
-	
-		if (vkCreateImageView(device, &view_info, nullptr, &imageView) != VK_SUCCESS) {
+
+		if (vkCreateImageView(device, &view_info, nullptr, &image_view) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create texture image view!");
 		}
 	}
@@ -132,7 +132,7 @@ namespace engine {
 			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 			.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED,
 		};
-	
+
 
 		if (vkCreateImage(device, &image_info, nullptr, &image) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create image!");
@@ -168,15 +168,15 @@ namespace engine {
 			},
 		};
 
-		if (vkCreateImageView(device, &viewInfo, nullptr, &imageView) != VK_SUCCESS) {
+		if (vkCreateImageView(device, &viewInfo, nullptr, &image_view) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create texture image view!");
 		}
 	}
 
 	Image::~Image() {
-		if (imageView != VK_NULL_HANDLE) {
-			vkDestroyImageView(device, imageView, nullptr);
-			imageView = VK_NULL_HANDLE;
+		if (image_view != VK_NULL_HANDLE) {
+			vkDestroyImageView(device, image_view, nullptr);
+			image_view = VK_NULL_HANDLE;
 		}
 		if (image != VK_NULL_HANDLE) {
 			vkDestroyImage(device, image, nullptr);
@@ -192,11 +192,11 @@ namespace engine {
 		auto pImage = std::make_shared<Image>(engine->device, engine->physical_device, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags);
 		if (imageDescription & 0x00000001) {
 			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
-				vkDestroyImageView(engine->device, pImage->imageView, nullptr);
+				vkDestroyImageView(engine->device, pImage->image_view, nullptr);
 				vkDestroyImage(engine->device, pImage->image, nullptr);
 				vkFreeMemory(engine->device, pImage->memory, nullptr);
 				pImage->image = VK_NULL_HANDLE;
-				pImage->imageView = VK_NULL_HANDLE;
+				pImage->image_view = VK_NULL_HANDLE;
 				pImage->memory = VK_NULL_HANDLE;
 				});
 		}
@@ -281,7 +281,7 @@ namespace engine {
 			});
 	}
 
-	void Image::generateMipmaps(VulkanEngine* engine) const{
+	void Image::generateMipmaps(VulkanEngine* engine) const {
 		// Check if image format supports linear blitting
 		VkFormatProperties formatProperties;
 		vkGetPhysicalDeviceFormatProperties(engine->physical_device, format, &formatProperties);
@@ -403,11 +403,11 @@ namespace engine {
 		if (imageDescription & 0x00000001) {
 			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
-				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
+				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
 				vkFreeMemory(engine->device, pTexture->memory, nullptr);
 				pTexture->image = VK_NULL_HANDLE;
-				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->image_view = VK_NULL_HANDLE;
 				pTexture->memory = VK_NULL_HANDLE;
 				pTexture->sampler = VK_NULL_HANDLE;
 				});
@@ -432,11 +432,11 @@ namespace engine {
 		if (imageDescription & 0x00000001) {
 			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
-				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
+				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
 				vkFreeMemory(engine->device, pTexture->memory, nullptr);
 				pTexture->image = VK_NULL_HANDLE;
-				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->image_view = VK_NULL_HANDLE;
 				pTexture->memory = VK_NULL_HANDLE;
 				pTexture->sampler = VK_NULL_HANDLE;
 				});
@@ -460,11 +460,11 @@ namespace engine {
 		if (imageDescription & 0x00000001) {
 			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
-				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
+				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
 				vkFreeMemory(engine->device, pTexture->memory, nullptr);
 				pTexture->image = VK_NULL_HANDLE;
-				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->image_view = VK_NULL_HANDLE;
 				pTexture->memory = VK_NULL_HANDLE;
 				pTexture->sampler = VK_NULL_HANDLE;
 				});
@@ -490,11 +490,11 @@ namespace engine {
 		if (imageDescription & 0x00000001) {
 			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
-				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
+				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
 				vkFreeMemory(engine->device, pTexture->memory, nullptr);
 				pTexture->image = VK_NULL_HANDLE;
-				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->image_view = VK_NULL_HANDLE;
 				pTexture->memory = VK_NULL_HANDLE;
 				pTexture->sampler = VK_NULL_HANDLE;
 				});
@@ -504,7 +504,7 @@ namespace engine {
 
 	TexturePtr Texture::create_device_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspectFlags, VkImageUsageFlags usage_flag, CreateResourceFlagBits imageDescription, bool greyscale) {
 		TexturePtr pTexture;
-		if(greyscale) {
+		if (greyscale) {
 			pTexture = std::make_shared<Texture>(engine->device,
 				engine->physical_device,
 				width,
@@ -521,7 +521,7 @@ namespace engine {
 					VK_COMPONENT_SWIZZLE_R,
 					VK_COMPONENT_SWIZZLE_R,
 					VK_COMPONENT_SWIZZLE_R,
-					VK_COMPONENT_SWIZZLE_ONE});
+					VK_COMPONENT_SWIZZLE_ONE });
 		}
 		else {
 			pTexture = std::make_shared<Texture>(engine->device,
@@ -537,15 +537,15 @@ namespace engine {
 				aspectFlags,
 				VK_FILTER_LINEAR);
 		}
-		
+
 		if (imageDescription & 0x00000001) {
 			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
-				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
+				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
 				vkFreeMemory(engine->device, pTexture->memory, nullptr);
 				pTexture->image = VK_NULL_HANDLE;
-				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->image_view = VK_NULL_HANDLE;
 				pTexture->memory = VK_NULL_HANDLE;
 				pTexture->sampler = VK_NULL_HANDLE;
 				});
@@ -572,11 +572,11 @@ namespace engine {
 		if (imageDescription & 0x00000001) {
 			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
-				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
+				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
 				vkFreeMemory(engine->device, pTexture->memory, nullptr);
 				pTexture->image = VK_NULL_HANDLE;
-				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->image_view = VK_NULL_HANDLE;
 				pTexture->memory = VK_NULL_HANDLE;
 				pTexture->sampler = VK_NULL_HANDLE;
 				});
@@ -602,11 +602,11 @@ namespace engine {
 		if (imageDescription & 0x00000001) {
 			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
-				vkDestroyImageView(engine->device, pTexture->imageView, nullptr);
+				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
 				vkFreeMemory(engine->device, pTexture->memory, nullptr);
 				pTexture->image = VK_NULL_HANDLE;
-				pTexture->imageView = VK_NULL_HANDLE;
+				pTexture->image_view = VK_NULL_HANDLE;
 				pTexture->memory = VK_NULL_HANDLE;
 				pTexture->sampler = VK_NULL_HANDLE;
 				});

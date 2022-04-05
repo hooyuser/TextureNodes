@@ -33,7 +33,7 @@ namespace engine {
 			.pColorAttachments = &color_attachment_ref,
 		};
 
-		constexpr VkSubpassDependency dependency {
+		constexpr VkSubpassDependency dependency{
 			.srcSubpass = VK_SUBPASS_EXTERNAL,
 			.dstSubpass = 0,
 			.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
@@ -41,7 +41,7 @@ namespace engine {
 			.srcAccessMask = 0,  // or VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 			.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
 		};
-	
+
 		const VkRenderPassCreateInfo render_pass_info{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 			.attachmentCount = 1,
@@ -51,7 +51,7 @@ namespace engine {
 			.dependencyCount = 1,
 			.pDependencies = &dependency,
 		};
-		
+
 		if (vkCreateRenderPass(engine->device, &render_pass_info, nullptr, &render_pass) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create render pass!");
 		}
@@ -65,7 +65,7 @@ namespace engine {
 		framebuffers.resize(engine->swapchain_image_count);
 
 		for (size_t i = 0; i < engine->swapchain_image_count; i++) {
-			std::array attachments {
+			std::array attachments{
 				engine->swapchain_image_views[i]
 			};
 
@@ -132,14 +132,14 @@ namespace engine {
 			{ VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT, descriptor_pool_size }
 		};
 
-		const VkDescriptorPoolCreateInfo pool_info {
+		const VkDescriptorPoolCreateInfo pool_info{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO,
 			.flags = VK_DESCRIPTOR_POOL_CREATE_FREE_DESCRIPTOR_SET_BIT,
 			.maxSets = 1000,
 			.poolSizeCount = std::size(pool_sizes),
 			.pPoolSizes = pool_sizes,
 		};
-	
+
 		VkDescriptorPool imgui_descriptor_pool;
 		if (vkCreateDescriptorPool(engine->device, &pool_info, nullptr, &imgui_descriptor_pool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create descriptor pool for imgui!");
@@ -156,7 +156,7 @@ namespace engine {
 		ImGui_ImplGlfw_InitForVulkan(engine->window, true);
 
 		//this initializes imgui for Vulkan
-		ImGui_ImplVulkan_InitInfo init_info {
+		ImGui_ImplVulkan_InitInfo init_info{
 			.Instance = engine->instance,
 			.PhysicalDevice = engine->physical_device,
 			.Device = engine->device,
@@ -203,7 +203,7 @@ namespace engine {
 		for (size_t i = 0; i < engine->swapchain_image_count; i++) {
 			engine->viewport_3d.gui_textures.emplace_back(ImGui_ImplVulkan_AddTexture(
 				engine->viewport_3d.color_resolve_textures[i]->sampler,
-				engine->viewport_3d.color_resolve_textures[i]->imageView,
+				engine->viewport_3d.color_resolve_textures[i]->image_view,
 				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
 			));
 		}

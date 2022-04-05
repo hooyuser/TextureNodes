@@ -42,10 +42,10 @@ namespace engine {
 
 using TexturePtr = std::shared_ptr<engine::Texture>;
 struct PbrMaterialTextureSet {
-	TexturePtr base_color;
-	TexturePtr metalness;
-	TexturePtr roughness;
-	TexturePtr normal;
+	uint32_t base_color_id;
+	uint32_t metalness_id;
+	uint32_t roughness_id;
+	uint32_t normal_id;
 };
 constexpr static inline auto PbrMaterialTextureNum = count_member_v<PbrMaterialTextureSet>;
 
@@ -53,7 +53,7 @@ struct QueueFamilyIndices {
 	std::optional<uint32_t> graphics_family;
 	std::optional<uint32_t> present_family;
 
-	bool is_complete() const{
+	bool is_complete() const {
 		return graphics_family.has_value() && present_family.has_value();
 	}
 };

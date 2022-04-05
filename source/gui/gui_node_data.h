@@ -242,9 +242,9 @@ concept PinDataConcept = PinTypeList::has_type<T>;
 
 template <typename UboType>
 constexpr static inline bool has_texture_field = has_field_type_v<UboType, ColorRampData> ||
-								   has_field_type_v<UboType, TextureIdData> ||
-								   has_field_type_v<UboType, Color4TextureIdData> ||
-								   has_field_type_v<UboType, FloatTextureIdData>;
+has_field_type_v<UboType, TextureIdData> ||
+has_field_type_v<UboType, Color4TextureIdData> ||
+has_field_type_v<UboType, FloatTextureIdData>;
 
 template<typename UniformBufferType, typename ResultT, auto function>
 struct ValueData : NodeData {
@@ -435,7 +435,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		cmd_buffer_submit_info2.commandBuffer = generate_preview_cmd_buffer;
 	}
 
-	void clear() const{
+	void clear() const {
 		vkDestroyImageView(engine->device, render_target_image_view, nullptr);
 		const std::array cmd_buffers{ image_processing_cmd_buffer, generate_preview_cmd_buffer };
 		vkFreeCommandBuffers(engine->device, engine->command_pool, cmd_buffers.size(), cmd_buffers.data());
@@ -492,8 +492,8 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		preview_texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 
-		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		gui_preview_texture = ImGui_ImplVulkan_AddTexture(preview_texture->sampler, preview_texture->imageView, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		gui_preview_texture = ImGui_ImplVulkan_AddTexture(preview_texture->sampler, preview_texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		if (node_texture_id == -1) {
 			node_texture_id = engine->texture_manager->add_texture(texture);
@@ -545,10 +545,10 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 	}
 
-	void update_image_descriptor_sets() const{
+	void update_image_descriptor_sets() const {
 		const VkDescriptorImageInfo image_info{
 			.sampler = texture->sampler,
-			.imageView = texture->imageView,
+			.imageView = texture->image_view,
 			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 		};
 
@@ -1008,131 +1008,12 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, copy_image_cmd_buffers.data()) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
-
-		for_each_field(engine->pbr_material_texture_set, [&](auto& dst_texture, auto index) {
-			auto& copy_image_cmd_buffer = copy_image_cmd_buffers[index];
-			const VkCommandBufferBeginInfo begin_info{
-				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-			};
-
-			if (vkBeginCommandBuffer(copy_image_cmd_buffer, &begin_info) != VK_SUCCESS) {
-				throw std::runtime_error("failed to begin recording command buffer!");
-			}
-
-			for (auto const& [texture, layout] : {
-				std::tuple{texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
-				std::tuple{dst_texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
-
-				auto image_memory_barrier = VkImageMemoryBarrier2{
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
-					.srcAccessMask = VK_ACCESS_2_NONE,
-					.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
-					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-					.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					.newLayout = layout,
-					.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-					.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-					.image = texture->image,
-					.subresourceRange = {
-						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-						.levelCount = 1,
-						.layerCount = 1,
-					},
-				};
-
-				const auto dependency_info = VkDependencyInfo{
-					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-					.imageMemoryBarrierCount = 1,
-					.pImageMemoryBarriers = &image_memory_barrier,
-				};
-
-				vkCmdPipelineBarrier2(copy_image_cmd_buffer, &dependency_info);
-			}
-	
-			VkImageBlit2 image_blit_region{
-				.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
-				.srcSubresource = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.mipLevel = 0,
-					.baseArrayLayer = 0,
-					.layerCount = 1,
-				},
-				.srcOffsets = {
-					{0, 0, 0},
-					{static_cast<int32_t>(texture->width), static_cast<int32_t>(texture->height), 1},
-				},
-				.dstSubresource = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.mipLevel = 0,
-					.baseArrayLayer = 0,
-					.layerCount = 1,
-				},
-				.dstOffsets = {
-					{0, 0, 0},
-					{static_cast<int32_t>(dst_texture->width), static_cast<int32_t>(dst_texture->height), 1},
-				},
-			};
-
-			VkBlitImageInfo2 blit_image_info{
-				.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
-				.srcImage = texture->image,
-				.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-				.dstImage = dst_texture->image,
-				.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				.regionCount = 1,
-				.pRegions = &image_blit_region,
-				.filter =VK_FILTER_LINEAR,
-			};
-
-			vkCmdBlitImage2(copy_image_cmd_buffer, &blit_image_info);
-
-			for (auto const& [texture, layout] : {
-				std::tuple{texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
-				std::tuple{dst_texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
-
-				auto image_memory_barrier = VkImageMemoryBarrier2{
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-					.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
-					.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-					.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
-					.dstAccessMask = VK_ACCESS_2_NONE,
-					.oldLayout = layout,
-					.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-					.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-					.image = texture->image,
-					.subresourceRange = {
-						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-						.levelCount = 1,
-						.layerCount = 1,
-					},
-				};
-
-				auto dependency_info = VkDependencyInfo{
-					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-					.imageMemoryBarrierCount = 1,
-					.pImageMemoryBarriers = &image_memory_barrier,
-				};
-
-				vkCmdPipelineBarrier2(copy_image_cmd_buffer, &dependency_info);
-			}
-
-			if (vkEndCommandBuffer(copy_image_cmd_buffer) != VK_SUCCESS) {
-				throw std::runtime_error("failed to record command buffer!");
-			}
-		});
 	}
 
-	/*void create_copy_image_cmd_buffers() {
-		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, copy_image_cmd_buffers.size());
-
-		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, copy_image_cmd_buffers.data()) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate command buffers!");
-		}
-
-		for_each_field(engine->pbr_material_texture_set, [&](auto& dst_texture, auto index) {
+	void record_copy_image_cmd_buffers(size_t index) {
+		field_at(engine->pbr_material_texture_set, index, [&](auto dst_texture_id) {
 			auto& copy_image_cmd_buffer = copy_image_cmd_buffers[index];
+			auto& dst_texture = engine->texture_manager->textures[dst_texture_id];
 			const VkCommandBufferBeginInfo begin_info{
 				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 			};
@@ -1142,8 +1023,8 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			}
 
 			for (auto const& [texture, layout] : {
-				std::tuple{texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
-				std::tuple{dst_texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
+				std::tuple{texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+				std::tuple{dst_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
 
 				auto image_memory_barrier = VkImageMemoryBarrier2{
 					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
@@ -1244,7 +1125,129 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 				throw std::runtime_error("failed to record command buffer!");
 			}
 			});
-	}*/
+	}
+
+	//void create_blit_image_cmd_buffers() {
+	//	const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, copy_image_cmd_buffers.size());
+
+	//	if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, copy_image_cmd_buffers.data()) != VK_SUCCESS) {
+	//		throw std::runtime_error("failed to allocate command buffers!");
+	//	}
+
+	//	for_each_field(engine->pbr_material_texture_set, [&](auto& dst_texture, auto index) {
+	//		auto& copy_image_cmd_buffer = copy_image_cmd_buffers[index];
+	//		const VkCommandBufferBeginInfo begin_info{
+	//			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+	//		};
+
+	//		if (vkBeginCommandBuffer(copy_image_cmd_buffer, &begin_info) != VK_SUCCESS) {
+	//			throw std::runtime_error("failed to begin recording command buffer!");
+	//		}
+
+	//		for (auto const& [texture, layout] : {
+	//			std::tuple{texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+	//			std::tuple{dst_texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
+
+	//			auto image_memory_barrier = VkImageMemoryBarrier2{
+	//				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+	//				.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+	//				.srcAccessMask = VK_ACCESS_2_NONE,
+	//				.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+	//				.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+	//				.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	//				.newLayout = layout,
+	//				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+	//				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+	//				.image = texture->image,
+	//				.subresourceRange = {
+	//					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+	//					.levelCount = 1,
+	//					.layerCount = 1,
+	//				},
+	//			};
+
+	//			const auto dependency_info = VkDependencyInfo{
+	//				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+	//				.imageMemoryBarrierCount = 1,
+	//				.pImageMemoryBarriers = &image_memory_barrier,
+	//			};
+
+	//			vkCmdPipelineBarrier2(copy_image_cmd_buffer, &dependency_info);
+	//		}
+	//
+	//		VkImageBlit2 image_blit_region{
+	//			.sType = VK_STRUCTURE_TYPE_IMAGE_BLIT_2,
+	//			.srcSubresource = {
+	//				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+	//				.mipLevel = 0,
+	//				.baseArrayLayer = 0,
+	//				.layerCount = 1,
+	//			},
+	//			.srcOffsets = {
+	//				{0, 0, 0},
+	//				{static_cast<int32_t>(texture->width), static_cast<int32_t>(texture->height), 1},
+	//			},
+	//			.dstSubresource = {
+	//				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+	//				.mipLevel = 0,
+	//				.baseArrayLayer = 0,
+	//				.layerCount = 1,
+	//			},
+	//			.dstOffsets = {
+	//				{0, 0, 0},
+	//				{static_cast<int32_t>(dst_texture->width), static_cast<int32_t>(dst_texture->height), 1},
+	//			},
+	//		};
+
+	//		VkBlitImageInfo2 blit_image_info{
+	//			.sType = VK_STRUCTURE_TYPE_BLIT_IMAGE_INFO_2,
+	//			.srcImage = texture->image,
+	//			.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+	//			.dstImage = dst_texture->image,
+	//			.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+	//			.regionCount = 1,
+	//			.pRegions = &image_blit_region,
+	//			.filter =VK_FILTER_LINEAR,
+	//		};
+
+	//		vkCmdBlitImage2(copy_image_cmd_buffer, &blit_image_info);
+
+	//		for (auto const& [texture, layout] : {
+	//			std::tuple{texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+	//			std::tuple{dst_texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
+
+	//			auto image_memory_barrier = VkImageMemoryBarrier2{
+	//				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+	//				.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
+	//				.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
+	//				.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+	//				.dstAccessMask = VK_ACCESS_2_NONE,
+	//				.oldLayout = layout,
+	//				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	//				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+	//				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
+	//				.image = texture->image,
+	//				.subresourceRange = {
+	//					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+	//					.levelCount = 1,
+	//					.layerCount = 1,
+	//				},
+	//			};
+
+	//			auto dependency_info = VkDependencyInfo{
+	//				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+	//				.imageMemoryBarrierCount = 1,
+	//				.pImageMemoryBarriers = &image_memory_barrier,
+	//			};
+
+	//			vkCmdPipelineBarrier2(copy_image_cmd_buffer, &dependency_info);
+	//		}
+
+	//		if (vkEndCommandBuffer(copy_image_cmd_buffer) != VK_SUCCESS) {
+	//			throw std::runtime_error("failed to record command buffer!");
+	//		}
+	//	});
+	//}
 };
 
 template<typename UboType, StringLiteral ...Shaders>

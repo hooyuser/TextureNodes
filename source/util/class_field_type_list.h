@@ -188,13 +188,23 @@ using FieldTypeTuple = std::decay_t<decltype(class_field_to_tuple(std::declval<C
 template <typename T, typename Func>
 concept apply_func_to_field_tuple = aggregate<T> && std::invoke(
 	[] <std::size_t... I> (std::index_sequence<I...>) {
-		return (std::invocable<Func, std::tuple_element_t<I, FieldTypeTuple<T>>, uint32_t> && ...);
-	}, std::make_index_sequence<count_member_v<T>>{});
+	return (std::invocable<Func, std::tuple_element_t<I, FieldTypeTuple<T>>, uint32_t> && ...);
+}, std::make_index_sequence<count_member_v<T>>{});
 
 template <typename T, typename Func> //requires apply_func_to_field_tuple<T, Func>
 constexpr decltype(auto) for_each_field(T&& s, Func&& func) {
 	uint32_t i = 0;
-	return std::apply([&](auto&&... args) {
-		((FWD(func)(args, i++)), ...);
-	}, class_field_to_tuple(FWD(s)));
+	return std::apply(
+		[&](auto&&... args) {
+			((FWD(func)(args, i++)), ...);
+		}, class_field_to_tuple(FWD(s)));
+}
+
+template <typename T, typename Func>
+constexpr decltype(auto) field_at(T&& s, size_t field_index, Func&& func) {
+	return UNROLL<count_member_v<T>>([field_index, func = FWD(func), s = FWD(s)]<size_t I>() {
+		if (field_index == I) {
+			func(std::get<I>(class_field_to_tuple(s)));
+		}
+	});
 }

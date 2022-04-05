@@ -990,9 +990,9 @@ void VulkanEngine::create_viewport_framebuffers() {
 
 	for (size_t i = 0; i < swapchain_image_count; i++) {
 		std::array attachments = {
-			viewport_3d.color_textures[i]->imageView,
-			viewport_3d.depth_textures[i]->imageView,
-			viewport_3d.color_resolve_textures[i]->imageView,
+			viewport_3d.color_textures[i]->image_view,
+			viewport_3d.depth_textures[i]->image_view,
+			viewport_3d.color_resolve_textures[i]->image_view,
 		};
 
 		VkFramebufferCreateInfo framebuffer_info = vkinit::framebufferCreateInfo(viewport_3d.render_pass, VkExtent2D{ screen_width , screen_height }, attachments);
@@ -1224,29 +1224,9 @@ void VulkanEngine::create_descriptor_sets() {
 	}
 
 	for (auto const& [index, texture] : texture_manager->textures) {
-		VkDescriptorImageInfo descriptor_image_info{
-			.sampler = texture->sampler,
-			.imageView = texture->imageView,
-			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		};
-
-		const std::array texture_array_writes{
-			VkWriteDescriptorSet{
-				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.dstSet = texture_manager->descriptor_set,
-				.dstBinding = 0,
-				.dstArrayElement = index,
-				.descriptorCount = 1,
-				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-				.pImageInfo = &descriptor_image_info,
-			},
-		};
-
-		vkUpdateDescriptorSets(device,
-			texture_array_writes.size(),
-			texture_array_writes.data(),
-			0,
-			nullptr);
+		if (texture != nullptr) {
+			update_image_descriptor(texture, index);
+		}
 	}
 }
 
@@ -1359,19 +1339,9 @@ void VulkanEngine::load_obj() {
 	};
 	material->shaders = engine::Shader::createFromSpv(this, spv_file_paths);
 
-	for_each_field(pbr_material_texture_set, [&](auto& texture, auto index) {
-
-		texture = Texture::create_device_texture(this,
-			TEXTURE_WIDTH,
-			TEXTURE_HEIGHT,
-			(index == 0) ? VK_FORMAT_R8G8B8A8_SRGB : VK_FORMAT_R8G8B8A8_UNORM,
-			VK_IMAGE_ASPECT_COLOR_BIT,
-			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-
-
-		texture->transitionImageLayout(this, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	for_each_field(pbr_material_texture_set, [&](auto& texture_id, auto index) {
 		PbrTexture::Class::FieldAt(material->paras, index, [&](auto& field, auto& value) {
-			value = texture_manager->add_texture(texture);
+			value = texture_id = texture_manager->add_texture(nullptr);
 			});
 		});
 
@@ -1434,6 +1404,32 @@ void VulkanEngine::create_sync_objects() {
 	main_deletion_queue.push_function([=]() {
 		vkDestroyFence(device, immediate_submit_fence, nullptr);
 		});
+}
+
+void VulkanEngine::update_image_descriptor(const TexturePtr& texture, uint32_t index) const {
+	VkDescriptorImageInfo descriptor_image_info{
+			.sampler = texture->sampler,
+			.imageView = texture->image_view,
+			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+	};
+
+	const std::array texture_array_writes{
+		VkWriteDescriptorSet{
+			.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+			.dstSet = texture_manager->descriptor_set,
+			.dstBinding = 0,
+			.dstArrayElement = index,
+			.descriptorCount = 1,
+			.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+			.pImageInfo = &descriptor_image_info,
+		},
+	};
+
+	vkUpdateDescriptorSets(device,
+		texture_array_writes.size(),
+		texture_array_writes.data(),
+		0,
+		nullptr);
 }
 
 void VulkanEngine::init_imgui() {

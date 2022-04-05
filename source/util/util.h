@@ -8,7 +8,7 @@
 #define AS_LAMBDA(func) [&](auto&&... args) -> decltype(func(FWD(args)...)) { return func(FWD(args)...); }
 
 template <bool cond_v, typename Then, typename OrElse>
-decltype(auto) constexpr_if(Then&& then, OrElse&& or_else) {
+constexpr decltype(auto) constexpr_if(Then&& then, OrElse&& or_else) {
     if constexpr (cond_v) {
         return FWD(then);
     }
@@ -18,8 +18,8 @@ decltype(auto) constexpr_if(Then&& then, OrElse&& or_else) {
 }
 
 template <int N, typename F>
-void UNROLL(F&& func) {
-    [func = FWD(func)] <std::size_t... I> (std::index_sequence<I...>) {
+constexpr decltype(auto) UNROLL(F&& func) {
+    return [func = FWD(func)] <std::size_t... I> (std::index_sequence<I...>) {
         (func.template operator() < I > (), ...);
     }(std::make_index_sequence<N>{});
 }

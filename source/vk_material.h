@@ -37,7 +37,7 @@ struct Pbr {
 
 struct HDRi {
 	int base_color_texture_id = -1;
-	
+
 	REFLECT(HDRi,
 		base_color_texture_id)
 };
@@ -47,7 +47,7 @@ struct PbrTexture {
 	uint32_t matallic_texture_id = -1;
 	uint32_t roughness_texture_id = -1;
 	uint32_t normal_texture_id = -1;
-	
+
 	REFLECT(PbrTexture,
 		base_color_texture_id,
 		matallic_texture_id,
@@ -60,7 +60,7 @@ namespace engine {
 
 	using ShaderPtr = std::shared_ptr<Shader>;
 
-	struct Empty_Type{};
+	struct Empty_Type {};
 	template <typename ParaT = Empty_Type>
 	class Material {
 	public:

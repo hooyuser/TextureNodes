@@ -9,7 +9,7 @@ class VulkanEngine;
 struct TextureManager {
 	std::unordered_map<uint32_t, TexturePtr> textures;
 	std::unordered_set<uint32_t> unused_id;
-	
+
 	VkDescriptorSetLayout descriptor_set_layout;
 	VkDescriptorSet descriptor_set;
 
@@ -33,7 +33,7 @@ struct TextureManager {
 		return id;
 	}
 
-	auto add_texture(TexturePtr&& texture) noexcept{
+	auto add_texture(TexturePtr&& texture) noexcept {
 		auto id = *unused_id.begin();
 		textures.emplace(id, std::move(texture));
 		unused_id.erase(id);

@@ -232,6 +232,8 @@ public:
 
 	void create_descriptor_set_layouts();
 
+	void update_image_descriptor(const TexturePtr& texture, uint32_t index) const;
+
 	void create_graphics_pipeline();
 
 	void create_mesh_pipeline();

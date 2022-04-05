@@ -210,14 +210,14 @@ namespace engine {
 
 		ed::NodeId display_node_id = ed::NodeId::Invalid;
 		void* gui_display_texture_handle = nullptr;
-				
+
 		VkSemaphoreWaitInfo preview_semaphore_wait_info{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_WAIT_INFO,
 			.semaphoreCount = 1,
 		};
 
 		constexpr static inline uint32_t preview_image_size = 128;
-	
+
 		int get_next_id() noexcept;
 
 		void update_from(uint32_t node_index);

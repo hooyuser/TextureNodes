@@ -74,8 +74,8 @@ namespace engine {
 	void NodeEditor::execute_graph(const std::vector<uint32_t>& sorted_nodes) {
 		std::vector<VkSubmitInfo2> submits;
 		submits.reserve(sorted_nodes.size() * 2 + 2);
-		std::vector<CopyImageSubmitInfo> copy_image_submits;
-		copy_image_submits.reserve(PbrMaterialTextureNum);
+		std::vector<CopyImageSubmitInfo> copy_image_submit_infos;
+		copy_image_submit_infos.reserve(PbrMaterialTextureNum);
 
 		for (auto const i : sorted_nodes) {
 			std::visit([&](auto&& node_data) {
@@ -111,7 +111,7 @@ namespace engine {
 								}
 								else if constexpr (shader_data<NodeDataT>) {
 									connect_to_shader = true;
-									copy_image_submits.emplace_back(
+									copy_image_submit_infos.emplace_back(
 										VkSemaphoreSubmitInfo{
 											.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 											.pNext = nullptr,
@@ -135,15 +135,18 @@ namespace engine {
 					submits.push_back(node_data->submit_info[1]);
 
 					if (connect_to_shader) {
-						submits.emplace_back(
-							VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-							nullptr,
-							0,
-							1,
-							&copy_image_submits.back().wait_semaphore_submit_info,
-							1,
-							&copy_image_submits.back().cmd_buffer_submit_info
-						);
+						for (auto& [wait_semaphore_submit_info, cmd_buffer_submit_info] : copy_image_submit_infos) {
+							submits.emplace_back(
+								VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+								nullptr,
+								0,
+								1,
+								&wait_semaphore_submit_info,
+								1,
+								&cmd_buffer_submit_info
+							);
+						}
+
 					}
 				}
 				else if constexpr (value_data<NodeDataT>) {
@@ -819,6 +822,7 @@ namespace engine {
 								end_node_data->update_ubo(start_pin->default_value, end_pin_index);
 							}
 							else if constexpr (shader_data<EndNodeT>) {
+								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 								if (std::holds_alternative<FloatData>(start_pin->default_value) &&
 									std::holds_alternative<FloatTextureIdData>(end_pin->default_value)) {
 									std::get_if<FloatTextureIdData>(&end_pin->default_value)->value.id = -1;
@@ -826,6 +830,29 @@ namespace engine {
 								else if (std::holds_alternative<Color4Data>(start_pin->default_value) &&
 									std::holds_alternative<Color4TextureIdData>(end_pin->default_value)) {
 									std::get_if<Color4TextureIdData>(&end_pin->default_value)->value.id = -1;
+								}
+								else {
+									std::visit([&](auto&& start_node_data) {
+										using StartNodeT = std::decay_t<decltype(start_node_data)>;
+										if constexpr (image_data<StartNodeT>) {
+											field_at(engine->pbr_material_texture_set, end_pin_index, [&](auto pbr_texture_id) {
+												auto input_format = start_node_data->texture->format;
+												auto& pbr_texture = engine->texture_manager->textures[pbr_texture_id];
+												if (pbr_texture == nullptr || input_format != pbr_texture->format) {
+													pbr_texture = Texture::create_device_texture(engine,
+														TEXTURE_WIDTH,
+														TEXTURE_HEIGHT,
+														input_format,
+														VK_IMAGE_ASPECT_COLOR_BIT,
+														VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+													pbr_texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+													engine->update_image_descriptor(pbr_texture, pbr_texture_id);
+													start_node_data->record_copy_image_cmd_buffers(end_pin_index);
+												}
+												});
+
+										}
+										}, nodes[start_pin->node_index].data);
 								}
 								end_node_data.update_ubo(start_pin->default_value, end_pin_index);
 
@@ -841,7 +868,6 @@ namespace engine {
 									}
 									}, nodes[start_pin->node_index].data);
 
-								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 								vkResetFences(engine->device, 1, &fence);
 								vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
 								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);

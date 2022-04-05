@@ -15,7 +15,7 @@ namespace engine {
 
 		VkImage image = VK_NULL_HANDLE;
 		VkDeviceMemory memory = VK_NULL_HANDLE;
-		VkImageView imageView = VK_NULL_HANDLE;
+		VkImageView image_view = VK_NULL_HANDLE;
 
 		uint32_t width;
 		uint32_t height;
@@ -27,7 +27,7 @@ namespace engine {
 
 		Image(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 			VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkComponentMapping components = {VK_COMPONENT_SWIZZLE_IDENTITY});
+			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 
 		Image(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 			VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
@@ -56,7 +56,7 @@ namespace engine {
 
 		Texture(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 			VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkFilter filters, VkComponentMapping components = {VK_COMPONENT_SWIZZLE_IDENTITY});
+			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkFilter filters, VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 
 		Texture(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 			VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
