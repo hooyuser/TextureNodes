@@ -56,7 +56,7 @@ namespace engine {
 			throw std::runtime_error("failed to create render pass!");
 		}
 
-		engine->main_deletion_queue.push_function([=]() {
+		engine->main_deletion_queue.push_function([=] {
 			vkDestroyRenderPass(engine->device, render_pass, nullptr);
 			});
 	}
@@ -75,7 +75,7 @@ namespace engine {
 				throw std::runtime_error("failed to create framebuffer!");
 			}
 
-			engine->swap_chain_deletion_queue.push_function([=]() {
+			engine->swap_chain_deletion_queue.push_function([=] {
 				vkDestroyFramebuffer(engine->device, framebuffers[i], nullptr);
 				});
 		}
@@ -89,7 +89,7 @@ namespace engine {
 			throw std::runtime_error("failed to create graphics command pool!");
 		}
 
-		engine->main_deletion_queue.push_function([=]() {
+		engine->main_deletion_queue.push_function([=] {
 			vkDestroyCommandPool(engine->device, command_pool, nullptr);
 			});
 	}
@@ -102,7 +102,7 @@ namespace engine {
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
 
-		engine->main_deletion_queue.push_function([=]() {
+		engine->main_deletion_queue.push_function([=] {
 			vkFreeCommandBuffers(engine->device, command_pool, static_cast<uint32_t>(command_buffers.size()), command_buffers.data());
 			});
 	}
@@ -117,8 +117,7 @@ namespace engine {
 
 		constexpr size_t descriptor_pool_size = 2000;
 
-		constexpr VkDescriptorPoolSize pool_sizes[] =
-		{
+		constexpr VkDescriptorPoolSize pool_sizes[] = {
 			{ VK_DESCRIPTOR_TYPE_SAMPLER, descriptor_pool_size },
 			{ VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, descriptor_pool_size },
 			{ VK_DESCRIPTOR_TYPE_SAMPLED_IMAGE, descriptor_pool_size },
@@ -209,7 +208,7 @@ namespace engine {
 		}
 
 		//add the destroy the imgui created structures
-		engine->main_deletion_queue.push_function([=]() {
+		engine->main_deletion_queue.push_function([=] {
 			vkDestroyDescriptorPool(engine->device, imgui_descriptor_pool, nullptr);
 			ImGui_ImplVulkan_Shutdown();
 			ImGui_ImplGlfw_Shutdown();

@@ -50,7 +50,7 @@ void TextureManager::create_texture_array_descriptor_set_layouts(VulkanEngine* e
 		throw std::runtime_error("failed to create descriptor set layout!");
 	}
 
-	engine->main_deletion_queue.push_function([=]() {
+	engine->main_deletion_queue.push_function([=] {
 		vkDestroyDescriptorSetLayout(engine->device, descriptor_set_layout, nullptr);
 		});
 }

@@ -279,7 +279,7 @@ void VulkanEngine::setup_debug_messenger() {
 		throw std::runtime_error("failed to set up debug messenger!");
 	}
 
-	main_deletion_queue.push_function([=]() {
+	main_deletion_queue.push_function([=] {
 		DestroyDebugUtilsMessengerEXT(instance, debug_messenger, nullptr);
 		});
 }
@@ -437,7 +437,7 @@ void VulkanEngine::create_swap_chain() {
 
 	swapchain_image_format = surface_format;
 
-	swap_chain_deletion_queue.push_function([=]() {
+	swap_chain_deletion_queue.push_function([=] {
 		vkDestroySwapchainKHR(device, swapchain, nullptr);
 		});
 }
@@ -523,7 +523,7 @@ void VulkanEngine::create_swap_chain_image_views() {
 //		throw std::runtime_error("failed to create render pass!");
 //	}
 //
-//	swap_chain_deletion_queue.push_function([=]() {
+//	swap_chain_deletion_queue.push_function([=] {
 //		vkDestroyRenderPass(device, render_pass, nullptr);
 //		});
 //}
@@ -764,7 +764,7 @@ void VulkanEngine::create_descriptor_set_layout(std::span<VkDescriptorSetLayoutB
 		throw std::runtime_error("failed to create descriptor set layout!");
 	}
 
-	main_deletion_queue.push_function([=]() {
+	main_deletion_queue.push_function([=] {
 		vkDestroyDescriptorSetLayout(device, descriptor_set_layout, nullptr);
 		});
 }
@@ -782,7 +782,7 @@ void VulkanEngine::create_mesh_pipeline() {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
-	swap_chain_deletion_queue.push_function([=]() {
+	swap_chain_deletion_queue.push_function([=] {
 		vkDestroyPipelineLayout(device, mesh_pipeline_layout, nullptr);
 		});
 
@@ -793,7 +793,7 @@ void VulkanEngine::create_mesh_pipeline() {
 
 		pipeline_builder.build_pipeline(device, viewport_3d.render_pass, mesh_pipeline_layout, material->pipeline);
 
-		main_deletion_queue.push_function([=]() {
+		main_deletion_queue.push_function([=] {
 			vkDestroyPipeline(device, material->pipeline, nullptr);
 			});
 
@@ -822,7 +822,7 @@ void VulkanEngine::create_env_light_pipeline() {
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipelineLayout = env_pipeline_layout;
 	std::get<HDRiMaterialPtr>(materials["env_light"])->pipeline = env_pipeline;
 
-	main_deletion_queue.push_function([=]() {
+	main_deletion_queue.push_function([=] {
 		vkDestroyPipeline(device, env_pipeline, nullptr);
 		vkDestroyPipelineLayout(device, env_pipeline_layout, nullptr);
 		});
@@ -842,7 +842,7 @@ void VulkanEngine::create_command_pool() {
 		throw std::runtime_error("failed to create graphics command pool!");
 	}
 
-	main_deletion_queue.push_function([=]() {
+	main_deletion_queue.push_function([=] {
 		vkDestroyCommandPool(device, command_pool, nullptr);
 		});
 }
@@ -979,7 +979,7 @@ void VulkanEngine::create_viewport_render_pass() {
 		throw std::runtime_error("failed to create render pass!");
 	}
 
-	main_deletion_queue.push_function([=]() {
+	main_deletion_queue.push_function([=] {
 		vkDestroyRenderPass(device, viewport_3d.render_pass, nullptr);
 		});
 }
@@ -1001,7 +1001,7 @@ void VulkanEngine::create_viewport_framebuffers() {
 			throw std::runtime_error("failed to create framebuffer!");
 		}
 
-		main_deletion_queue.push_function([=]() {
+		main_deletion_queue.push_function([=] {
 			vkDestroyFramebuffer(device, viewport_3d.framebuffers[i], nullptr);
 			});
 	}
@@ -1015,8 +1015,8 @@ void VulkanEngine::create_viewport_cmd_buffers() {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
-	main_deletion_queue.push_function([&]() {
-		vkFreeCommandBuffers(device, command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()), viewport_3d.cmd_buffers.data());
+	main_deletion_queue.push_function([device = device, command_pool = command_pool, &cmd_buffers = viewport_3d.cmd_buffers] {
+		vkFreeCommandBuffers(device, command_pool, static_cast<uint32_t>(cmd_buffers.size()), cmd_buffers.data());
 		});
 }
 
@@ -1084,12 +1084,12 @@ VkImageView VulkanEngine::create_image_view(VkImage image, VkFormat format, VkIm
 	}
 
 	if (imageViewDescription == SWAPCHAIN_DEPENDENT_BIT) {
-		swap_chain_deletion_queue.push_function([=]() {
+		swap_chain_deletion_queue.push_function([=] {
 			vkDestroyImageView(device, image_view, nullptr);
 			});
 	}
 	else if (imageViewDescription == SWAPCHAIN_INDEPENDENT_BIT) {
-		main_deletion_queue.push_function([=]() {
+		main_deletion_queue.push_function([=] {
 			vkDestroyImageView(device, image_view, nullptr);
 			});
 	}
@@ -1141,7 +1141,7 @@ void VulkanEngine::create_descriptor_pool() {
 		throw std::runtime_error("failed to create descriptor pool!");
 	}
 
-	main_deletion_queue.push_function([=]() {
+	main_deletion_queue.push_function([=] {
 		vkDestroyDescriptorPool(device, static_descriptor_pool, nullptr);
 		});
 
@@ -1163,7 +1163,7 @@ void VulkanEngine::create_descriptor_pool() {
 		throw std::runtime_error("failed to create descriptor pool!");
 	}
 
-	main_deletion_queue.push_function([=]() {
+	main_deletion_queue.push_function([=] {
 		vkDestroyDescriptorPool(device, dynamic_descriptor_pool, nullptr);
 		});
 }
@@ -1238,7 +1238,7 @@ void VulkanEngine::create_command_buffers() {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
-	swap_chain_deletion_queue.push_function([=]() {
+	swap_chain_deletion_queue.push_function([=] {
 		vkFreeCommandBuffers(device, command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()), viewport_3d.cmd_buffers.data());
 		});
 }
@@ -1357,7 +1357,7 @@ void VulkanEngine::load_obj() {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
-	swap_chain_deletion_queue.push_function([=]() {
+	swap_chain_deletion_queue.push_function([=] {
 		vkDestroyPipelineLayout(device, material_preview_pipeline_layout, nullptr);
 		});
 
@@ -1365,7 +1365,7 @@ void VulkanEngine::load_obj() {
 
 	pipeline_builder.build_pipeline(device, viewport_3d.render_pass, material_preview_pipeline_layout, material->pipeline);
 
-	main_deletion_queue.push_function([=]() {
+	main_deletion_queue.push_function([=] {
 		vkDestroyPipeline(device, material->pipeline, nullptr);
 		});
 
@@ -1391,7 +1391,7 @@ void VulkanEngine::create_sync_objects() {
 			throw std::runtime_error("failed to create synchronization objects for a frame!");
 		}
 
-		main_deletion_queue.push_function([=]() {
+		main_deletion_queue.push_function([=] {
 			vkDestroyFence(device, frame_data[i].in_flight_fence, nullptr);
 			vkDestroySemaphore(device, frame_data[i].render_finished_semaphore, nullptr);
 			vkDestroySemaphore(device, frame_data[i].image_available_semaphore, nullptr);
@@ -1401,7 +1401,7 @@ void VulkanEngine::create_sync_objects() {
 	if (vkCreateFence(device, &fence_info, nullptr, &immediate_submit_fence) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create synchronization objects for a frame!");
 	}
-	main_deletion_queue.push_function([=]() {
+	main_deletion_queue.push_function([=] {
 		vkDestroyFence(device, immediate_submit_fence, nullptr);
 		});
 }

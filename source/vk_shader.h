@@ -53,7 +53,7 @@ namespace engine {
 
 				shaderModuleVector.emplace_back(std::move(shaderModule));
 
-				engine->main_deletion_queue.push_function([=]() {
+				engine->main_deletion_queue.push_function([=] {
 					vkDestroyShaderModule(engine->device, shaderModule.shader, nullptr);
 					});
 			}

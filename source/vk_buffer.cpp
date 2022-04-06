@@ -59,7 +59,7 @@ namespace engine {
 	BufferPtr Buffer::create_buffer(VulkanEngine* engine, VkDeviceSize device_size, VkBufferUsageFlags buffer_usage, VkMemoryPropertyFlags memory_properties, CreateResourceFlagBits buffer_description) {
 		auto p_buffer = std::make_shared<Buffer>(engine->device, engine->physical_device, buffer_usage, memory_properties, device_size);
 		if (buffer_description & 0x00000001) {
-			((buffer_description == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
+			((buffer_description == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=] {
 				vkDestroyBuffer(p_buffer->device, p_buffer->buffer, nullptr);
 				vkFreeMemory(p_buffer->device, p_buffer->memory, nullptr);
 				p_buffer->buffer = VK_NULL_HANDLE;

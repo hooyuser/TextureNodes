@@ -124,8 +124,8 @@ struct ColorRampData : NodeData {
 	value_t value = -1;
 	std::unique_ptr<ImGradient> ui_value;
 	std::unique_ptr<RampTexture> ubo_value;
-	ImGradientMark* draggingMark = nullptr;
-	ImGradientMark* selectedMark = nullptr;
+	ImGradientMark* dragging_mark = nullptr;
+	ImGradientMark* selected_mark = nullptr;
 
 	ColorRampData() {
 		ui_value = nullptr;
@@ -206,8 +206,13 @@ namespace nlohmann {
 
 		static void from_json(const json& j, Color4TextureIdData& data) {
 			data = Color4TextureIdData{
-				.value = {
-					.color = j,
+				.value {
+					.color {
+						j[0].get<float>(),
+						j[1].get<float>(),
+						j[2].get<float>(),
+						j[3].get<float>(),
+					},
 				}
 			};
 		}
@@ -478,7 +483,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			SWAPCHAIN_INDEPENDENT_BIT,
 			is_gray_scale);
 
-		texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		preview_texture = engine::Texture::create_device_texture(engine,
 			PREVIEW_IMAGE_SIZE,
@@ -489,7 +494,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			SWAPCHAIN_INDEPENDENT_BIT,
 			is_gray_scale);
 
-		preview_texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		preview_texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 
 		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -567,7 +572,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 	}
 
-	void create_image_processing_render_pass(VkFormat format) {
+	void create_image_processing_render_pass(const VkFormat format) {
 		if (image_processing_render_passes.contains(format)) {
 			return;
 		}
@@ -618,7 +623,6 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 		constexpr VkRenderPassCreateInfo render_pass_info{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
-			.pNext = nullptr,
 			.attachmentCount = static_cast<uint32_t>(attachments.size()),
 			.pAttachments = attachments.data(),
 			.subpassCount = 1,
@@ -631,14 +635,14 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			throw std::runtime_error("failed to create render pass!");
 		}
 
-		engine->main_deletion_queue.push_function([device = engine->device, render_pass = image_processing_render_passes[format]]() {
+		engine->main_deletion_queue.push_function([device = engine->device, render_pass = image_processing_render_passes[format]] {
 			vkDestroyRenderPass(device, render_pass, nullptr);
 		});
 	}
 
 	void create_image_processing_pipeline_layout() {
 
-		auto descriptor_set_layouts = [&]() {
+		auto descriptor_set_layouts = [&] {
 			if constexpr (has_texture_field<UboType>) {
 				return std::array{
 					ubo_descriptor_set_layout,
@@ -656,23 +660,22 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			throw std::runtime_error("failed to create pipeline layout!");
 		}
 
-		engine->main_deletion_queue.push_function([device = engine->device, pipeline_layout = image_processing_pipeline_layout]() {
+		engine->main_deletion_queue.push_function([device = engine->device, pipeline_layout = image_processing_pipeline_layout] {
 			vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
 		});
 	}
 
-	void create_image_processing_pipeline(VkFormat format) {
+	void create_image_processing_pipeline(const VkFormat format) {
 		if (image_processing_pipelines.contains(format)) {
 			return;
 		}
 		engine::PipelineBuilder pipeline_builder(engine, engine::ENABLE_DYNAMIC_VIEWPORT, engine::DISABLE_VERTEX_INPUT);
-	
+
 		auto shaders = engine::Shader::createFromSpv(engine, UboType::shader_file_paths);
 
 		for (auto shader_module : shaders->shader_modules) {
 			VkPipelineShaderStageCreateInfo shader_info{
 				.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-				.pNext = nullptr,
 				.stage = shader_module.stage,
 				.module = shader_module.shader,
 				.pName = "main"
@@ -682,12 +685,12 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 		pipeline_builder.build_pipeline(engine->device, image_processing_render_passes[format], image_processing_pipeline_layout, image_processing_pipelines[format]);
 
-		engine->main_deletion_queue.push_function([device = engine->device, pipeline = image_processing_pipelines[format]]() {
+		engine->main_deletion_queue.push_function([device = engine->device, pipeline = image_processing_pipelines[format]] {
 			vkDestroyPipeline(device, pipeline, nullptr);
 		});
 	}
 
-	void create_framebuffer(VkFormat format) {
+	void create_framebuffer(const VkFormat format) {
 		VkFramebufferAttachmentImageInfo framebuffer_attachment_image_info{
 			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_ATTACHMENT_IMAGE_INFO,
 			.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
@@ -722,7 +725,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		}
 	}
 
-	void create_image_processing_command_buffer(VkFormat format) {
+	void create_image_processing_command_buffer(const VkFormat format) {
 		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, 1);
 
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &image_processing_cmd_buffer) != VK_SUCCESS) {

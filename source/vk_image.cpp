@@ -3,6 +3,7 @@
 #include "vk_buffer.h"
 
 #include <stdexcept>
+#include <filesystem>
 
 #define STB_IMAGE_IMPLEMENTATION
 #include <stb_image.h>
@@ -112,7 +113,7 @@ namespace engine {
 	Image::Image(VkDevice device, VkPhysicalDevice physicalDevice, uint32_t width, uint32_t height, uint32_t mipLevels,
 		VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties,
 		VkImageAspectFlags aspectFlags, VkMemoryPropertyFlags imageFlag, uint32_t layerCount) : device(device), width(width), height(height),
-		format(format), mipLevels(mipLevels), layerCount(layerCount) {
+		format(format), mipLevels(mipLevels), layer_count(layerCount) {
 
 		const VkImageCreateInfo image_info{
 			.sType = VK_STRUCTURE_TYPE_IMAGE_CREATE_INFO,
@@ -191,7 +192,7 @@ namespace engine {
 	ImagePtr Image::createImage(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, CreateResourceFlagBits imageDescription) {
 		auto pImage = std::make_shared<Image>(engine->device, engine->physical_device, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=] {
 				vkDestroyImageView(engine->device, pImage->image_view, nullptr);
 				vkDestroyImage(engine->device, pImage->image, nullptr);
 				vkFreeMemory(engine->device, pImage->memory, nullptr);
@@ -203,7 +204,7 @@ namespace engine {
 		return pImage;
 	}
 
-	void Image::transitionImageLayout(VulkanEngine* engine, VkImageLayout oldLayout, VkImageLayout newLayout) {
+	void Image::transition_image_layout(VulkanEngine* engine, VkImageLayout oldLayout, VkImageLayout newLayout) {
 		immediate_submit(engine, [&](VkCommandBuffer commandBuffer) {
 			VkImageMemoryBarrier barrier{
 				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
@@ -217,7 +218,7 @@ namespace engine {
 					.baseMipLevel = 0,
 					.levelCount = mipLevels,
 					.baseArrayLayer = 0,
-					.layerCount = layerCount,
+					.layerCount = layer_count,
 				}
 			};
 
@@ -260,33 +261,36 @@ namespace engine {
 			});
 	}
 
-	void Image::copyFromBuffer(VulkanEngine* engine, VkBuffer buffer, uint32_t mipLevel) {
-		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
-			VkBufferImageCopy region{};
-			region.bufferOffset = 0;
-			region.bufferRowLength = 0;
-			region.bufferImageHeight = 0;
-			region.imageSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-			region.imageSubresource.mipLevel = mipLevel;
-			region.imageSubresource.baseArrayLayer = 0;
-			region.imageSubresource.layerCount = layerCount;
-			region.imageOffset = { 0, 0, 0 };
-			region.imageExtent = {
-				width >> mipLevel,
-				height >> mipLevel,
-				1
+	void Image::copy_from_buffer(VulkanEngine* engine, VkBuffer buffer, uint32_t mipLevel) {
+		immediate_submit(engine, [&](VkCommandBuffer commandBuffer) {
+			const VkBufferImageCopy region{
+				.bufferOffset = 0,
+				.bufferRowLength = 0,
+				.bufferImageHeight = 0,
+				.imageSubresource {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.mipLevel = mipLevel,
+					.baseArrayLayer = 0,
+					.layerCount = layer_count,
+				},
+				.imageOffset = { 0, 0, 0 },
+				.imageExtent = {
+					width >> mipLevel,
+					height >> mipLevel,
+					1,
+				},
 			};
 
 			vkCmdCopyBufferToImage(commandBuffer, buffer, image, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL, 1, &region);
 			});
 	}
 
-	void Image::generateMipmaps(VulkanEngine* engine) const {
+	void Image::generate_mipmaps(VulkanEngine* engine) const {
 		// Check if image format supports linear blitting
-		VkFormatProperties formatProperties;
-		vkGetPhysicalDeviceFormatProperties(engine->physical_device, format, &formatProperties);
+		VkFormatProperties format_properties;
+		vkGetPhysicalDeviceFormatProperties(engine->physical_device, format, &format_properties);
 
-		if (!(formatProperties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
+		if (!(format_properties.optimalTilingFeatures & VK_FORMAT_FEATURE_SAMPLED_IMAGE_FILTER_LINEAR_BIT)) {
 			throw std::runtime_error("texture image format does not support linear blitting!");
 		}
 
@@ -299,7 +303,7 @@ namespace engine {
 			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			barrier.subresourceRange.baseArrayLayer = 0;
-			barrier.subresourceRange.layerCount = layerCount;
+			barrier.subresourceRange.layerCount = layer_count;
 			barrier.subresourceRange.levelCount = 1;
 
 			int32_t mipWidth = width;
@@ -324,13 +328,13 @@ namespace engine {
 				blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 				blit.srcSubresource.mipLevel = i - 1;
 				blit.srcSubresource.baseArrayLayer = 0;
-				blit.srcSubresource.layerCount = layerCount;
+				blit.srcSubresource.layerCount = layer_count;
 				blit.dstOffsets[0] = { 0, 0, 0 };
 				blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
 				blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 				blit.dstSubresource.mipLevel = i;
 				blit.dstSubresource.baseArrayLayer = 0;
-				blit.dstSubresource.layerCount = layerCount;
+				blit.dstSubresource.layerCount = layer_count;
 
 				vkCmdBlitImage(commandBuffer,
 					image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -384,9 +388,9 @@ namespace engine {
 		VkImageAspectFlags aspectFlags, VkFilter filters, VkImageCreateFlagBits imageFlag, uint32_t layerCount) :
 		Image(device, physicalDevice, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags, imageFlag, layerCount) {
 
-		VkSamplerCreateInfo samplerInfo = vk_init::samplerCreateInfo(physicalDevice, filters, mipLevels);
+		const VkSamplerCreateInfo sampler_info = vk_init::samplerCreateInfo(physicalDevice, filters, mipLevels);
 
-		if (vkCreateSampler(device, &samplerInfo, nullptr, &sampler) != VK_SUCCESS) {
+		if (vkCreateSampler(device, &sampler_info, nullptr, &sampler) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create texture sampler!");
 		}
 	}
@@ -398,10 +402,10 @@ namespace engine {
 		}
 	}
 
-	TexturePtr Texture::createTexture(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkFilter filters, CreateResourceFlagBits imageDescription) {
+	TexturePtr Texture::create_texture(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mipLevels, VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, VkFilter filters, CreateResourceFlagBits imageDescription) {
 		auto pTexture = std::make_shared<Texture>(engine->device, engine->physical_device, width, height, mipLevels, numSamples, format, tiling, usage, properties, aspectFlags, filters);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=] {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -415,7 +419,7 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::create2DTexture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits imageDescription) {
+	TexturePtr Texture::create_2d_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits imageDescription) {
 		auto mipLevels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
 		auto pTexture = std::make_shared<Texture>(engine->device,
 			engine->physical_device,
@@ -430,7 +434,7 @@ namespace engine {
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_FILTER_LINEAR);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=] {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -444,7 +448,7 @@ namespace engine {
 		return pTexture;
 	}
 
-	TexturePtr Texture::create2DTexture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits imageDescription, const uint32_t mipLevels) {
+	TexturePtr Texture::create_2d_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits imageDescription, const uint32_t mipLevels) {
 		auto pTexture = std::make_shared<Texture>(engine->device,
 			engine->physical_device,
 			width,
@@ -458,7 +462,7 @@ namespace engine {
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_FILTER_LINEAR);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=] {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -488,7 +492,7 @@ namespace engine {
 			aspectFlags,
 			VK_FILTER_LINEAR);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=] {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -539,7 +543,7 @@ namespace engine {
 		}
 
 		if (imageDescription & 0x00000001) {
-			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=] {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -570,7 +574,7 @@ namespace engine {
 			VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
 			6);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=] {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -600,7 +604,7 @@ namespace engine {
 			VK_IMAGE_CREATE_CUBE_COMPATIBLE_BIT,
 			6);
 		if (imageDescription & 0x00000001) {
-			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=]() {
+			((imageDescription == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=] {
 				vkDestroySampler(engine->device, pTexture->sampler, nullptr);
 				vkDestroyImageView(engine->device, pTexture->image_view, nullptr);
 				vkDestroyImage(engine->device, pTexture->image, nullptr);
@@ -616,65 +620,59 @@ namespace engine {
 
 	TexturePtr Texture::load_2d_texture_from_host(VulkanEngine* engine, void const* host_pixels, int tex_width, int texHeight, int texChannels, bool enableMipmap/*= true*/, VkFormat format/*= VK_FORMAT_R8G8B8A8_SRGB*/) {
 
-		VkDeviceSize imageSize = static_cast<uint64_t>(tex_width) * texHeight * texChannels;
+		const VkDeviceSize image_size = static_cast<uint64_t>(tex_width) * texHeight * texChannels;
 
-		auto pStagingBuffer = engine::Buffer::create_buffer(engine,
-			imageSize,
+		auto const staging_buffer = engine::Buffer::create_buffer(engine,
+			image_size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			TEMP_BIT);
-		pStagingBuffer->copy_from_host(host_pixels);
+		staging_buffer->copy_from_host(host_pixels);
 
-		engine::TexturePtr pTexture;
+		engine::TexturePtr texture;
 
 		if (enableMipmap) {
-			pTexture = engine::Texture::create2DTexture(engine, tex_width, texHeight, format, SWAPCHAIN_INDEPENDENT_BIT);
+			texture = engine::Texture::create_2d_texture(engine, tex_width, texHeight, format, SWAPCHAIN_INDEPENDENT_BIT);
 		}
 		else {
-			pTexture = engine::Texture::create2DTexture(engine, tex_width, texHeight, format, SWAPCHAIN_INDEPENDENT_BIT, 1);
+			texture = engine::Texture::create_2d_texture(engine, tex_width, texHeight, format, SWAPCHAIN_INDEPENDENT_BIT, 1);
 		}
 
-		pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-		pTexture->copyFromBuffer(engine, pStagingBuffer->buffer);
+		texture->copy_from_buffer(engine, staging_buffer->buffer);
 
 		//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 
+		texture->generate_mipmaps(engine);
 
-		pTexture->generateMipmaps(engine);
-
-
-		return pTexture;
+		return texture;
 	}
 
-	TexturePtr Texture::load_2d_texture(VulkanEngine* engine, const char* filePath, bool enableMipmap/*= true*/, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
-		int texWidth, texHeight, texChannels;
-		stbi_uc* pixels = stbi_load(filePath, &texWidth, &texHeight, &texChannels, STBI_rgb_alpha);
+	TexturePtr Texture::load_2d_texture(VulkanEngine* engine, const std::string_view file_path, bool enableMipmap/*= true*/, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
+		int tex_width, tex_height, tex_channels;
+		stbi_uc* pixels = stbi_load(file_path.data(), &tex_width, &tex_height, &tex_channels, STBI_rgb_alpha);
 		//VkDeviceSize imageSize = static_cast<uint64_t>(texWidth) * texHeight * 4;
 		if (!pixels) {
 			throw std::runtime_error("failed to load texture image!");
 		}
-		return load_2d_texture_from_host(engine, pixels, texWidth, texHeight, texChannels, enableMipmap, format);
+		return load_2d_texture_from_host(engine, pixels, tex_width, tex_height, tex_channels, enableMipmap, format);
 	}
 
-	TexturePtr Texture::load_2d_texture(VulkanEngine* engine, const std::string& filePath, bool enableMipmap/*= true*/, VkFormat format/* = VK_FORMAT_R8G8B8A8_SRGB*/) {
-		return load_2d_texture(engine, filePath.c_str(), enableMipmap, format);
-	}
-
-	TexturePtr Texture::load_cubemap_texture(VulkanEngine* engine, const std::vector<std::string>& filePaths) {
+	TexturePtr Texture::load_cubemap_texture(VulkanEngine* engine, const std::span<std::string const> file_paths) {
 		int texWidth, texHeight, texChannels;
 		float* pixels[6];
-		for (int i = 0; i < 6; i++) {
-			std::string extensionName = filePaths[i].substr(filePaths[i].find_last_of(".") + 1);
-			if (extensionName == "hdr") { // hdr layout: r8g8b8e8(32-bit)
-				pixels[i] = stbi_loadf(filePaths[i].c_str(), &texWidth, &texHeight, &texChannels, 4);
+		for (int8_t i = 0; i < 6; i++) {
+			auto const extension_name = std::filesystem::path(file_paths[i]).extension();
+			if (extension_name == ".hdr") { // hdr layout: r8g8b8e8(32-bit)
+				pixels[i] = stbi_loadf(file_paths[i].c_str(), &texWidth, &texHeight, &texChannels, 4);
 				if (!pixels[i]) {
 					throw std::runtime_error("Error occurs when loading hdr!");
 				}
 			}
-			else if (extensionName == "exr") {
+			else if (extension_name == ".exr") {
 				const char* err;
-				int ret = LoadEXR(&pixels[i], &texWidth, &texHeight, filePaths[i].c_str(), &err); // LoadEXR returned layout: r32g32b32a32
+				int ret = LoadEXR(&pixels[i], &texWidth, &texHeight, file_paths[i].c_str(), &err); // LoadEXR returned layout: r32g32b32a32
 
 				if (ret != TINYEXR_SUCCESS) {
 					if (err) {
@@ -689,52 +687,52 @@ namespace engine {
 			}
 		}
 
-		const VkDeviceSize layerSize = static_cast<uint64_t>(texWidth) * texHeight * 4 * sizeof(float);
-		VkDeviceSize imageSize = layerSize * 6;
+		const VkDeviceSize layer_size = static_cast<uint64_t>(texWidth) * texHeight * 4 * sizeof(float);
+		const VkDeviceSize image_size = layer_size * 6;
 
-		auto pStagingBuffer = engine::Buffer::create_buffer(engine,
-			imageSize,
+		auto const staging_buffer = engine::Buffer::create_buffer(engine,
+			image_size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			TEMP_BIT);
 
-		for (int i = 0; i < 6; i++) {
-			memcpy(static_cast<char*>(pStagingBuffer->mapped_buffer) + (layerSize * i), pixels[i], static_cast<size_t>(layerSize));
+		for (int8_t i = 0; i < 6; i++) {
+			memcpy(static_cast<char*>(staging_buffer->mapped_buffer) + (layer_size * i), pixels[i], layer_size);
 			stbi_image_free(pixels[i]);
 		}
 
 		auto pTexture = engine::Texture::create_cubemap_texture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT);
 
-		pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+		pTexture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-		pTexture->copyFromBuffer(engine, pStagingBuffer->buffer);
+		pTexture->copy_from_buffer(engine, staging_buffer->buffer);
 
 		//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 
-		pTexture->generateMipmaps(engine);
+		pTexture->generate_mipmaps(engine);
 
 		return pTexture;
 	}
 
-	TexturePtr Texture::load_prefiltered_map_texture(VulkanEngine* engine, const std::vector<std::vector<std::string>>& filePathLayers) {
+	TexturePtr Texture::load_prefiltered_map_texture(VulkanEngine* engine, const std::span<std::vector<std::string> const> file_path_layers) {
 
-		auto pTexture = std::make_shared<engine::Texture>();
+		TexturePtr texture;
 
-		for (uint32_t mipLevel = 0; mipLevel < filePathLayers.size(); mipLevel++) {
-			auto& filePaths = filePathLayers[mipLevel];
-			int texWidth, texHeight, texChannels;
+		for (uint32_t mip_level = 0; mip_level < file_path_layers.size(); mip_level++) {
+			auto& file_paths = file_path_layers[mip_level];
+			int tex_width, tex_height, tex_channels;
 			float* pixels[6];
-			for (int i = 0; i < 6; i++) {
-				std::string extensionName = filePaths[i].substr(filePaths[i].find_last_of(".") + 1);
-				if (extensionName == "hdr") { // hdr layout: r8g8b8e8(32-bit)
-					pixels[i] = stbi_loadf(filePaths[i].c_str(), &texWidth, &texHeight, &texChannels, 4);
+			for (int8_t i = 0; i < 6; i++) {
+				auto const extension_name = std::filesystem::path(file_paths[i]).extension();
+				if (extension_name == ".hdr") { // hdr layout: r8g8b8e8(32-bit)
+					pixels[i] = stbi_loadf(file_paths[i].c_str(), &tex_width, &tex_height, &tex_channels, 4);
 					if (!pixels[i]) {
 						throw std::runtime_error("Error occurs when loading hdr!");
 					}
 				}
-				else if (extensionName == "exr") {
+				else if (extension_name == ".exr") {
 					const char* err;
-					int ret = LoadEXR(&pixels[i], &texWidth, &texHeight, filePaths[i].c_str(), &err); // LoadEXR returned layout: r32g32b32a32
+					const int ret = LoadEXR(&pixels[i], &tex_width, &tex_height, file_paths[i].c_str(), &err); // LoadEXR returned layout: r32g32b32a32
 
 					if (ret != TINYEXR_SUCCESS) {
 						if (err) {
@@ -749,41 +747,41 @@ namespace engine {
 				}
 			}
 
-			const VkDeviceSize layerSize = static_cast<uint64_t>(texWidth) * texHeight * 4 * sizeof(float);
-			VkDeviceSize imageSize = layerSize * 6;
+			const VkDeviceSize layer_size = static_cast<uint64_t>(tex_width) * tex_height * 4 * sizeof(float);
+			const VkDeviceSize image_size = layer_size * 6;
 
-			auto pStagingBuffer = engine::Buffer::create_buffer(engine,
-				imageSize,
+			auto const staging_buffer = engine::Buffer::create_buffer(engine,
+				image_size,
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
 				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 				TEMP_BIT);
 
-			for (int i = 0; i < 6; i++) {
-				memcpy(static_cast<char*>(pStagingBuffer->mapped_buffer) + (layerSize * i), pixels[i], static_cast<size_t>(layerSize));
+			for (int8_t i = 0; i < 6; i++) {
+				memcpy(static_cast<char*>(staging_buffer->mapped_buffer) + (layer_size * i), pixels[i], layer_size);
 				stbi_image_free(pixels[i]);
 			}
 
-			if (mipLevel == 0) {
-				pTexture = engine::Texture::create_cubemap_texture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT, filePathLayers.size());
+			if (mip_level == 0) {
+				texture = engine::Texture::create_cubemap_texture(engine, tex_width, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT, file_path_layers.size());
 			}
 
-			pTexture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
+			texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 
-			pTexture->copyFromBuffer(engine, pStagingBuffer->buffer, mipLevel);
+			texture->copy_from_buffer(engine, staging_buffer->buffer, mip_level);
 		}
 
 		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
 			//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
 			VkImageMemoryBarrier barrier{};
 			barrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
-			barrier.image = pTexture->image;
+			barrier.image = texture->image;
 			barrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			barrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
 			barrier.subresourceRange.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
 			barrier.subresourceRange.baseArrayLayer = 0;
-			barrier.subresourceRange.layerCount = pTexture->layerCount;
+			barrier.subresourceRange.layerCount = texture->layer_count;
 			barrier.subresourceRange.baseMipLevel = 0;
-			barrier.subresourceRange.levelCount = filePathLayers.size();
+			barrier.subresourceRange.levelCount = file_path_layers.size();
 			barrier.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL;
 			barrier.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL;
 			barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
@@ -795,6 +793,6 @@ namespace engine {
 				0, nullptr,
 				1, &barrier);
 			});
-		return pTexture;
+		return texture;
 	}
 }

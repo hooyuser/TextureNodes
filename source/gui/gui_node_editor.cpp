@@ -91,7 +91,6 @@ namespace engine {
 				using NodeDataT = std::decay_t<decltype(node_data)>;
 				if constexpr (image_data<NodeDataT>) {
 					uint64_t counter;
-					bool connect_to_shader = false;
 					vkGetSemaphoreCounterValue(engine->device, node_data->semaphore, &counter);
 					node_data->signal_semaphore_submit_info1.value = counter + 1;
 					node_data->wait_semaphore_submit_info2.value = counter + 1;
@@ -110,7 +109,6 @@ namespace engine {
 										VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
 								}
 								else if constexpr (shader_data<NodeDataT>) {
-									connect_to_shader = true;
 									copy_image_submit_infos.emplace_back(
 										VkSemaphoreSubmitInfo{
 											.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
@@ -133,21 +131,6 @@ namespace engine {
 
 					submits.push_back(node_data->submit_info[0]);
 					submits.push_back(node_data->submit_info[1]);
-
-					if (connect_to_shader) {
-						for (auto& [wait_semaphore_submit_info, cmd_buffer_submit_info] : copy_image_submit_infos) {
-							submits.emplace_back(
-								VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
-								nullptr,
-								0,
-								1,
-								&wait_semaphore_submit_info,
-								1,
-								&cmd_buffer_submit_info
-							);
-						}
-
-					}
 				}
 				else if constexpr (value_data<NodeDataT>) {
 					recalculate_node(i);
@@ -167,6 +150,18 @@ namespace engine {
 					}
 				}
 				}, nodes[i].data);
+		}
+
+		for (auto& [wait_semaphore_submit_info, cmd_buffer_submit_info] : copy_image_submit_infos) {
+			submits.emplace_back(
+				VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+				nullptr,
+				0,
+				1,
+				&wait_semaphore_submit_info,
+				1,
+				&cmd_buffer_submit_info
+			);
 		}
 
 		vkResetFences(engine->device, 1, &fence);
@@ -631,7 +626,7 @@ namespace engine {
 
 			if (ImGui::BeginPopup(("ColorRampPopup##" + std::to_string(color_ramp_pin.id.Get())).c_str())) {
 				auto& color_ramp_data = *std::get_if<ColorRampData>(&color_ramp_pin.default_value);
-				if (ImGui::GradientEditor(("ColorRampEditor##" + std::to_string(color_ramp_pin.id.Get())).c_str(), color_ramp_data.ui_value.get(), color_ramp_data.draggingMark, color_ramp_data.selectedMark)) {
+				if (ImGui::GradientEditor(("ColorRampEditor##" + std::to_string(color_ramp_pin.id.Get())).c_str(), color_ramp_data.ui_value.get(), color_ramp_data.dragging_mark, color_ramp_data.selected_mark)) {
 					std::visit([&](auto&& node_data) {
 						using NodeDataT = std::decay_t<decltype(node_data)>;
 						if constexpr (image_data<NodeDataT>) {
@@ -845,7 +840,7 @@ namespace engine {
 														input_format,
 														VK_IMAGE_ASPECT_COLOR_BIT,
 														VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-													pbr_texture->transitionImageLayout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+													pbr_texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 													engine->update_image_descriptor(pbr_texture, pbr_texture_id);
 													start_node_data->record_copy_image_cmd_buffers(end_pin_index);
 												}
@@ -990,7 +985,7 @@ namespace engine {
 
 		create_fence();
 
-		engine->main_deletion_queue.push_function([&nodes = nodes, device = engine->device, fence = fence, context = context]() {
+		engine->main_deletion_queue.push_function([&nodes = nodes, device = engine->device, fence = fence, context = context] {
 			nodes.clear();
 			vkDestroyFence(device, fence, nullptr);
 			ed::DestroyEditor(context);
@@ -1050,11 +1045,11 @@ namespace engine {
 					using NodeType = NodeTypeList::at<type_index>;
 					create_node<NodeType>();
 
-					using NodeDataType = typename NodeType::data_type;
-					using UboT = UboOf<NodeDataType>;
+					using NodeDataT = typename NodeType::data_type;
+					using UboT = UboOf<NodeDataT>;
 					using FieldTypes = FieldTypeList<UboT>;
 
-					UNROLL<FieldTypes::size>([&] <std::size_t pin_index>() {
+					UNROLL<FieldTypes::size>([&] <size_t pin_index>() {
 						using PinType = typename FieldTypes::template at<pin_index>;
 						auto& node = nodes[node_index];
 						auto& pin_value = node.inputs[pin_index].default_value;
@@ -1078,8 +1073,11 @@ namespace engine {
 						}
 						else if constexpr (!std::same_as<PinType, TextureIdData>) {
 							pin_value = json_node["pins"][pin_index].get<PinType>();
-							if constexpr (image_data<NodeDataType>) {
-								(*std::get_if<NodeDataType>(&node.data))->update_ubo(pin_value, pin_index);
+							if constexpr (image_data<NodeDataT>) {
+								(*std::get_if<NodeDataT>(&node.data))->update_ubo(pin_value, pin_index);
+							}
+							else if constexpr (shader_data<NodeDataT>) {
+								std::get_if<NodeDataT>(&node.data)->update_ubo(pin_value, pin_index);
 							}
 						}
 					});
@@ -1102,9 +1100,32 @@ namespace engine {
 			links.emplace(ed::LinkId(get_next_id()), &start_pin, &end_pin);
 
 			std::visit([&](auto&& end_node_data) {
-				using NodeT = std::decay_t<decltype(end_node_data)>;
-				if constexpr (image_data<NodeT>) {
+				using EndNodeDataT = std::decay_t<decltype(end_node_data)>;
+				if constexpr (image_data<EndNodeDataT>) {
 					end_node_data->update_ubo(start_pin.default_value, end_pin_index);
+				}
+				if constexpr (shader_data<EndNodeDataT>) {
+					end_node_data.update_ubo(start_pin.default_value, end_pin_index);
+					std::visit([&](auto&& start_node_data) {
+						using StartNodeT = std::decay_t<decltype(start_node_data)>;
+						if constexpr (image_data<StartNodeT>) {
+							field_at(engine->pbr_material_texture_set, end_pin_index, [&](auto pbr_texture_id) {
+								auto input_format = start_node_data->texture->format;
+								auto& pbr_texture = engine->texture_manager->textures[pbr_texture_id];
+								if (pbr_texture == nullptr || input_format != pbr_texture->format) {
+									pbr_texture = Texture::create_device_texture(engine,
+										TEXTURE_WIDTH,
+										TEXTURE_HEIGHT,
+										input_format,
+										VK_IMAGE_ASPECT_COLOR_BIT,
+										VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
+									pbr_texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+									engine->update_image_descriptor(pbr_texture, pbr_texture_id);
+									start_node_data->record_copy_image_cmd_buffers(end_pin_index);
+								}
+								});
+						}
+						}, nodes[start_node_index].data);
 				}
 				}, nodes[end_node_index].data);
 		}
@@ -1137,6 +1158,7 @@ namespace engine {
 	}
 
 	void NodeEditor::clear() {
+		vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 		color_pin_index.reset();
 		color_ramp_pin_index.reset();
 		enum_pin_index.reset();
