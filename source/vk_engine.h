@@ -37,7 +37,7 @@ struct DeletionQueue {
 struct SwapChainSupportDetails;
 class Camera;
 struct Pbr;
-struct PbrTexture;
+struct PbrMaterialTextureSet;
 struct HDRi;
 struct TextureManager;
 
@@ -52,14 +52,14 @@ namespace engine {
 	struct Empty_Type;
 	template <typename ParaT> class Material;
 
-	using PbrMaterial = Material<Pbr>;
+	using PbrFixedMaterial = Material<Pbr>;
 	using HDRiMaterial = Material<HDRi>;
-	using PbrTextureMaterial = Material<PbrTexture>;
-	using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
+	using PbrMaterial = Material<PbrMaterialTextureSet>;
+	using PbrFixedMaterialPtr = std::shared_ptr<PbrFixedMaterial>;
 	using HDRiMaterialPtr = std::shared_ptr<HDRiMaterial>;
-	using PbrTextureMaterialPtr = std::shared_ptr<PbrTextureMaterial>;
-	using MaterialV = std::variant<PbrMaterial, PbrTextureMaterial, HDRiMaterial>;
-	using MaterialPtrV = std::variant<PbrMaterialPtr, PbrTextureMaterialPtr, HDRiMaterialPtr>;
+	using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
+	using MaterialV = std::variant<PbrFixedMaterial, PbrMaterial, HDRiMaterial>;
+	using MaterialPtrV = std::variant<PbrFixedMaterialPtr, PbrMaterialPtr, HDRiMaterialPtr>;
 }
 
 using MeshPtr = std::shared_ptr<engine::Mesh>;
@@ -95,6 +95,8 @@ struct MaterialPreviewUBO {
 	float roughness = 0.4f;
 	int src_roughness_texture = -1;
 	int src_normal_texture = -1;
+	float specular = 0.5f;
+    int src_specular_texture = -1;
 	int irradiance_map_id = -1;
 	int brdf_LUT_id = -1;
 	int prefiltered_map_id = -1;
@@ -148,7 +150,7 @@ public:
 
 	std::vector<RenderObject> renderables;
 	std::unordered_map<std::string, engine::MaterialPtrV> materials;
-	std::vector<engine::PbrMaterialPtr> loaded_materials;
+	std::vector<engine::PbrFixedMaterialPtr> loaded_materials;
 	std::vector<MeshPtr> loaded_meshes;
 
 	std::vector<BufferPtr> uniform_buffers;

@@ -1332,7 +1332,7 @@ void VulkanEngine::record_viewport_cmd_buffer(const int command_buffer_index) {
 void VulkanEngine::load_obj() {
 	loaded_meshes.emplace_back(engine::Mesh::load_from_obj(this, "assets/obj_models/rounded_cube.obj"));
 
-	auto material = std::make_shared<PbrTextureMaterial>();
+	auto material = std::make_shared<PbrMaterial>();
 	const std::array spv_file_paths{
 		"assets/shaders/pbr_texture.vert.spv",
 		"assets/shaders/pbr_texture.frag.spv"
@@ -1340,7 +1340,7 @@ void VulkanEngine::load_obj() {
 	material->shaders = engine::Shader::createFromSpv(this, spv_file_paths);
 
 	for_each_field(pbr_material_texture_set, [&](auto& texture_id, auto index) {
-		PbrTexture::Class::FieldAt(material->paras, index, [&](auto& field, auto& value) {
+		PbrMaterialTextureSet::Class::FieldAt(material->paras, index, [&](auto& field, auto& value) {
 			value = texture_id = texture_manager->add_texture(nullptr);
 			});
 		});

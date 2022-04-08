@@ -7,7 +7,8 @@
 layout (constant_id = 0) const uint base_color_texture_id = -1;                                               
 layout (constant_id = 1) const uint matallic_texture_id = -1;  
 layout (constant_id = 2) const uint roughness_texture_id = -1;        
-layout (constant_id = 3) const uint normal_texture_id = -1; 
+layout (constant_id = 3) const uint normal_texture_id = -1;
+layout (constant_id = 4) const uint specular_texture_id = -1; 
 
 layout(set = 0, binding = 0) uniform CameraUniformBufferObject {
     mat4 model;
@@ -24,6 +25,8 @@ layout(set = 0, binding = 1) uniform UniformBufferObject {
     float roughness;
     int src_roughness_texture;
     int src_normal_texture;
+    float specular;
+    int src_specular_texture;
     int irradiance_map_id; 
     int brdf_LUT_id;    
     int prefiltered_map_id;
@@ -73,18 +76,21 @@ void main() {
     } else {
         base_color = ubo.base_color.rgb;
     }
+
     float metallic;
     if(ubo.src_metallic_texture >= 0) {
         metallic = texture(textureArray[matallic_texture_id], fragTexCoord).r;
     } else {
         metallic = ubo.metallic;
     }
+
     float roughness;
     if(ubo.src_roughness_texture >= 0) {
         roughness = texture(textureArray[roughness_texture_id], fragTexCoord).r;
     } else {
         roughness = ubo.roughness;
     }
+
     vec3 normal;
     if(ubo.src_normal_texture >= 0) {
         normal = texture(textureArray[normal_texture_id], fragTexCoord).rgb;
@@ -92,10 +98,17 @@ void main() {
         normal = normalize(fragNormal);
     }
 
+    float specular;
+    if(ubo.src_specular_texture >= 0) {
+        specular = texture(textureArray[specular_texture_id], fragTexCoord).r;
+    } else {
+        specular = ubo.specular;
+    }
+
     vec3 wo = normalize(cam_ubo.pos - fragPos.xyz);
     float NdotWo = max(dot(normal, wo), 0.0);
 
-    vec3 F0 = mix(vec3(0.16 * 0.5 * 0.5), base_color, metallic);
+    vec3 F0 = mix(vec3(0.16 * specular * specular), base_color, metallic);
 	vec3 F = F_SchlickR(NdotWo, F0, roughness);
 
     vec3 diffuse = base_color * (1.0 - metallic) * (1.0 - F) * texture(cubemapArray[ubo.irradiance_map_id], normal).xyz;

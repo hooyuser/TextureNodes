@@ -42,18 +42,21 @@ struct HDRi {
 		base_color_texture_id)
 };
 
-struct PbrTexture {
-	uint32_t base_color_texture_id = -1;
-	uint32_t matallic_texture_id = -1;
-	uint32_t roughness_texture_id = -1;
-	uint32_t normal_texture_id = -1;
-
-	REFLECT(PbrTexture,
-		base_color_texture_id,
-		matallic_texture_id,
-		roughness_texture_id,
-		normal_texture_id)
-};
+////Parameters for shader specification
+//struct PbrMaterialTextureSet {
+//	uint32_t base_color_texture_id = -1;
+//	uint32_t matallic_texture_id = -1;
+//	uint32_t roughness_texture_id = -1;
+//	uint32_t normal_texture_id = -1;
+//	uint32_t specular_texture_id = -1;
+//
+//	REFLECT(PbrMaterialTextureSet,
+//		base_color_texture_id,
+//		matallic_texture_id,
+//		roughness_texture_id,
+//		normal_texture_id,
+//		specular_texture_id)
+//};
 
 namespace engine {
 	class Shader;
@@ -71,16 +74,16 @@ namespace engine {
 		std::unordered_map<std::string, int> textureArrayIndex;
 	};
 
-	using PbrMaterial = Material<Pbr>;
+	using PbrFixedMaterial = Material<Pbr>;
 	using HDRiMaterial = Material<HDRi>;
-	using PbrTextureMaterial = Material<PbrTexture>;
+	using PbrMaterial = Material<PbrMaterialTextureSet>;
 	using MaterialPtr = std::shared_ptr<Material<>>;
+	using PbrFixedMaterialPtr = std::shared_ptr<PbrFixedMaterial>;
 	using PbrMaterialPtr = std::shared_ptr<PbrMaterial>;
-	using PbrTextureMaterialPtr = std::shared_ptr<PbrTextureMaterial>;
 	using HDRiMaterialPtr = std::shared_ptr<HDRiMaterial>;
 
-	using MaterialV = std::variant<PbrMaterial, PbrTextureMaterial, HDRiMaterial>;
-	using MaterialPtrV = std::variant<PbrMaterialPtr, PbrTextureMaterialPtr, HDRiMaterialPtr>;
+	using MaterialV = std::variant<PbrFixedMaterial, PbrMaterial, HDRiMaterial>;
+	using MaterialPtrV = std::variant<PbrFixedMaterialPtr, PbrMaterialPtr, HDRiMaterialPtr>;
 }
 
 

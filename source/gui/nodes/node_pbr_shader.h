@@ -32,11 +32,20 @@ struct NodePbrShader : NodeTypeShaderBase {
 			.value = -1
 		};
 
+		NOTE(specular, NumberInputWidgetInfo{ .min = 0, .max = 1, .speed = 0.005f, .enable_slider = true })
+		FloatTextureIdData specular {
+			.value = {
+				.number = 0.5f,
+				.id = -1 
+			}
+		};
+
 		REFLECT(UBO,
 			base_color,
 			metallic,
 			roughness,
-			normal
+			normal,
+			specular
 		)
 	};
 

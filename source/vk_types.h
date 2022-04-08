@@ -12,6 +12,7 @@
 
 #include "util/flag_bit_enum.h"
 #include "util/class_field_counter.h"
+#include <Reflect.h>
 
 inline constexpr uint64_t VULKAN_WAIT_TIMEOUT = 3000000000;
 
@@ -40,14 +41,22 @@ namespace engine {
 	struct Texture;
 }
 
-using TexturePtr = std::shared_ptr<engine::Texture>;
+//using TexturePtr = std::shared_ptr<engine::Texture>;
 struct PbrMaterialTextureSet {
 	uint32_t base_color_id;
 	uint32_t metalness_id;
 	uint32_t roughness_id;
 	uint32_t normal_id;
+	uint32_t specular_id;
+
+	REFLECT(PbrMaterialTextureSet,
+		base_color_id,
+		metalness_id,
+		roughness_id,
+		normal_id,
+		specular_id)
 };
-constexpr static inline auto PbrMaterialTextureNum = count_member_v<PbrMaterialTextureSet>;
+constexpr static inline auto PbrMaterialTextureNum = PbrMaterialTextureSet::Class::TotalFields;
 
 struct QueueFamilyIndices {
 	std::optional<uint32_t> graphics_family;
