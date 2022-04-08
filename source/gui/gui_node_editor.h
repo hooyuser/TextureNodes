@@ -43,6 +43,7 @@ using NodeTypeList = TypeList<
 	NodeColorRamp,
 	NodeAdd,
 	NodeBlur,
+	NodeSlopeBlur,
 	NodePbrShader
 >;
 

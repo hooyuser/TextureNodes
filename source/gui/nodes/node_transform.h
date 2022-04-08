@@ -17,7 +17,7 @@ struct NodeTransform : NodeTypeImageBase {
 
 		NOTE(shift_y, NumberInputWidgetInfo{ .min = -1, .max = 1, .speed = 0.005f, .enable_slider = true })
 			FloatData shift_y {
-			.value = 0.0f
+			.value = 0.0f 
 		};
 
 		NOTE(rotation, NumberInputWidgetInfo{ .min = 0, .max = 360, .speed = 1.0f, .enable_slider = true })

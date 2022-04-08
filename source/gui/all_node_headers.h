@@ -5,5 +5,6 @@
 #include "nodes/node_color_ramp.h"
 #include "nodes/node_pbr_shader.h"
 #include "nodes/node_polygon.h"
+#include "nodes/node_slope_blur.h"
 #include "nodes/node_transform.h"
 #include "nodes/node_uniform_color.h"
