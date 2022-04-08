@@ -4838,7 +4838,7 @@ void ed::NodeBuilder::BeginPin(PinId pinId, PinKind kind)
         ImDrawList_SwapSplitter(drawList, m_PinSplitter);
     }
 
-    ImGui::BeginGroup();
+    //ImGui::BeginGroup();
 }
 
 void ed::NodeBuilder::EndPin()
@@ -4851,7 +4851,7 @@ void ed::NodeBuilder::EndPin()
         ImDrawList_SwapSplitter(drawList, m_PinSplitter);
     }
 
-    ImGui::EndGroup();
+    //ImGui::EndGroup();
 
     if (m_ResolvePinRect)
         m_CurrentPin->m_Bounds = ImGui_GetItemRect();

@@ -141,6 +141,7 @@ struct Node {
 	std::string name;
 	std::vector<Pin> inputs;
 	std::vector<Pin> outputs;
+	bool display_panel = true;
 	//ImColor Color ;
 	//std::string type_name;
 	ImVec2 size = { 0, 0 };
