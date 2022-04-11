@@ -166,6 +166,7 @@ public:
 	MaterialPreviewUBO init_material_preview_ubo;
 
 	VkCommandPool command_pool;
+	VkCommandPool compute_command_pool;
 
 	std::vector<VkFence> images_in_flight;
 	std::vector<FrameData> frame_data;

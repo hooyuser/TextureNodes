@@ -39,7 +39,7 @@ struct NodePolygon : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R16_UNORM; 
 	};
 
-	using data_type = std::shared_ptr<ImageData<UBO>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
 
 	constexpr auto static name() { return "Polygon"; }
 };

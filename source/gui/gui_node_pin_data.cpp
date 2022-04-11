@@ -1,7 +1,16 @@
-#include "gui_node_data.h"
+#include "gui_node_pin_data.h"
+#include "../vk_engine.h"
 #include "../vk_util.h"
+#include "../vk_image.h"
+#include "../vk_initializers.h"
 
 constexpr uint32_t RAMP_TEXTURE_SIZE = 256;
+
+ColorRampData::ColorRampData(VulkanEngine* engine) {
+	ubo_value = std::make_unique<RampTexture>(engine);
+	value = ubo_value->color_ramp_texture_id;
+	ui_value = std::make_unique<ImGradient>(static_cast<float*>(ubo_value->staging_buffer.mapped_buffer));
+}
 
 RampTexture::RampTexture(VulkanEngine* engine) :
 	engine(engine),

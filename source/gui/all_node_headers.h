@@ -7,4 +7,5 @@
 #include "nodes/node_polygon.h"
 #include "nodes/node_slope_blur.h"
 #include "nodes/node_transform.h"
+#include "nodes/node_udf.h"
 #include "nodes/node_uniform_color.h"

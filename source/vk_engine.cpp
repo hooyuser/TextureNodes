@@ -776,7 +776,7 @@ void VulkanEngine::create_mesh_pipeline() {
 
 	std::array mesh_descriptor_set_layouts = { scene_set_layout, texture_manager->descriptor_set_layout };
 
-	const VkPipelineLayoutCreateInfo mesh_pipeline_layout_info = vkinit::pipelineLayoutCreateInfo(mesh_descriptor_set_layouts);
+	const VkPipelineLayoutCreateInfo mesh_pipeline_layout_info = vkinit::pipeline_layout_create_info(mesh_descriptor_set_layouts);
 
 	if (vkCreatePipelineLayout(device, &mesh_pipeline_layout_info, nullptr, &mesh_pipeline_layout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
@@ -809,7 +809,7 @@ void VulkanEngine::create_env_light_pipeline() {
 
 	std::array env_descriptor_set_layouts = { scene_set_layout, texture_manager->descriptor_set_layout };
 
-	const VkPipelineLayoutCreateInfo env_pipeline_layout_info = vkinit::pipelineLayoutCreateInfo(env_descriptor_set_layouts);
+	const VkPipelineLayoutCreateInfo env_pipeline_layout_info = vkinit::pipeline_layout_create_info(env_descriptor_set_layouts);
 
 	if (vkCreatePipelineLayout(device, &env_pipeline_layout_info, nullptr, &env_pipeline_layout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
@@ -842,8 +842,16 @@ void VulkanEngine::create_command_pool() {
 		throw std::runtime_error("failed to create graphics command pool!");
 	}
 
+	const uint32_t compute_queue_family_index = queue_family_indices.compute_family.value();
+	const VkCommandPoolCreateInfo compute_command_pool_info = vkinit::commandPoolCreateInfo(compute_queue_family_index, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+
+	if (vkCreateCommandPool(device, &compute_command_pool_info, nullptr, &compute_command_pool) != VK_SUCCESS) {
+		throw std::runtime_error("failed to create graphics command pool!");
+	}
+
 	main_deletion_queue.push_function([=] {
 		vkDestroyCommandPool(device, command_pool, nullptr);
+		vkDestroyCommandPool(device, compute_command_pool, nullptr);
 		});
 }
 
@@ -1112,7 +1120,7 @@ void VulkanEngine::create_uniform_buffers() {
 	}
 
 	material_preview_ubo = Buffer::create_buffer(this,
-		sizeof(UniformBufferObject),
+		sizeof(MaterialPreviewUBO),
 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 		SWAPCHAIN_INDEPENDENT_BIT);
@@ -1351,7 +1359,7 @@ void VulkanEngine::load_obj() {
 
 	std::array env_descriptor_set_layouts = { scene_set_layout, texture_manager->descriptor_set_layout };
 
-	const VkPipelineLayoutCreateInfo mesh_pipeline_layout_info = vkinit::pipelineLayoutCreateInfo(env_descriptor_set_layouts);
+	const VkPipelineLayoutCreateInfo mesh_pipeline_layout_info = vkinit::pipeline_layout_create_info(env_descriptor_set_layouts);
 
 	if (vkCreatePipelineLayout(device, &mesh_pipeline_layout_info, nullptr, &material_preview_pipeline_layout) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create pipeline layout!");
@@ -1595,7 +1603,7 @@ void VulkanEngine::imgui_render(uint32_t image_index) {
 		if (auto const handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
 			const ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
 			const ImVec2 viewer_size = ImGui::GetContentRegionAvail();
-			constexpr static float scale_factor = 0.975;
+			constexpr static float scale_factor = 0.975f;
 			const float image_width = std::min(viewer_size.x, viewer_size.y) * scale_factor;
 			const ImVec2 image_size{ image_width, image_width };
 			ImGui::SetCursorPos((viewer_size - image_size) * 0.5f + ImVec2{ 0, window_size.y - viewer_size.y });
@@ -1811,8 +1819,15 @@ QueueFamilyIndices VulkanEngine::find_queue_families(VkPhysicalDevice device) co
 
 	int i = 0;
 	for (const auto& queueFamily : queue_families) {
+		
 		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
 			indices.graphics_family = i;
+		}
+		else if(queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
+			indices.compute_family = i;
+		}
+		else if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) {
+			indices.transfer_family = i;
 		}
 
 		VkBool32 present_support = false;

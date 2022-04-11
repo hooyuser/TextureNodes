@@ -44,6 +44,7 @@ using NodeTypeList = TypeList<
 	NodeAdd,
 	NodeBlur,
 	NodeSlopeBlur,
+	NodeUdf,
 	NodePbrShader
 >;
 
@@ -204,7 +205,8 @@ namespace engine {
 		ed::EditorContext* context = nullptr;
 		std::vector<Node> nodes;
 		std::unordered_set<Link> links;
-		VkFence fence;
+		VkFence graphic_fence;
+		VkFence compute_fence;
 		int next_id = 1;
 
 		std::optional<size_t> color_pin_index; //implies whether colorpicker should be open
@@ -247,15 +249,15 @@ namespace engine {
 					if constexpr (std::same_as<PinType, ColorRampData>) {
 						pin_value = std::move(ColorRampData(engine));
 
-						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+						vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 						const VkSubmitInfo submit_info{
 							.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 							.commandBufferCount = 1,
 							.pCommandBuffers = &std::get_if<ColorRampData>(&pin_value)->ubo_value->command_buffer,
 						};
-						vkResetFences(engine->device, 1, &fence);
-						vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
-						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+						vkResetFences(engine->device, 1, &graphic_fence);
+						vkQueueSubmit(engine->graphics_queue, 1, &submit_info, graphic_fence);
+						vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 					}
 					else {
 						pin_value = value;

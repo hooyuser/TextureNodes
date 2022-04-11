@@ -40,7 +40,7 @@ namespace vkinit {
 
 	VkPipelineColorBlendStateCreateInfo colorBlendAttachmentCreateInfo(VkPipelineColorBlendAttachmentState& colorBlendAttachment, uint32_t attachment_count = 1);
 
-	VkPipelineLayoutCreateInfo pipelineLayoutCreateInfo(std::span<VkDescriptorSetLayout> descriptorSetLayout);
+	VkPipelineLayoutCreateInfo pipeline_layout_create_info(std::span<VkDescriptorSetLayout> descriptorSetLayout);
 
 	VkFramebufferCreateInfo framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent, std::span<VkImageView> attachments);
 

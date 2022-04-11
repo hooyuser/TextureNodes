@@ -164,15 +164,15 @@ namespace engine {
 			);
 		}
 
-		vkResetFences(engine->device, 1, &fence);
+		vkResetFences(engine->device, 1, &graphic_fence);
 
-		if (vkQueueSubmit2(engine->graphics_queue, submits.size(), submits.data(), fence) != VK_SUCCESS) {
+		if (vkQueueSubmit2(engine->graphics_queue, submits.size(), submits.data(), graphic_fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer!");
 		}
 	}
 
 	void NodeEditor::update_from(uint32_t updated_node_index) {
-		if (vkGetFenceStatus(engine->device, fence) != VK_SUCCESS) {
+		if (vkGetFenceStatus(engine->device, graphic_fence) != VK_SUCCESS) {
 			return;
 		}
 
@@ -188,7 +188,7 @@ namespace engine {
 	}
 
 	void NodeEditor::update_all_nodes() {
-		vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+		vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 
 		static std::vector<char> visited_nodes; //check if a node has been visited
 		visited_nodes.resize(nodes.size());
@@ -204,7 +204,7 @@ namespace engine {
 		}
 
 		execute_graph(sorted_nodes);
-		vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+		vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 	}
 
 	void NodeEditor::build_node(uint32_t node_index) {
@@ -713,15 +713,15 @@ namespace engine {
 						using NodeDataT = std::decay_t<decltype(node_data)>;
 						if constexpr (image_data<NodeDataT>) {
 							node_data->update_ubo(color_ramp_pin.default_value, *color_ramp_pin_index);
-							if (vkGetFenceStatus(engine->device, fence) == VK_SUCCESS) {
+							if (vkGetFenceStatus(engine->device, graphic_fence) == VK_SUCCESS) {
 								const VkSubmitInfo submit_info{
 									.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 									.commandBufferCount = 1,
 									.pCommandBuffers = &color_ramp_data.ubo_value->command_buffer,
 								};
-								vkResetFences(engine->device, 1, &fence);
-								vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
-								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+								vkResetFences(engine->device, 1, &graphic_fence);
+								vkQueueSubmit(engine->graphics_queue, 1, &submit_info, graphic_fence);
+								vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 								update_from(*color_ramp_node_index);
 							}
 						}
@@ -755,7 +755,7 @@ namespace engine {
 											std::get_if<EnumData>(&enum_pin.default_value)->value = i;
 											if constexpr (image_data<NodeDataT>) {
 												if (field.template getAnnotation<FormatEnum>() == FormatEnum::True) {
-													vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+													vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 													node_data->recreate_texture_resource(str_format_map.at(items[i]));
 												}
 												else {
@@ -885,7 +885,7 @@ namespace engine {
 											if constexpr (image_data<StartNodeT>) {
 												auto format = start_node_data->texture->format;
 												if (format != end_node_data->texture->format) {
-													vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+													vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 													end_node_data->recreate_texture_resource(format);
 												}
 											}
@@ -899,7 +899,7 @@ namespace engine {
 								end_node_data->update_ubo(start_pin->default_value, end_pin_index);
 							}
 							else if constexpr (shader_data<EndNodeT>) {
-								vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+								vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 								if (std::holds_alternative<FloatData>(start_pin->default_value) &&
 									std::holds_alternative<FloatTextureIdData>(end_pin->default_value)) {
 									std::get_if<FloatTextureIdData>(&end_pin->default_value)->value.id = -1;
@@ -942,9 +942,9 @@ namespace engine {
 									using StartNodeT = std::decay_t<decltype(start_node_data)>;
 									if constexpr (image_data<StartNodeT>) {
 										submit_info.pCommandBuffers = &start_node_data->copy_image_cmd_buffers[end_pin_index];
-										vkResetFences(engine->device, 1, &fence);
-										vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
-										vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+										vkResetFences(engine->device, 1, &graphic_fence);
+										vkQueueSubmit(engine->graphics_queue, 1, &submit_info, graphic_fence);
+										vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 									}
 									}, nodes[start_pin->node_index].data);
 							}
@@ -1000,7 +1000,7 @@ namespace engine {
 								}
 							}
 							}, nodes[link_end_pin->node_index].data);
-						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+						vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 						update_from(link_end_pin->node_index);
 					}
 				}
@@ -1018,7 +1018,7 @@ namespace engine {
 						color_ramp_pin_index.reset();
 						enum_pin_index.reset();
 
-						vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+						vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 						for (auto iter = deleted_node + 1; iter != nodes.end(); ++iter) {
 							for (auto& input : iter->inputs) {
 								--input.node_index;
@@ -1048,7 +1048,7 @@ namespace engine {
 
 	void NodeEditor::create_fence() {
 		auto const fence_info = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
-		if (vkCreateFence(engine->device, &fence_info, nullptr, &fence) != VK_SUCCESS) {
+		if (vkCreateFence(engine->device, &fence_info, nullptr, &graphic_fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create fence!");
 		}
 	}
@@ -1067,7 +1067,7 @@ namespace engine {
 
 		create_fence();
 
-		engine->main_deletion_queue.push_function([&nodes = nodes, device = engine->device, fence = fence, context = context]{
+		engine->main_deletion_queue.push_function([&nodes = nodes, device = engine->device, fence = graphic_fence, context = context]{
 			nodes.clear();
 			vkDestroyFence(device, fence, nullptr);
 			ed::DestroyEditor(context);
@@ -1143,15 +1143,15 @@ namespace engine {
 								ramp_ui_value->insert_mark(json_mark["position"].get<float>(), json_mark["color"].get<ImColor>());
 							}
 							ramp_ui_value->refreshCache();
-							vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+							vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 							const VkSubmitInfo submit_info{
 								.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 								.commandBufferCount = 1,
 								.pCommandBuffers = &(std::get_if<ColorRampData>(&pin_value)->ubo_value->command_buffer),
 							};
-							vkResetFences(engine->device, 1, &fence);
-							vkQueueSubmit(engine->graphics_queue, 1, &submit_info, fence);
-							vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+							vkResetFences(engine->device, 1, &graphic_fence);
+							vkQueueSubmit(engine->graphics_queue, 1, &submit_info, graphic_fence);
+							vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 						}
 						else if constexpr (!std::same_as<PinType, TextureIdData>) {
 							pin_value = json_node["pins"][pin_index].get<PinType>();
@@ -1240,7 +1240,7 @@ namespace engine {
 	}
 
 	void NodeEditor::clear() {
-		vkWaitForFences(engine->device, 1, &fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+		vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
 		color_pin_index.reset();
 		color_ramp_pin_index.reset();
 		enum_pin_index.reset();

@@ -154,7 +154,7 @@ VkPipelineColorBlendStateCreateInfo vkinit::colorBlendAttachmentCreateInfo(VkPip
 	};
 }
 
-VkPipelineLayoutCreateInfo vkinit::pipelineLayoutCreateInfo(std::span<VkDescriptorSetLayout> descriptorSetLayouts) {
+VkPipelineLayoutCreateInfo vkinit::pipeline_layout_create_info(std::span<VkDescriptorSetLayout> descriptorSetLayouts) {
 	return {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO,
 		.pNext = nullptr,

@@ -43,6 +43,9 @@ namespace engine {
 				else if (extension == ".frag") {
 					shaderModule.stage = VK_SHADER_STAGE_FRAGMENT_BIT;
 				}
+				else if (extension == ".comp") {
+					shaderModule.stage = VK_SHADER_STAGE_COMPUTE_BIT;
+				}
 				else {
 					throw std::runtime_error("Illegal shader name! Please specify the stage!");
 				}

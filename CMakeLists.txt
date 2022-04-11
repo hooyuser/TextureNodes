@@ -18,6 +18,7 @@ file(GLOB_RECURSE HEADER
 file(GLOB_RECURSE SHADERS
     "assets/glsl_shaders/*.vert"
     "assets/glsl_shaders/*.frag"
+    "assets/glsl_shaders/*.comp"
 )
 
 if (MSVC)

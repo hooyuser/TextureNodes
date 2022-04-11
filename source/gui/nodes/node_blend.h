@@ -52,7 +52,7 @@ struct NodeBlend : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R8G8B8A8_SRGB;
 	};
 
-	using data_type = std::shared_ptr<ImageData<UBO>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
 
 	constexpr auto static name() { return "Blend"; }
 };

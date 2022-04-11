@@ -1,255 +1,18 @@
 #pragma once
 
-#include "../vk_image.h"
-#include "../vk_buffer.h"
 #include "../vk_pipeline.h"
 #include "../vk_initializers.h"
 #include "../vk_engine.h"
-#include "../util/type_list.h"
-#include "gui_node_texture_manager.h"
-#include "imgui_color_gradient.h"
-
+#include "gui_node_pin_data.h"
 #include <imgui_impl_vulkan.h>
 #include <unordered_map>
 
-
 constexpr static inline uint32_t PREVIEW_IMAGE_SIZE = 128;
+constexpr static inline uint32_t TEXTURE_IMAGE_SIZE = 1024;
 
 namespace engine {
 	class Shader;
 }
-
-//template<size_t N>
-//struct StringLiteral {
-//	constexpr StringLiteral(const char(&str)[N]) {
-//		std::copy_n(str, N, value);
-//	}
-//
-//	char value[N];
-//};
-
-template <typename T, typename FieldType>
-struct count_field_type {
-	static inline constexpr size_t value = [] {
-		size_t field_count = 0;
-		for (size_t i = 0; i < Reflect::class_t<T>::TotalFields; i++) {
-			Reflect::class_t<T>::FieldAt(i, [&](auto& field) {
-				using CurrentFieldType = typename std::remove_reference_t<decltype(field)>::Type;
-				if constexpr (std::is_same_v<CurrentFieldType, FieldType>) {
-					++field_count;
-				}
-				});
-		}
-		return field_count;
-	}();
-};
-template <typename T, typename FieldType>
-static constexpr size_t count_field_type_v = count_field_type<T, FieldType>::value;
-
-template <typename T, typename FieldType>
-static constexpr bool has_field_type_v = (count_field_type_v<T, FieldType>) > 0;
-
-//Define all kinds of NodeData, which serves as UBO member type or subtype of PinVaraint 
-struct NodeData {};
-
-struct IntData : NodeData {
-	using value_t = int32_t;
-	value_t value = 0;
-};
-
-struct FloatData : NodeData {
-	using value_t = float;
-	value_t value = 0.0f;
-};
-
-struct Float4Data : NodeData {
-	using value_t = float[4];
-	value_t value = { 0.0f };
-};
-
-struct Color4Data : NodeData {
-	using value_t = float[4];
-	value_t value = { 1.0f, 1.0f, 1.0f, 1.0f };
-};
-
-struct BoolData : NodeData {
-	using value_t = bool;
-	value_t value;
-};
-
-struct EnumData : NodeData {
-	using value_t = uint32_t;
-	value_t value;
-};
-
-struct TextureIdData : NodeData {
-	using value_t = int32_t;
-	value_t value = -1;
-};
-
-struct FloatTextureIdData : NodeData {
-	using value_t = struct Value {
-		float number = 0.0f;
-		int32_t id = -1;
-	};
-	value_t value = Value{};
-};
-
-struct Color4TextureIdData : NodeData {
-	using value_t = struct Value {
-		float color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
-		int32_t id = -1;
-	};
-	value_t value = Value{};
-};
-
-struct RampTexture {
-	VulkanEngine* engine;
-	VkImage image;
-	VkImageView image_view;
-	VkSampler sampler;
-	VkDeviceMemory memory;
-	engine::Buffer staging_buffer;
-	VkCommandBuffer command_buffer;
-	uint32_t color_ramp_texture_id;
-
-	RampTexture(VulkanEngine* engine);
-	~RampTexture();
-	void create_command_buffer();
-
-};
-
-struct ColorRampData : NodeData {
-	using value_t = int32_t;
-	value_t value = -1;
-	std::unique_ptr<ImGradient> ui_value;
-	std::unique_ptr<RampTexture> ubo_value;
-	ImGradientMark* dragging_mark = nullptr;
-	ImGradientMark* selected_mark = nullptr;
-
-	ColorRampData() {
-		ui_value = nullptr;
-		ubo_value = nullptr;
-	}
-	explicit ColorRampData(VulkanEngine* engine) {
-		ubo_value = std::make_unique<RampTexture>(engine);
-		value = ubo_value->color_ramp_texture_id;
-		ui_value = std::make_unique<ImGradient>(static_cast<float*>(ubo_value->staging_buffer.mapped_buffer));
-	}
-
-	//ColorRampData(const ColorRampData& ramp_data) =default;
-
-	/*ColorRampData(ColorRampData&&ramp_data) noexcept :
-		value(ramp_data.value),
-		ui_value(std::move(ramp_data.ui_value)),
-		ubo_value(std::move(ramp_data.ubo_value)),
-		draggingMark(ramp_data.draggingMark),
-		selectedMark(ramp_data.selectedMark)
-	{}
-
-	ColorRampData& operator=(ColorRampData&& ramp_data) noexcept {
-		ui_value = std::move(ramp_data.ui_value);
-		ubo_value = std::move(ramp_data.ubo_value);
-		value = ramp_data.value;
-		draggingMark = ramp_data.draggingMark;
-		selectedMark = ramp_data.selectedMark;
-		return *this;
-	}
-	ColorRampData& operator=(const ColorRampData& ramp_data) = default;*/
-
-	//~ColorRampData() {}
-};
-
-inline void to_json(json& j, const ColorRampData& p) {
-	j = *p.ui_value;
-}
-
-namespace nlohmann {
-	template <typename T> requires (std::derived_from<T, NodeData> && !std::same_as<T, ColorRampData>)
-		struct adl_serializer<T> {
-		static void to_json(json& j, const T& data) {
-			j = data.value;
-		}
-
-		static void from_json(const json& j, T& data) {
-			j.get_to(data.value);
-		}
-	};
-
-	template <>
-	struct adl_serializer<ColorRampData> {
-		static void to_json(json& j, const ColorRampData& data) {
-			j = *(data.ui_value);
-		}
-	};
-
-	template <>
-	struct adl_serializer<FloatTextureIdData> {
-		static void to_json(json& j, const FloatTextureIdData& data) {
-			j = data.value.number;
-		}
-
-		static void from_json(const json& j, FloatTextureIdData& data) {
-			data = FloatTextureIdData{
-				.value = {
-					.number = j.get<float>()
-				}
-			};
-		}
-	};
-
-	template <>
-	struct adl_serializer<Color4TextureIdData> {
-		static void to_json(json& j, const Color4TextureIdData& data) {
-			j = data.value.color;
-		}
-
-		static void from_json(const json& j, Color4TextureIdData& data) {
-			data = Color4TextureIdData{
-				.value {
-					.color {
-						j[0].get<float>(),
-						j[1].get<float>(),
-						j[2].get<float>(),
-						j[3].get<float>(),
-					},
-				}
-			};
-		}
-	};
-
-	template <typename ...Args>
-	struct adl_serializer<std::variant<Args...>> {
-		static void to_json(json& j, std::variant<Args...> const& var) {
-			std::visit([&](auto&& value) {
-				j = FWD(value);
-				}, var);
-		}
-	};
-}
-
-using PinTypeList = TypeList<
-	TextureIdData,
-	FloatData,
-	IntData,
-	BoolData,
-	Color4Data,
-	EnumData,
-	ColorRampData,
-	FloatTextureIdData,
-	Color4TextureIdData
->;
-
-using PinVariant = PinTypeList::cast_to<std::variant>;
-
-template <typename T>
-concept PinDataConcept = PinTypeList::has_type<T>;
-
-template <typename UboType>
-constexpr static inline bool has_texture_field = has_field_type_v<UboType, ColorRampData> ||
-has_field_type_v<UboType, TextureIdData> ||
-has_field_type_v<UboType, Color4TextureIdData> ||
-has_field_type_v<UboType, FloatTextureIdData>;
 
 template<typename UniformBufferType, typename ResultT>
 struct ValueData : NodeData {
@@ -265,7 +28,13 @@ struct UboMixin {
 
 	BufferPtr uniform_buffer;
 
-	explicit UboMixin(const VulkanEngine* engine) : uniform_buffer(engine->material_preview_ubo) {}
+	explicit UboMixin(VulkanEngine* engine) : uniform_buffer(engine->material_preview_ubo) {
+		uniform_buffer = engine::Buffer::create_buffer(engine,
+			sizeof(UboType),
+			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			SWAPCHAIN_INDEPENDENT_BIT);
+	}
 
 	void update_ubo(const PinVariant& value, size_t index) {  //use value to update the pin at the index  
 		if constexpr (has_field_type_v<UboType, ColorRampData>) {
@@ -353,168 +122,432 @@ template<typename UniformBufferType>
 struct ShaderData : NodeData, UboMixin<UniformBufferType> {
 	using UboType = UniformBufferType;
 
-	explicit ShaderData(const VulkanEngine* engine) : UboMixin<UniformBufferType>(engine) {}
+	explicit ShaderData(VulkanEngine* engine) : UboMixin<UniformBufferType>(engine) {}
 };
 
 template<typename UniformBufferType>
-struct ImageData : NodeData, UboMixin<UniformBufferType> {
-	using UboType = UniformBufferType;
+struct ComponentUdf : UboMixin<UniformBufferType> {
+	using UboT = UniformBufferType;
+	inline constexpr static auto shader_num = UboT::shader_file_paths.size();
+	inline static std::array<VkDescriptorSetLayout, shader_num> ubo_descriptor_set_layouts{ nullptr };
+	inline static std::array<VkPipelineLayout, shader_num> image_processing_pipeline_layouts{ nullptr };
+	inline static std::array<VkPipeline, shader_num> image_processing_compute_pipelines{ nullptr };
 
-	VulkanEngine* engine;
 	TexturePtr texture;
-	TexturePtr preview_texture;
-	VkImageView render_target_image_view;
-	void* gui_texture;
-	void* gui_preview_texture;
-
-	VkDescriptorSet ubo_descriptor_set;
-	VkFramebuffer image_processing_framebuffer;
+	std::array<VkDescriptorSet, UboT::shader_file_paths.size()> ubo_descriptor_sets;
+	std::array<TexturePtr, 2> ping_pong_images;
+	std::function<void(int)> record_image_processing_cmd_buffer_func;
 	VkCommandBuffer image_processing_cmd_buffer = nullptr;
-	VkCommandBuffer generate_preview_cmd_buffer = nullptr;
-	std::array<VkCommandBuffer, PbrMaterialTextureNum> copy_image_cmd_buffers;
+	uint32_t width = TEXTURE_IMAGE_SIZE;
+	uint32_t height = TEXTURE_IMAGE_SIZE;
 
-	VkSemaphore semaphore;
+	explicit ComponentUdf(VulkanEngine* engine) :UboMixin<UniformBufferType>(engine) {}
 
-	std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
-	VkCommandBufferSubmitInfo cmd_buffer_submit_info1;
-	VkSemaphoreSubmitInfo signal_semaphore_submit_info1;
+	void create_image_processing_pipeline_resource(VulkanEngine* engine, VkFormat format) {
+		update_ubo_descriptor_sets(engine);
+		create_image_processing_compute_pipelines(engine);
+		create_image_processing_compute_command_buffer_func(engine);
+	}
 
-	VkSemaphoreSubmitInfo wait_semaphore_submit_info2;
-	VkCommandBufferSubmitInfo cmd_buffer_submit_info2;
-	VkSemaphoreSubmitInfo signal_semaphore_submit_info2;
+	static void create_ubo_descriptor_set_layout(VulkanEngine* engine) {
+		std::array preprocess_layout_bindings{
+			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 0),
+			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1),
+		};
+		engine->create_descriptor_set_layout(
+			preprocess_layout_bindings,
+			ubo_descriptor_set_layouts[0]);
 
-	std::array<VkSubmitInfo2, 2> submit_info;
+		std::array layout_bindings{
+			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 0),
+			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1),
+			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 2),
+		};
+		engine->create_descriptor_set_layout(layout_bindings,
+			ubo_descriptor_set_layouts[1]);
+	}
 
-	int node_texture_id = -1;
+	void create_ubo_descriptor_sets(VulkanEngine* engine) {
+		std::array<VkDescriptorSetAllocateInfo, shader_num> descriptor_set_allocate_infos;
+		for (size_t i = 0; i < shader_num; ++i) {
+			descriptor_set_allocate_infos[i] = {
+				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+				.descriptorPool = engine->dynamic_descriptor_pool,
+				.descriptorSetCount = 1,
+				.pSetLayouts = &ubo_descriptor_set_layouts[i],
+			};
+		}
 
-	uint32_t width = 1024;
-	uint32_t height = 1024;
+		if (vkAllocateDescriptorSets(engine->device, descriptor_set_allocate_infos.data(), ubo_descriptor_sets.data()) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate descriptor sets!");
+		}
+	}
+
+	static void create_image_processing_pipeline_layouts(VulkanEngine* engine) {
+		if (image_processing_pipeline_layouts[0]) {
+			return;
+		}
+		UNROLL<shader_num> ([&]<size_t i> {
+			auto descriptor_set_layouts = [&] {
+				if constexpr (i == 0) {
+					return std::array{ ubo_descriptor_set_layouts[i] };
+				}
+				else {
+					return std::array{
+						ubo_descriptor_set_layouts[i],
+						engine->texture_manager->descriptor_set_layout,
+					};
+				}
+			}();
+			auto image_processing_pipeline_info = vkinit::pipeline_layout_create_info(descriptor_set_layouts);
+			VkPushConstantRange push_constant_range;
+			if constexpr (i == 1) {
+				push_constant_range = {
+					.stageFlags = VK_SHADER_STAGE_COMPUTE_BIT,
+					.offset = 0,
+					.size = 4
+				};
+				image_processing_pipeline_info.pushConstantRangeCount = 1;
+				image_processing_pipeline_info.pPushConstantRanges = &push_constant_range;
+			}
+
+			if (vkCreatePipelineLayout(engine->device, &image_processing_pipeline_info, nullptr, &image_processing_pipeline_layouts[i]) != VK_SUCCESS) {
+				throw std::runtime_error("failed to create pipeline layout!");
+			}
+
+			engine->main_deletion_queue.push_function([device = engine->device, pipeline_layout = image_processing_pipeline_layouts[i]]{
+				vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
+				});
+		});
+	}
+
+	void create_textures(VulkanEngine* engine, const VkFormat format) {
+		const bool is_gray_scale = (format == VK_FORMAT_R16_UNORM || format == VK_FORMAT_R16_SFLOAT);
+
+		texture = engine::Texture::create_device_texture(engine,
+			this->width,
+			this->height,
+			format,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | (is_gray_scale ? VK_IMAGE_USAGE_STORAGE_BIT : 0),
+			SWAPCHAIN_INDEPENDENT_BIT,
+			is_gray_scale);
+
+		texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		for (size_t i = 0; i < 2; ++i) {
+			ping_pong_images[i] = engine::Texture::create_device_texture(engine,
+				width,
+				height,
+				VK_FORMAT_R32_UINT,
+				VK_IMAGE_ASPECT_COLOR_BIT,
+				VK_IMAGE_USAGE_STORAGE_BIT,
+				SWAPCHAIN_INDEPENDENT_BIT,
+				is_gray_scale);
+			ping_pong_images[i]->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+		}
+	}
+
+	void update_ubo_descriptor_sets(VulkanEngine* engine) {
+		//pass 1
+		const VkDescriptorImageInfo result_image_info{
+			.imageView = texture->image_view,
+			.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+		};
+
+		const std::array ping_pong_image_infos{
+			VkDescriptorImageInfo{
+				.imageView = ping_pong_images[0]->image_view,
+				.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+			},
+			VkDescriptorImageInfo{
+				.imageView = ping_pong_images[1]->image_view,
+				.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
+			}
+		};
+
+		const VkDescriptorBufferInfo uniform_buffer_info{
+			.buffer = this->uniform_buffer->buffer,
+			.offset = 0,
+			.range = sizeof(UboT)
+		};
+
+		auto const descriptor_writes = std::array{
+			VkWriteDescriptorSet {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = ubo_descriptor_sets[0],
+				.dstBinding = 0,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.pBufferInfo = &uniform_buffer_info,
+			},
+			VkWriteDescriptorSet {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = ubo_descriptor_sets[0],
+				.dstBinding = 1,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+				.pImageInfo = &ping_pong_image_infos[0],
+			},
+			VkWriteDescriptorSet {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = ubo_descriptor_sets[1],
+				.dstBinding = 0,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+				.pImageInfo = &ping_pong_image_infos[0],
+			},
+			VkWriteDescriptorSet {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = ubo_descriptor_sets[1],
+				.dstBinding = 1,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+				.pImageInfo = &ping_pong_image_infos[1],
+			},
+			VkWriteDescriptorSet {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = ubo_descriptor_sets[1],
+				.dstBinding = 2,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+				.pImageInfo = &result_image_info,
+			},
+		};
+
+		vkUpdateDescriptorSets(
+			engine->device,
+			descriptor_writes.size(),
+			descriptor_writes.data(),
+			0,
+			nullptr);
+	}
+
+	void create_image_processing_compute_pipelines(VulkanEngine* engine) {
+
+		auto& shader_modules = engine::Shader::createFromSpv(engine, UboT::shader_file_paths)->shader_modules;
+
+		for (size_t i = 0; i < shader_modules.size(); ++i) {
+			const VkComputePipelineCreateInfo compute_pipeline_create_info{
+				.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
+				.stage = {
+					.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
+					.stage = shader_modules[i].stage,
+					.module = shader_modules[i].shader,
+					.pName = "main",
+				},
+				.layout = image_processing_pipeline_layouts[i],
+			};
+
+			if (vkCreateComputePipelines(
+				engine->device,
+				VK_NULL_HANDLE,
+				1,
+				&compute_pipeline_create_info,
+				nullptr,
+				&image_processing_compute_pipelines[i]) != VK_SUCCESS) {
+				throw std::runtime_error("failed to create graphics pipeline!");
+			}
+
+			engine->main_deletion_queue.push_function([device = engine->device, pipeline = image_processing_compute_pipelines[i]]{
+				vkDestroyPipeline(device, pipeline, nullptr);
+				});
+		}
+	}
+
+	void create_image_processing_compute_command_buffer_func(VulkanEngine* engine) {
+		record_image_processing_cmd_buffer_func = [=](int input_image_idx){
+			const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->compute_command_pool, 1);
+			if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &image_processing_cmd_buffer) != VK_SUCCESS) {
+				throw std::runtime_error("failed to allocate command buffers!");
+			}
+			const VkCommandBufferBeginInfo begin_info{
+				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
+			};
+
+			if (vkBeginCommandBuffer(image_processing_cmd_buffer, &begin_info) != VK_SUCCESS) {
+				throw std::runtime_error("failed to begin recording command buffer!");
+			}
+
+			{
+				auto image_memory_barrier = VkImageMemoryBarrier2{
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+					.srcAccessMask = VK_ACCESS_2_NONE,
+					.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
+					.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					.srcQueueFamilyIndex = engine->queue_family_indices.graphics_family.value(),
+					.dstQueueFamilyIndex = engine->queue_family_indices.compute_family.value(),
+					.image = engine->texture_manager->textures[input_image_idx]->image,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.levelCount = 1,
+						.layerCount = 1,
+					},
+				};
+
+				auto const dependency_info = VkDependencyInfo{
+					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+					.imageMemoryBarrierCount = 1,
+					.pImageMemoryBarriers = &image_memory_barrier,
+				};
+
+				vkCmdPipelineBarrier2(image_processing_cmd_buffer, &dependency_info);
+			}
+
+			{
+				auto image_memory_barrier = VkImageMemoryBarrier2{
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+					.srcAccessMask = VK_ACCESS_2_NONE,
+					.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+					.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					.newLayout = VK_IMAGE_LAYOUT_GENERAL,
+					.srcQueueFamilyIndex = engine->queue_family_indices.graphics_family.value(),
+					.dstQueueFamilyIndex = engine->queue_family_indices.compute_family.value(),
+					.image = texture->image,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.levelCount = 1,
+						.layerCount = 1,
+					},
+				};
+
+				auto const dependency_info = VkDependencyInfo{
+					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+					.imageMemoryBarrierCount = 1,
+					.pImageMemoryBarriers = &image_memory_barrier,
+				};
+
+				vkCmdPipelineBarrier2(image_processing_cmd_buffer, &dependency_info);
+			}
+
+			vkCmdBindPipeline(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, image_processing_compute_pipelines[0]);
+
+			std::array descriptor_sets{
+				ubo_descriptor_sets[0],
+				engine->texture_manager->descriptor_set,
+			};
+			vkCmdBindDescriptorSets(
+				image_processing_cmd_buffer, 
+				VK_PIPELINE_BIND_POINT_COMPUTE, 
+				image_processing_pipeline_layouts[0], 
+				0, descriptor_sets.size(), descriptor_sets.data(), 
+				0, nullptr);
+			//int idx = 0;
+			//vkCmdPushConstants(image_processing_cmd_buffer, image_processing_pipeline_layouts[0], VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(int), &idx);
+			vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
+
+			{
+				auto image_memory_barrier = VkImageMemoryBarrier2{
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+					.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+					.dstAccessMask = VK_ACCESS_2_NONE,
+					.oldLayout = VK_IMAGE_LAYOUT_GENERAL,
+					.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+					.srcQueueFamilyIndex = engine->queue_family_indices.compute_family.value(),
+					.dstQueueFamilyIndex = engine->queue_family_indices.graphics_family.value(),
+					.image = texture->image,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.levelCount = 1,
+						.layerCount = 1,
+					},
+				};
+
+				auto const dependency_info = VkDependencyInfo{
+					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+					.imageMemoryBarrierCount = 1,
+					.pImageMemoryBarriers = &image_memory_barrier,
+				};
+
+				vkCmdPipelineBarrier2(image_processing_cmd_buffer, &dependency_info);
+			}
+
+			{
+				auto image_memory_barrier = VkImageMemoryBarrier2{
+					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
+					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
+					.srcAccessMask = VK_ACCESS_2_NONE,
+					.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
+					.dstAccessMask = VK_ACCESS_2_NONE,
+					.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					.srcQueueFamilyIndex = engine->queue_family_indices.compute_family.value(),
+					.dstQueueFamilyIndex = engine->queue_family_indices.graphics_family.value(),
+					.image = engine->texture_manager->textures[input_image_idx]->image,
+					.subresourceRange = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.levelCount = 1,
+						.layerCount = 1,
+					},
+				};
+
+				auto const dependency_info = VkDependencyInfo{
+					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
+					.imageMemoryBarrierCount = 1,
+					.pImageMemoryBarriers = &image_memory_barrier,
+				};
+
+				vkCmdPipelineBarrier2(image_processing_cmd_buffer, &dependency_info);
+			}
+
+			if (vkEndCommandBuffer(image_processing_cmd_buffer) != VK_SUCCESS) {
+				throw std::runtime_error("failed to record command buffer!");
+			}
+		};
+	}
+
+	void clear(VulkanEngine* engine) const {
+		vkFreeCommandBuffers(engine->device, engine->command_pool, 1, &image_processing_cmd_buffer);
+	}
+
+};
+
+template<typename UniformBufferType>
+struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
+	using UboT = UniformBufferType;
 
 	inline static VkDescriptorSetLayout ubo_descriptor_set_layout = nullptr;
 	inline static VkPipelineLayout image_processing_pipeline_layout = nullptr;
 	inline static std::unordered_map<VkFormat, VkPipeline> image_processing_pipelines;
 	inline static std::unordered_map<VkFormat, VkRenderPass> image_processing_render_passes;
 
-	explicit ImageData(VulkanEngine* engine) :UboMixin<UniformBufferType>(engine), engine(engine) {
+	TexturePtr texture;
+	VkImageView render_target_image_view;
+	VkDescriptorSet ubo_descriptor_set;
+	VkFramebuffer image_processing_framebuffer;
+	VkCommandBuffer image_processing_cmd_buffer = nullptr;
+	uint32_t width = TEXTURE_IMAGE_SIZE;
+	uint32_t height = TEXTURE_IMAGE_SIZE;
 
-		create_semaphore();
+	explicit ComponentGraphicPipeline(VulkanEngine* engine) : UboMixin<UniformBufferType>(engine) {}
 
-		this->uniform_buffer = engine::Buffer::create_buffer(engine,
-			sizeof(UboType),
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-			SWAPCHAIN_INDEPENDENT_BIT);
-
-		if (ubo_descriptor_set_layout == nullptr) {
-			create_ubo_descriptor_set_layout();
-		}
-
-		create_ubo_descriptor_set();
-
-		update_ubo_descriptor_sets();
-
-		if (image_processing_pipeline_layout == nullptr) {
-			create_image_processing_pipeline_layout();
-		}
-
-		create_texture_resource(UboType::default_format);
-
-		create_cmd_buffer_submit_info();
+	void create_image_processing_pipeline_resource(VulkanEngine* engine, VkFormat format) {
+		create_image_processing_render_pass(engine, format);
+		create_image_processing_pipeline(engine, format);
+		create_framebuffer(engine, format);
+		create_image_processing_command_buffer(engine, format);
 	}
 
-	void create_texture_resource(VkFormat format) {
-		create_textures(format);
-		update_image_descriptor_sets();
-		create_image_processing_render_pass(format);
-		create_image_processing_pipeline(format);
-		create_framebuffer(format);
-		create_image_processing_command_buffer(format);
-		create_preview_command_buffer();
-		create_copy_image_cmd_buffers();
-	}
-
-	void recreate_texture_resource(VkFormat format) {
-		clear();
-		create_texture_resource(format);
-		cmd_buffer_submit_info1.commandBuffer = image_processing_cmd_buffer;
-		cmd_buffer_submit_info2.commandBuffer = generate_preview_cmd_buffer;
-	}
-
-	void clear() const {
-		vkDestroyImageView(engine->device, render_target_image_view, nullptr);
-		const std::array cmd_buffers{ image_processing_cmd_buffer, generate_preview_cmd_buffer };
-		vkFreeCommandBuffers(engine->device, engine->command_pool, cmd_buffers.size(), cmd_buffers.data());
-		vkDestroyFramebuffer(engine->device, image_processing_framebuffer, nullptr);
-	}
-
-	~ImageData() {
-		engine->texture_manager->delete_id(node_texture_id);
-		clear();
-		vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, 1, &ubo_descriptor_set);
-		vkDestroySemaphore(engine->device, semaphore, nullptr);
-	}
-
-	void create_semaphore() {
-		constexpr VkSemaphoreTypeCreateInfo timeline_semaphore_create_info{
-			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-			.pNext = nullptr,
-			.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-			.initialValue = 0,
+	static void create_ubo_descriptor_set_layout(VulkanEngine* engine) {
+		std::array layout_bindings = {
+			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0)
 		};
-
-		constexpr VkSemaphoreCreateInfo semaphore_create_info{
-			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-			.pNext = &timeline_semaphore_create_info,
-			.flags = 0,
-		};
-
-		vkCreateSemaphore(engine->device, &semaphore_create_info, nullptr, &semaphore);
-	}
-
-	void create_textures(VkFormat format) {
-		const bool is_gray_scale = (format == VK_FORMAT_R16_UNORM || format == VK_FORMAT_R16_SFLOAT);
-
-		texture = engine::Texture::create_device_texture(engine,
-			width,
-			height,
-			format,
-			VK_IMAGE_ASPECT_COLOR_BIT,
-			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-			SWAPCHAIN_INDEPENDENT_BIT,
-			is_gray_scale);
-
-		texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-		preview_texture = engine::Texture::create_device_texture(engine,
-			PREVIEW_IMAGE_SIZE,
-			PREVIEW_IMAGE_SIZE,
-			format,
-			VK_IMAGE_ASPECT_COLOR_BIT,
-			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-			SWAPCHAIN_INDEPENDENT_BIT,
-			is_gray_scale);
-
-		preview_texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-
-		gui_texture = ImGui_ImplVulkan_AddTexture(texture->sampler, texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		gui_preview_texture = ImGui_ImplVulkan_AddTexture(preview_texture->sampler, preview_texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-
-		if (node_texture_id == -1) {
-			node_texture_id = engine->texture_manager->add_texture(texture);
-		}
-		else {
-			engine->texture_manager->textures[node_texture_id] = texture;
-		}
-	}
-
-	void create_ubo_descriptor_set_layout() {
-		auto const ubo_layout_binding = vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0);
-		std::array layout_bindings = { ubo_layout_binding };
 		engine->create_descriptor_set_layout(layout_bindings, ubo_descriptor_set_layout);
 	}
 
-	void create_ubo_descriptor_set() {
+	void create_ubo_descriptor_sets(VulkanEngine* engine) {
 		const VkDescriptorSetAllocateInfo ubo_descriptor_alloc_info{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.descriptorPool = engine->dynamic_descriptor_pool,
@@ -527,11 +560,11 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		}
 	}
 
-	void update_ubo_descriptor_sets() {
+	void update_ubo_descriptor_sets(VulkanEngine* engine) {
 		const VkDescriptorBufferInfo uniform_buffer_info{
 			.buffer = this->uniform_buffer->buffer,
 			.offset = 0,
-			.range = sizeof(UboType)
+			.range = sizeof(UboT)
 		};
 
 		const std::array descriptor_writes{
@@ -547,32 +580,52 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		};
 
 		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
-
 	}
 
-	void update_image_descriptor_sets() const {
-		const VkDescriptorImageInfo image_info{
-			.sampler = texture->sampler,
-			.imageView = texture->image_view,
-			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		};
+	void create_image_processing_pipeline_layouts(VulkanEngine* engine) {
+		if (image_processing_pipeline_layout) {
+			return;
+		}
 
-		const std::array descriptor_writes{
-			VkWriteDescriptorSet {
-				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.dstSet = engine->texture_manager->descriptor_set,
-				.dstBinding = 0,
-				.dstArrayElement = static_cast<uint32_t>(node_texture_id),
-				.descriptorCount = 1,
-				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-				.pImageInfo = &image_info,
-			},
-		};
+		auto descriptor_set_layouts = [&] {
+			if constexpr (has_texture_field<UboT>) {
+				return std::array{
+					ubo_descriptor_set_layout,
+					engine->texture_manager->descriptor_set_layout,
+				};
+			}
+			else {
+				return std::array{ ubo_descriptor_set_layout };
+			}
+		}();
 
-		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+		auto image_processing_pipeline_info = vkinit::pipeline_layout_create_info(descriptor_set_layouts);
+
+		if (vkCreatePipelineLayout(engine->device, &image_processing_pipeline_info, nullptr, &image_processing_pipeline_layout) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create pipeline layout!");
+		}
+
+		engine->main_deletion_queue.push_function([device = engine->device, pipeline_layout = image_processing_pipeline_layout]{
+			vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
+			});
 	}
 
-	void create_image_processing_render_pass(const VkFormat format) {
+	void create_textures(VulkanEngine* engine, const VkFormat format) {
+		const bool is_gray_scale = (format == VK_FORMAT_R16_UNORM || format == VK_FORMAT_R16_SFLOAT);
+
+		texture = engine::Texture::create_device_texture(engine,
+			this->width,
+			this->height,
+			format,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
+			SWAPCHAIN_INDEPENDENT_BIT,
+			is_gray_scale);
+
+		texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+	}
+
+	static void create_image_processing_render_pass(VulkanEngine* engine, const VkFormat format) {
 		if (image_processing_render_passes.contains(format)) {
 			return;
 		}
@@ -587,7 +640,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			.finalLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 		};
 
-		constexpr VkAttachmentReference colorAttachmentRef{
+		constexpr VkAttachmentReference color_attachment_ref{
 			.attachment = 0,
 			.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 		};
@@ -595,29 +648,8 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		constexpr VkSubpassDescription subpass{
 			.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 			.colorAttachmentCount = 1,
-			.pColorAttachments = &colorAttachmentRef,
+			.pColorAttachments = &color_attachment_ref,
 		};
-
-		//std::array dependencies{
-		//	VkSubpassDependency {
-		//		.srcSubpass = VK_SUBPASS_EXTERNAL,
-		//		.dstSubpass = 0,
-		//		.srcStageMask = 0,
-		//		.dstStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		//		.srcAccessMask = 0,
-		//		.dstAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		//		.dependencyFlags = 0,
-		//	},
-		//	VkSubpassDependency {
-		//		.srcSubpass = 0,
-		//		.dstSubpass = VK_SUBPASS_EXTERNAL,
-		//		.srcStageMask = VK_PIPELINE_STAGE_COLOR_ATTACHMENT_OUTPUT_BIT,
-		//		.dstStageMask = 0,
-		//		.srcAccessMask = VK_ACCESS_COLOR_ATTACHMENT_WRITE_BIT,
-		//		.dstAccessMask = 0,
-		//		.dependencyFlags = 0,
-		//	}
-		//};
 
 		const std::array attachments{ color_attachment };
 
@@ -627,51 +659,26 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			.pAttachments = attachments.data(),
 			.subpassCount = 1,
 			.pSubpasses = &subpass,
-			.dependencyCount = 0, //.dependencyCount = static_cast<uint32_t>(dependencies.size()),
-			.pDependencies = nullptr, //dependencies.data(),
+			.dependencyCount = 0,
+			.pDependencies = nullptr,
 		};
 
 		if (vkCreateRenderPass(engine->device, &render_pass_info, nullptr, &image_processing_render_passes[format]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create render pass!");
 		}
 
-		engine->main_deletion_queue.push_function([device = engine->device, render_pass = image_processing_render_passes[format]] {
+		engine->main_deletion_queue.push_function([device = engine->device, render_pass = image_processing_render_passes[format]]{
 			vkDestroyRenderPass(device, render_pass, nullptr);
-		});
+			});
 	}
 
-	void create_image_processing_pipeline_layout() {
-
-		auto descriptor_set_layouts = [&] {
-			if constexpr (has_texture_field<UboType>) {
-				return std::array{
-					ubo_descriptor_set_layout,
-					engine->texture_manager->descriptor_set_layout,
-				};
-			}
-			else {
-				return std::array{ ubo_descriptor_set_layout };
-			}
-		}();
-
-		const VkPipelineLayoutCreateInfo image_processing_pipeline_info = vkinit::pipelineLayoutCreateInfo(descriptor_set_layouts);
-
-		if (vkCreatePipelineLayout(engine->device, &image_processing_pipeline_info, nullptr, &image_processing_pipeline_layout) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create pipeline layout!");
-		}
-
-		engine->main_deletion_queue.push_function([device = engine->device, pipeline_layout = image_processing_pipeline_layout] {
-			vkDestroyPipelineLayout(device, pipeline_layout, nullptr);
-		});
-	}
-
-	void create_image_processing_pipeline(const VkFormat format) {
+	void create_image_processing_pipeline(VulkanEngine* engine, const VkFormat format) {
 		if (image_processing_pipelines.contains(format)) {
 			return;
 		}
 		engine::PipelineBuilder pipeline_builder(engine, engine::ENABLE_DYNAMIC_VIEWPORT, engine::DISABLE_VERTEX_INPUT);
 
-		auto shaders = engine::Shader::createFromSpv(engine, UboType::shader_file_paths);
+		auto shaders = engine::Shader::createFromSpv(engine, UboT::shader_file_paths);
 
 		for (auto shader_module : shaders->shader_modules) {
 			VkPipelineShaderStageCreateInfo shader_info{
@@ -685,12 +692,12 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 		pipeline_builder.build_pipeline(engine->device, image_processing_render_passes[format], image_processing_pipeline_layout, image_processing_pipelines[format]);
 
-		engine->main_deletion_queue.push_function([device = engine->device, pipeline = image_processing_pipelines[format]] {
+		engine->main_deletion_queue.push_function([device = engine->device, pipeline = image_processing_pipelines[format]]{
 			vkDestroyPipeline(device, pipeline, nullptr);
-		});
+			});
 	}
 
-	void create_framebuffer(const VkFormat format) {
+	void create_framebuffer(VulkanEngine* engine, const VkFormat format) {
 		VkFramebufferAttachmentImageInfo framebuffer_attachment_image_info{
 			.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_ATTACHMENT_IMAGE_INFO,
 			.usage = VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
@@ -725,7 +732,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		}
 	}
 
-	void create_image_processing_command_buffer(const VkFormat format) {
+	void create_image_processing_command_buffer(VulkanEngine* engine, const VkFormat format) {
 		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, 1);
 
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &image_processing_cmd_buffer) != VK_SUCCESS) {
@@ -786,7 +793,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		};
 
 		auto descriptor_sets = [&] {
-			if constexpr (has_texture_field<UboType>) {
+			if constexpr (has_texture_field<UboT>) {
 				return std::array{
 					ubo_descriptor_set,
 					engine->texture_manager->descriptor_set,
@@ -808,6 +815,130 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			throw std::runtime_error("failed to record command buffer!");
 		}
 	}
+
+	void clear(VulkanEngine* engine) const {
+		vkDestroyImageView(engine->device, render_target_image_view, nullptr);
+		vkFreeCommandBuffers(engine->device, engine->command_pool, 1, &image_processing_cmd_buffer);
+		vkDestroyFramebuffer(engine->device, image_processing_framebuffer, nullptr);
+	}
+};
+
+template<typename Component>
+struct ImageData : NodeData, Component {
+	using UboType = typename Component::UboT;
+
+	VulkanEngine* engine;
+
+	int node_texture_id = -1;
+	TexturePtr preview_texture;
+
+	void* gui_texture;
+	void* gui_preview_texture;
+
+	VkCommandBuffer generate_preview_cmd_buffer = nullptr;
+	std::array<VkCommandBuffer, PbrMaterialTextureNum> copy_image_cmd_buffers;
+
+	VkSemaphore semaphore;
+
+	std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
+	VkCommandBufferSubmitInfo cmd_buffer_submit_info1;
+	VkSemaphoreSubmitInfo signal_semaphore_submit_info1;
+
+	VkSemaphoreSubmitInfo wait_semaphore_submit_info2;
+	VkCommandBufferSubmitInfo cmd_buffer_submit_info2;
+	VkSemaphoreSubmitInfo signal_semaphore_submit_info2;
+
+	std::array<VkSubmitInfo2, 2> submit_info;
+
+	explicit ImageData(VulkanEngine* engine) :Component(engine), engine(engine) {
+
+		create_semaphore();
+
+		Component::create_ubo_descriptor_set_layout(engine);
+
+		Component::create_ubo_descriptor_sets(engine);
+
+		Component::create_image_processing_pipeline_layouts(engine);
+
+		create_texture_resource(UboType::default_format);
+
+		create_cmd_buffer_submit_info();
+	}
+
+	void create_texture_resource(VkFormat format) {
+		Component::create_textures(engine, format);
+		create_preview_texture(format);
+		update_image_descriptor_sets();
+		Component::update_ubo_descriptor_sets(engine);
+		Component::create_image_processing_pipeline_resource(engine, format);
+
+		create_preview_command_buffer();
+		create_copy_image_cmd_buffers();
+	}
+
+	void recreate_texture_resource(VkFormat format) {
+		Component::clear(engine);
+		vkFreeCommandBuffers(engine->device, engine->command_pool, 1, &generate_preview_cmd_buffer);
+		create_texture_resource(format);
+		cmd_buffer_submit_info1.commandBuffer = this->image_processing_cmd_buffer;
+		cmd_buffer_submit_info2.commandBuffer = generate_preview_cmd_buffer;
+	}
+
+	~ImageData() {
+		engine->texture_manager->delete_id(node_texture_id);
+		Component::clear(engine);
+		vkFreeCommandBuffers(engine->device, engine->command_pool, 1, &generate_preview_cmd_buffer);
+		if constexpr (std::same_as<Component, ComponentUdf<UboType>>) {
+			vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, this->ubo_descriptor_sets.size(), this->ubo_descriptor_sets.data());	
+		}
+		else {
+			vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, 1, &this->ubo_descriptor_set);
+		}
+		vkDestroySemaphore(engine->device, semaphore, nullptr);
+	}
+
+	void create_semaphore() {
+		constexpr VkSemaphoreTypeCreateInfo timeline_semaphore_create_info{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+			.pNext = nullptr,
+			.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+			.initialValue = 0,
+		};
+
+		constexpr VkSemaphoreCreateInfo semaphore_create_info{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			.pNext = &timeline_semaphore_create_info,
+			.flags = 0,
+		};
+
+		vkCreateSemaphore(engine->device, &semaphore_create_info, nullptr, &semaphore);
+	}
+
+
+
+	void update_image_descriptor_sets() const {
+		const VkDescriptorImageInfo image_info{
+			.sampler = this->texture->sampler,
+			.imageView = this->texture->image_view,
+			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		};
+
+		const std::array descriptor_writes{
+			VkWriteDescriptorSet {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = engine->texture_manager->descriptor_set,
+				.dstBinding = 0,
+				.dstArrayElement = static_cast<uint32_t>(node_texture_id),
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				.pImageInfo = &image_info,
+			},
+		};
+
+		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+	}
+
+
 
 	void create_preview_command_buffer() {
 		VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, 1);
@@ -860,7 +991,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			},
 			.srcOffsets = {
 				{0, 0, 0},
-				{static_cast<int32_t>(texture->width), static_cast<int32_t>(texture->height), 1},
+				{static_cast<int32_t>(this->texture->width), static_cast<int32_t>(this->texture->height), 1},
 			},
 			.dstSubresource = {
 				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
@@ -875,7 +1006,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		};
 
 		vkCmdBlitImage(generate_preview_cmd_buffer,
-			texture->image,
+			this->texture->image,
 			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 			preview_texture->image,
 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -922,7 +1053,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
 				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.image = texture->image,
+				.image = this->texture->image,
 				.subresourceRange = {
 					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 					.levelCount = 1,
@@ -942,7 +1073,6 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		if (vkEndCommandBuffer(generate_preview_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer!");
 		}
-
 	}
 
 	void create_cmd_buffer_submit_info() {
@@ -951,7 +1081,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 
 		cmd_buffer_submit_info1 = VkCommandBufferSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-			.commandBuffer = image_processing_cmd_buffer,
+			.commandBuffer = this->image_processing_cmd_buffer,
 		};
 
 		signal_semaphore_submit_info1 = VkSemaphoreSubmitInfo{
@@ -1003,6 +1133,30 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 		};
 	}
 
+	void create_preview_texture(const VkFormat format) {
+		const bool is_gray_scale = (format == VK_FORMAT_R16_UNORM || format == VK_FORMAT_R16_SFLOAT);
+		preview_texture = engine::Texture::create_device_texture(engine,
+			PREVIEW_IMAGE_SIZE,
+			PREVIEW_IMAGE_SIZE,
+			format,
+			VK_IMAGE_ASPECT_COLOR_BIT,
+			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
+			SWAPCHAIN_INDEPENDENT_BIT,
+			is_gray_scale);
+
+		preview_texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		gui_texture = ImGui_ImplVulkan_AddTexture(this->texture->sampler, this->texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		gui_preview_texture = ImGui_ImplVulkan_AddTexture(preview_texture->sampler, preview_texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+
+		if (node_texture_id == -1) {
+			node_texture_id = engine->texture_manager->add_texture(this->texture);
+		}
+		else {
+			engine->texture_manager->textures[node_texture_id] = this->texture;
+		}
+	}
+
 	void create_copy_image_cmd_buffers() {
 		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, copy_image_cmd_buffers.size());
 
@@ -1024,7 +1178,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			}
 
 			for (auto const& [texture, layout] : {
-				std::tuple{texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+				std::tuple{this->texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
 				std::tuple{dst_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
 
 				auto image_memory_barrier = VkImageMemoryBarrier2{
@@ -1072,8 +1226,8 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 				},
 				.dstOffset = {0,0,0},
 				.extent = {
-					texture->width,
-					texture->height,
+					this->texture->width,
+					this->texture->height,
 					1,
 				},
 			};
@@ -1081,7 +1235,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			VkCopyImageInfo2 copy_image_info{
 				.sType = VK_STRUCTURE_TYPE_COPY_IMAGE_INFO_2,
 				.pNext = nullptr,
-				.srcImage = texture->image,
+				.srcImage = this->texture->image,
 				.srcImageLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 				.dstImage = dst_texture->image,
 				.dstImageLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
@@ -1092,7 +1246,7 @@ struct ImageData : NodeData, UboMixin<UniformBufferType> {
 			vkCmdCopyImage2(copy_image_cmd_buffer, &copy_image_info);
 
 			for (auto const& [texture, layout] : {
-				std::tuple{texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+				std::tuple{this->texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
 				std::tuple{dst_texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
 
 				auto image_memory_barrier = VkImageMemoryBarrier2{

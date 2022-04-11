@@ -1,0 +1,25 @@
+#version 460
+#extension GL_EXT_nonuniform_qualifier:enable
+
+layout(local_size_x = 16, local_size_y = 16) in;
+
+layout(std140, set = 0, binding = 0) uniform UniformBufferObject {
+    int texture_id;
+    float max_distance;
+} ubo;
+
+layout(set = 0, binding = 1, r32ui) uniform uimage2D outputImage;
+
+layout(set = 1, binding = 0) uniform sampler2D nodeTextures[];
+
+void main() {
+	ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
+	float level = texelFetch(nodeTextures[ubo.texture_id], coord, 0).r;
+	uint dist;
+	if (level < 0.5) {
+		dist = 0;
+	} else {
+		dist = 0xFFFFFFFF;
+	}
+	imageStore(outputImage, coord, uvec4(dist));
+}
