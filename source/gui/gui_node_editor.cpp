@@ -198,8 +198,6 @@ namespace engine {
 		if (vkQueueSubmit2(engine->graphics_queue, graphic_submits.size(), graphic_submits.data(), graphic_fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer to graphic queue!");
 		}
-
-		
 	}
 
 	void NodeEditor::update_from(uint32_t updated_node_index) {

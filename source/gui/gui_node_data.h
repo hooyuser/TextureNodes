@@ -29,12 +29,17 @@ struct UboMixin {
 
 	BufferPtr uniform_buffer;
 
-	explicit UboMixin(VulkanEngine* engine) : uniform_buffer(engine->material_preview_ubo) {
-		uniform_buffer = engine::Buffer::create_buffer(engine,
+	explicit UboMixin(VulkanEngine* engine, BufferPtr buffer = nullptr) {
+		if(buffer) {
+			uniform_buffer = buffer;
+		}
+		else {
+			uniform_buffer = engine::Buffer::create_buffer(engine,
 			sizeof(UboType),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
 			SWAPCHAIN_INDEPENDENT_BIT);
+		}
 	}
 
 	void update_ubo(const PinVariant& value, size_t index) {  //use value to update the pin at the index  
@@ -123,7 +128,7 @@ template<typename UniformBufferType>
 struct ShaderData : NodeData, UboMixin<UniformBufferType> {
 	using UboType = UniformBufferType;
 
-	explicit ShaderData(VulkanEngine* engine) : UboMixin<UniformBufferType>(engine) {}
+	explicit ShaderData(VulkanEngine* engine) : UboMixin<UniformBufferType>(engine, engine->material_preview_ubo) {}
 };
 
 struct SubmitInfoMembers{
@@ -716,9 +721,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				VK_PIPELINE_STAGE_2_BLIT_BIT,
 				VK_ACCESS_2_TRANSFER_READ_BIT,
 				VK_IMAGE_LAYOUT_GENERAL,
-				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL//,
-				//engine->queue_family_indices.compute_family.value(),
-				//engine->queue_family_indices.graphics_family.value()
+				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
 			);
 
 			insert_image_memory_barrier(
@@ -1024,8 +1027,6 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 			.height = height,
 			.layers = 1,
 		};
-
-		//VkFramebufferCreateInfo framebuffer_info = vkinit::framebufferCreateInfo(image_processing_render_pass, VkExtent2D{ width , height }, framebuffer_attachments);
 
 		if (vkCreateFramebuffer(engine->device, &framebuffer_info, nullptr, &image_processing_framebuffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create framebuffer!");

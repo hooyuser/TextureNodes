@@ -1192,7 +1192,7 @@ void VulkanEngine::create_descriptor_sets() {
 
 	scene_descriptor_sets.resize(swapchain_image_count);
 
-	VkDescriptorBufferInfo material_preview_uniform_buffer_info{
+	const VkDescriptorBufferInfo material_preview_uniform_buffer_info{
 		.buffer = material_preview_ubo->buffer,
 		.offset = 0,
 		.range = sizeof(MaterialPreviewUBO),
