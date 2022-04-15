@@ -9,6 +9,14 @@ namespace vk_init {
 	VkSamplerCreateInfo samplerCreateInfo(VkPhysicalDevice physicalDevice, VkFilter filters, uint32_t mipLevels, VkSamplerAddressMode samplerAdressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
 }
 
+enum class QueueFamilyCategory {
+	GRAPHICS,
+	COMPUTE,
+	TRANSFER,
+	PRESENT,
+};
+
+
 namespace engine {
 	class Image {
 		using ImagePtr = std::shared_ptr<Image>;
@@ -39,7 +47,7 @@ namespace engine {
 			VkSampleCountFlagBits numSamples, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
 			VkMemoryPropertyFlags properties, VkImageAspectFlags aspectFlags, CreateResourceFlagBits imageDescription);
 
-		void transition_image_layout(VulkanEngine* engine, VkImageLayout oldLayout, VkImageLayout newLayout);
+		void transition_image_layout(VulkanEngine* engine, VkImageLayout oldLayout, VkImageLayout newLayout, QueueFamilyCategory = QueueFamilyCategory::GRAPHICS);
 
 		void copy_from_buffer(VulkanEngine* engine, VkBuffer buffer, uint32_t mipLevel = 0);
 

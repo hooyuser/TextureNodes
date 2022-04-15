@@ -3,6 +3,7 @@
 #include "../vk_pipeline.h"
 #include "../vk_initializers.h"
 #include "../vk_engine.h"
+#include "../vk_util.h"
 #include "gui_node_pin_data.h"
 #include <imgui_impl_vulkan.h>
 #include <unordered_map>
@@ -136,7 +137,9 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 	TexturePtr texture;
 	std::array<VkDescriptorSet, UboT::shader_file_paths.size()> ubo_descriptor_sets;
 	std::array<TexturePtr, 2> ping_pong_images;
+	VkImageView result_image_view;
 	std::function<void(int)> record_image_processing_cmd_buffer_func;
+	VkCommandBuffer ownership_release_cmd_buffer = nullptr;
 	VkCommandBuffer image_processing_cmd_buffer = nullptr;
 	uint32_t width = TEXTURE_IMAGE_SIZE;
 	uint32_t height = TEXTURE_IMAGE_SIZE;
@@ -144,7 +147,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 	explicit ComponentUdf(VulkanEngine* engine) :UboMixin<UniformBufferType>(engine) {}
 
 	void create_image_processing_pipeline_resource(VulkanEngine* engine, VkFormat format) {
-		update_ubo_descriptor_sets(engine);
+		//update_ubo_descriptor_sets(engine);
 		create_image_processing_compute_pipelines(engine);
 		create_image_processing_compute_command_buffer_func(engine);
 	}
@@ -159,26 +162,26 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 			ubo_descriptor_set_layouts[0]);
 
 		std::array layout_bindings{
-			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 0),
+			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 0),
 			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1),
 			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 2),
+			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 3),
 		};
 		engine->create_descriptor_set_layout(layout_bindings,
 			ubo_descriptor_set_layouts[1]);
 	}
 
 	void create_ubo_descriptor_sets(VulkanEngine* engine) {
-		std::array<VkDescriptorSetAllocateInfo, shader_num> descriptor_set_allocate_infos;
-		for (size_t i = 0; i < shader_num; ++i) {
-			descriptor_set_allocate_infos[i] = {
-				.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
-				.descriptorPool = engine->dynamic_descriptor_pool,
-				.descriptorSetCount = 1,
-				.pSetLayouts = &ubo_descriptor_set_layouts[i],
-			};
-		}
+	
+		VkDescriptorSetAllocateInfo descriptor_set_allocate_infos{
+			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
+			.descriptorPool = engine->dynamic_descriptor_pool,
+			.descriptorSetCount = ubo_descriptor_set_layouts.size(),
+			.pSetLayouts = ubo_descriptor_set_layouts.data(),
+		};
+	
 
-		if (vkAllocateDescriptorSets(engine->device, descriptor_set_allocate_infos.data(), ubo_descriptor_sets.data()) != VK_SUCCESS) {
+		if (vkAllocateDescriptorSets(engine->device, &descriptor_set_allocate_infos, ubo_descriptor_sets.data()) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
 	}
@@ -187,16 +190,16 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 		if (image_processing_pipeline_layouts[0]) {
 			return;
 		}
-		UNROLL<shader_num> ([&]<size_t i> {
+		UNROLL<shader_num>([&]<size_t i> {
 			auto descriptor_set_layouts = [&] {
 				if constexpr (i == 0) {
-					return std::array{ ubo_descriptor_set_layouts[i] };
-				}
-				else {
 					return std::array{
 						ubo_descriptor_set_layouts[i],
 						engine->texture_manager->descriptor_set_layout,
 					};
+				}
+				else {
+					return std::array{ ubo_descriptor_set_layouts[i] };
 				}
 			}();
 			auto image_processing_pipeline_info = vkinit::pipeline_layout_create_info(descriptor_set_layouts);
@@ -239,19 +242,35 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 			ping_pong_images[i] = engine::Texture::create_device_texture(engine,
 				width,
 				height,
-				VK_FORMAT_R32_UINT,
+				VK_FORMAT_R16G16_UINT,
 				VK_IMAGE_ASPECT_COLOR_BIT,
 				VK_IMAGE_USAGE_STORAGE_BIT,
-				SWAPCHAIN_INDEPENDENT_BIT,
-				is_gray_scale);
-			ping_pong_images[i]->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL);
+				SWAPCHAIN_INDEPENDENT_BIT);
+			ping_pong_images[i]->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, QueueFamilyCategory::COMPUTE);
 		}
 	}
 
 	void update_ubo_descriptor_sets(VulkanEngine* engine) {
-		//pass 1
+		const VkImageViewCreateInfo result_image_view_create_info{
+			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
+			.image = texture->image,
+			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.format = texture->format,
+			.subresourceRange = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.baseMipLevel = 0,
+				.levelCount = 1,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			}
+		};
+
+		if (vkCreateImageView(engine->device, &result_image_view_create_info, nullptr, &result_image_view) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create texture image view!");
+		}
+
 		const VkDescriptorImageInfo result_image_info{
-			.imageView = texture->image_view,
+			.imageView = result_image_view,
 			.imageLayout = VK_IMAGE_LAYOUT_GENERAL,
 		};
 
@@ -273,6 +292,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 		};
 
 		auto const descriptor_writes = std::array{
+			//Pass 1
 			VkWriteDescriptorSet {
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				.dstSet = ubo_descriptor_sets[0],
@@ -291,14 +311,15 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
 				.pImageInfo = &ping_pong_image_infos[0],
 			},
+			//Pass 2
 			VkWriteDescriptorSet {
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				.dstSet = ubo_descriptor_sets[1],
 				.dstBinding = 0,
 				.dstArrayElement = 0,
 				.descriptorCount = 1,
-				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-				.pImageInfo = &ping_pong_image_infos[0],
+				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+				.pBufferInfo = &uniform_buffer_info,
 			},
 			VkWriteDescriptorSet {
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -307,12 +328,21 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				.dstArrayElement = 0,
 				.descriptorCount = 1,
 				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
-				.pImageInfo = &ping_pong_image_infos[1],
+				.pImageInfo = &ping_pong_image_infos[0],
 			},
 			VkWriteDescriptorSet {
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
 				.dstSet = ubo_descriptor_sets[1],
 				.dstBinding = 2,
+				.dstArrayElement = 0,
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
+				.pImageInfo = &ping_pong_image_infos[1],
+			},
+			VkWriteDescriptorSet {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = ubo_descriptor_sets[1],
+				.dstBinding = 3,
 				.dstArrayElement = 0,
 				.descriptorCount = 1,
 				.descriptorType = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE,
@@ -330,15 +360,15 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 
 	void create_image_processing_compute_pipelines(VulkanEngine* engine) {
 
-		auto& shader_modules = engine::Shader::createFromSpv(engine, UboT::shader_file_paths)->shader_modules;
+		auto shader = engine::Shader::createFromSpv(engine, UboT::shader_file_paths);
 
-		for (size_t i = 0; i < shader_modules.size(); ++i) {
+		for (size_t i = 0; i < shader->shader_modules.size(); ++i) {
 			const VkComputePipelineCreateInfo compute_pipeline_create_info{
 				.sType = VK_STRUCTURE_TYPE_COMPUTE_PIPELINE_CREATE_INFO,
 				.stage = {
 					.sType = VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO,
-					.stage = shader_modules[i].stage,
-					.module = shader_modules[i].shader,
+					.stage = shader->shader_modules[i].stage,
+					.module = shader->shader_modules[i].shader,
 					.pName = "main",
 				},
 				.layout = image_processing_pipeline_layouts[i],
@@ -361,74 +391,85 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 	}
 
 	void create_image_processing_compute_command_buffer_func(VulkanEngine* engine) {
-		record_image_processing_cmd_buffer_func = [=](int input_image_idx){
-			const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->compute_command_pool, 1);
-			if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &image_processing_cmd_buffer) != VK_SUCCESS) {
+		record_image_processing_cmd_buffer_func = [=](int input_image_idx) {
+			
+			VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
+			if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &ownership_release_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to allocate command buffers!");
 			}
 			const VkCommandBufferBeginInfo begin_info{
 				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO
 			};
 
+			if (vkBeginCommandBuffer(ownership_release_cmd_buffer, &begin_info) != VK_SUCCESS) {
+				throw std::runtime_error("failed to begin recording command buffer!");
+			}
+
+			insert_image_memory_barrier(
+				image_processing_cmd_buffer,
+				engine->texture_manager->textures[input_image_idx]->image,
+				VK_PIPELINE_STAGE_2_NONE,
+				VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				engine->queue_family_indices.graphics_family.value(),
+				engine->queue_family_indices.compute_family.value()
+			);
+
+			insert_image_memory_barrier(
+				image_processing_cmd_buffer,
+				texture->image,
+				VK_PIPELINE_STAGE_2_NONE,
+				VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_GENERAL,
+				engine->queue_family_indices.graphics_family.value(),
+				engine->queue_family_indices.compute_family.value()
+			);
+
+			if (vkEndCommandBuffer(ownership_release_cmd_buffer) != VK_SUCCESS) {
+				throw std::runtime_error("failed to record command buffer!");
+			}
+
+			//record image_processing_cmd_buffer
+			cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->compute_command_pool, 1);
+			if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &image_processing_cmd_buffer) != VK_SUCCESS) {
+				throw std::runtime_error("failed to allocate command buffers!");
+			}
+
 			if (vkBeginCommandBuffer(image_processing_cmd_buffer, &begin_info) != VK_SUCCESS) {
 				throw std::runtime_error("failed to begin recording command buffer!");
 			}
 
-			{
-				auto image_memory_barrier = VkImageMemoryBarrier2{
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
-					.srcAccessMask = VK_ACCESS_2_NONE,
-					.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-					.dstAccessMask = VK_ACCESS_2_SHADER_READ_BIT,
-					.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					.srcQueueFamilyIndex = engine->queue_family_indices.graphics_family.value(),
-					.dstQueueFamilyIndex = engine->queue_family_indices.compute_family.value(),
-					.image = engine->texture_manager->textures[input_image_idx]->image,
-					.subresourceRange = {
-						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-						.levelCount = 1,
-						.layerCount = 1,
-					},
-				};
+			insert_image_memory_barrier(
+				image_processing_cmd_buffer,
+				engine->texture_manager->textures[input_image_idx]->image,
+				VK_PIPELINE_STAGE_2_NONE,
+				VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				engine->queue_family_indices.graphics_family.value(),
+				engine->queue_family_indices.compute_family.value()
+			);
 
-				auto const dependency_info = VkDependencyInfo{
-					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-					.imageMemoryBarrierCount = 1,
-					.pImageMemoryBarriers = &image_memory_barrier,
-				};
-
-				vkCmdPipelineBarrier2(image_processing_cmd_buffer, &dependency_info);
-			}
-
-			{
-				auto image_memory_barrier = VkImageMemoryBarrier2{
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
-					.srcAccessMask = VK_ACCESS_2_NONE,
-					.dstStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-					.dstAccessMask = VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
-					.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					.newLayout = VK_IMAGE_LAYOUT_GENERAL,
-					.srcQueueFamilyIndex = engine->queue_family_indices.graphics_family.value(),
-					.dstQueueFamilyIndex = engine->queue_family_indices.compute_family.value(),
-					.image = texture->image,
-					.subresourceRange = {
-						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-						.levelCount = 1,
-						.layerCount = 1,
-					},
-				};
-
-				auto const dependency_info = VkDependencyInfo{
-					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-					.imageMemoryBarrierCount = 1,
-					.pImageMemoryBarriers = &image_memory_barrier,
-				};
-
-				vkCmdPipelineBarrier2(image_processing_cmd_buffer, &dependency_info);
-			}
+			insert_image_memory_barrier(
+				image_processing_cmd_buffer,
+				texture->image,
+				VK_PIPELINE_STAGE_2_NONE,
+				VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_GENERAL,
+				engine->queue_family_indices.graphics_family.value(),
+				engine->queue_family_indices.compute_family.value()
+			);
 
 			vkCmdBindPipeline(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, image_processing_compute_pipelines[0]);
 
@@ -437,71 +478,62 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				engine->texture_manager->descriptor_set,
 			};
 			vkCmdBindDescriptorSets(
-				image_processing_cmd_buffer, 
-				VK_PIPELINE_BIND_POINT_COMPUTE, 
-				image_processing_pipeline_layouts[0], 
-				0, descriptor_sets.size(), descriptor_sets.data(), 
+				image_processing_cmd_buffer,
+				VK_PIPELINE_BIND_POINT_COMPUTE,
+				image_processing_pipeline_layouts[0],
+				0, descriptor_sets.size(), descriptor_sets.data(),
 				0, nullptr);
-			//int idx = 0;
-			//vkCmdPushConstants(image_processing_cmd_buffer, image_processing_pipeline_layouts[0], VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(int), &idx);
+
 			vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
 
-			{
-				auto image_memory_barrier = VkImageMemoryBarrier2{
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-					.srcStageMask = VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-					.srcAccessMask = VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-					.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
-					.dstAccessMask = VK_ACCESS_2_NONE,
-					.oldLayout = VK_IMAGE_LAYOUT_GENERAL,
-					.newLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-					.srcQueueFamilyIndex = engine->queue_family_indices.compute_family.value(),
-					.dstQueueFamilyIndex = engine->queue_family_indices.graphics_family.value(),
-					.image = texture->image,
-					.subresourceRange = {
-						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-						.levelCount = 1,
-						.layerCount = 1,
-					},
-				};
+			insert_image_memory_barrier(
+				image_processing_cmd_buffer,
+				engine->texture_manager->textures[input_image_idx]->image,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_NONE,
+				VK_ACCESS_2_NONE,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				engine->queue_family_indices.compute_family.value(),
+				engine->queue_family_indices.graphics_family.value()
+			);
 
-				auto const dependency_info = VkDependencyInfo{
-					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-					.imageMemoryBarrierCount = 1,
-					.pImageMemoryBarriers = &image_memory_barrier,
-				};
+			vkCmdBindPipeline(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, image_processing_compute_pipelines[1]);
 
-				vkCmdPipelineBarrier2(image_processing_cmd_buffer, &dependency_info);
+			vkCmdBindDescriptorSets(
+				image_processing_cmd_buffer,
+				VK_PIPELINE_BIND_POINT_COMPUTE,
+				image_processing_pipeline_layouts[1],
+				0, 1, &ubo_descriptor_sets[1],
+				0, nullptr);
+
+			int idx = 1;
+			const int size = texture->width;
+			while (size >> idx) {
+				vkCmdPushConstants(image_processing_cmd_buffer, image_processing_pipeline_layouts[1], VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(int), &idx);
+				vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
+				++idx;
 			}
+			vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
+			idx = -1;
+			vkCmdPushConstants(image_processing_cmd_buffer, image_processing_pipeline_layouts[1], VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(int), &idx);
+			vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
 
-			{
-				auto image_memory_barrier = VkImageMemoryBarrier2{
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
-					.srcAccessMask = VK_ACCESS_2_NONE,
-					.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
-					.dstAccessMask = VK_ACCESS_2_NONE,
-					.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					.srcQueueFamilyIndex = engine->queue_family_indices.compute_family.value(),
-					.dstQueueFamilyIndex = engine->queue_family_indices.graphics_family.value(),
-					.image = engine->texture_manager->textures[input_image_idx]->image,
-					.subresourceRange = {
-						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-						.levelCount = 1,
-						.layerCount = 1,
-					},
-				};
+			insert_image_memory_barrier(
+				image_processing_cmd_buffer,
+				texture->image,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+				VK_ACCESS_2_NONE,
+				VK_IMAGE_LAYOUT_GENERAL,
+				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				engine->queue_family_indices.compute_family.value(),
+				engine->queue_family_indices.graphics_family.value()
+			);
 
-				auto const dependency_info = VkDependencyInfo{
-					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-					.imageMemoryBarrierCount = 1,
-					.pImageMemoryBarriers = &image_memory_barrier,
-				};
-
-				vkCmdPipelineBarrier2(image_processing_cmd_buffer, &dependency_info);
-			}
-
+			
 			if (vkEndCommandBuffer(image_processing_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to record command buffer!");
 			}
@@ -509,9 +541,8 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 	}
 
 	void clear(VulkanEngine* engine) const {
-		vkFreeCommandBuffers(engine->device, engine->command_pool, 1, &image_processing_cmd_buffer);
+		vkFreeCommandBuffers(engine->device, engine->compute_command_pool, 1, &image_processing_cmd_buffer);
 	}
-
 };
 
 template<typename UniformBufferType>
@@ -733,7 +764,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 	}
 
 	void create_image_processing_command_buffer(VulkanEngine* engine, const VkFormat format) {
-		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, 1);
+		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
 
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &image_processing_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
@@ -818,7 +849,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 
 	void clear(VulkanEngine* engine) const {
 		vkDestroyImageView(engine->device, render_target_image_view, nullptr);
-		vkFreeCommandBuffers(engine->device, engine->command_pool, 1, &image_processing_cmd_buffer);
+		vkFreeCommandBuffers(engine->device, engine->graphic_command_pool, 1, &image_processing_cmd_buffer);
 		vkDestroyFramebuffer(engine->device, image_processing_framebuffer, nullptr);
 	}
 };
@@ -840,13 +871,13 @@ struct ImageData : NodeData, Component {
 
 	VkSemaphore semaphore;
 
-	std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
+	std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info_0;
+	VkCommandBufferSubmitInfo cmd_buffer_submit_info_0;
+	VkSemaphoreSubmitInfo signal_semaphore_submit_info_0;
+
+	VkSemaphoreSubmitInfo wait_semaphore_submit_info1;
 	VkCommandBufferSubmitInfo cmd_buffer_submit_info1;
 	VkSemaphoreSubmitInfo signal_semaphore_submit_info1;
-
-	VkSemaphoreSubmitInfo wait_semaphore_submit_info2;
-	VkCommandBufferSubmitInfo cmd_buffer_submit_info2;
-	VkSemaphoreSubmitInfo signal_semaphore_submit_info2;
 
 	std::array<VkSubmitInfo2, 2> submit_info;
 
@@ -865,6 +896,11 @@ struct ImageData : NodeData, Component {
 		create_cmd_buffer_submit_info();
 	}
 
+	void update_command_buffer_submit_info() {
+		cmd_buffer_submit_info_0.commandBuffer = this->image_processing_cmd_buffer;
+		cmd_buffer_submit_info1.commandBuffer = generate_preview_cmd_buffer;
+	}
+
 	void create_texture_resource(VkFormat format) {
 		Component::create_textures(engine, format);
 		create_preview_texture(format);
@@ -878,18 +914,18 @@ struct ImageData : NodeData, Component {
 
 	void recreate_texture_resource(VkFormat format) {
 		Component::clear(engine);
-		vkFreeCommandBuffers(engine->device, engine->command_pool, 1, &generate_preview_cmd_buffer);
+		vkFreeCommandBuffers(engine->device, engine->graphic_command_pool, 1, &generate_preview_cmd_buffer);
 		create_texture_resource(format);
-		cmd_buffer_submit_info1.commandBuffer = this->image_processing_cmd_buffer;
-		cmd_buffer_submit_info2.commandBuffer = generate_preview_cmd_buffer;
+		update_command_buffer_submit_info();
 	}
 
 	~ImageData() {
 		engine->texture_manager->delete_id(node_texture_id);
 		Component::clear(engine);
-		vkFreeCommandBuffers(engine->device, engine->command_pool, 1, &generate_preview_cmd_buffer);
+		vkFreeCommandBuffers(engine->device, engine->graphic_command_pool, 1, &generate_preview_cmd_buffer);
 		if constexpr (std::same_as<Component, ComponentUdf<UboType>>) {
-			vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, this->ubo_descriptor_sets.size(), this->ubo_descriptor_sets.data());	
+			vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, this->ubo_descriptor_sets.size(), this->ubo_descriptor_sets.data());
+			vkDestroyImageView(engine->device, this->result_image_view, nullptr);
 		}
 		else {
 			vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, 1, &this->ubo_descriptor_set);
@@ -914,8 +950,6 @@ struct ImageData : NodeData, Component {
 		vkCreateSemaphore(engine->device, &semaphore_create_info, nullptr, &semaphore);
 	}
 
-
-
 	void update_image_descriptor_sets() const {
 		const VkDescriptorImageInfo image_info{
 			.sampler = this->texture->sampler,
@@ -938,51 +972,33 @@ struct ImageData : NodeData, Component {
 		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 	}
 
-
-
 	void create_preview_command_buffer() {
-		VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, 1);
+		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
 
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &generate_preview_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
 		}
 
-		VkCommandBufferBeginInfo begin_info{
+		const VkCommandBufferBeginInfo begin_info{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
 		};
 
 		if (vkBeginCommandBuffer(generate_preview_cmd_buffer, &begin_info) != VK_SUCCESS) {
 			throw std::runtime_error("failed to begin recording command buffer!");
 		}
-		{
-			auto image_memory_barrier = VkImageMemoryBarrier2{
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-				.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
-				.srcAccessMask = VK_ACCESS_2_NONE,
-				.dstStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
-				.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-				.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				.newLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.image = preview_texture->image,
-				.subresourceRange = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.levelCount = 1,
-					.layerCount = 1,
-				},
-			};
 
-			auto dependency_info = VkDependencyInfo{
-				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-				.imageMemoryBarrierCount = 1,
-				.pImageMemoryBarriers = &image_memory_barrier,
-			};
+		insert_image_memory_barrier(
+			generate_preview_cmd_buffer,
+			preview_texture->image,
+			VK_PIPELINE_STAGE_2_NONE,
+			VK_ACCESS_2_NONE,
+			VK_PIPELINE_STAGE_2_BLIT_BIT,
+			VK_ACCESS_2_TRANSFER_WRITE_BIT,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+		);
 
-			vkCmdPipelineBarrier2(generate_preview_cmd_buffer, &dependency_info);
-		}
-
-		VkImageBlit image_blit{
+		const VkImageBlit image_blit{
 			.srcSubresource = {
 				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
 				.mipLevel = 0,
@@ -1005,70 +1021,38 @@ struct ImageData : NodeData, Component {
 			},
 		};
 
-		vkCmdBlitImage(generate_preview_cmd_buffer,
+		vkCmdBlitImage(
+			generate_preview_cmd_buffer,
 			this->texture->image,
 			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
 			preview_texture->image,
 			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
 			1,
 			&image_blit,
-			VK_FILTER_LINEAR);
+			VK_FILTER_LINEAR
+		);
 
-		{
-			auto image_memory_barrier = VkImageMemoryBarrier2{
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-				.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
-				.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-				.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
-				.dstAccessMask = VK_ACCESS_2_NONE,
-				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.image = preview_texture->image,
-				.subresourceRange = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.levelCount = 1,
-					.layerCount = 1,
-				},
-			};
+		insert_image_memory_barrier(
+			generate_preview_cmd_buffer,
+			preview_texture->image,
+			VK_PIPELINE_STAGE_2_BLIT_BIT,
+			VK_ACCESS_2_TRANSFER_WRITE_BIT,
+			VK_PIPELINE_STAGE_2_NONE,
+			VK_ACCESS_2_NONE,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		);
 
-			auto dependency_info = VkDependencyInfo{
-				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-				.imageMemoryBarrierCount = 1,
-				.pImageMemoryBarriers = &image_memory_barrier,
-			};
-
-			vkCmdPipelineBarrier2(generate_preview_cmd_buffer, &dependency_info);
-		}
-
-		{
-			auto image_memory_barrier = VkImageMemoryBarrier2{
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-				.srcStageMask = VK_PIPELINE_STAGE_2_BLIT_BIT,
-				.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-				.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
-				.dstAccessMask = VK_ACCESS_2_NONE,
-				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.image = this->texture->image,
-				.subresourceRange = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.levelCount = 1,
-					.layerCount = 1,
-				},
-			};
-
-			auto dependency_info = VkDependencyInfo{
-				.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-				.imageMemoryBarrierCount = 1,
-				.pImageMemoryBarriers = &image_memory_barrier,
-			};
-
-			vkCmdPipelineBarrier2(generate_preview_cmd_buffer, &dependency_info);
-		}
+		insert_image_memory_barrier(
+			generate_preview_cmd_buffer,
+			this->texture->image,
+			VK_PIPELINE_STAGE_2_BLIT_BIT,
+			VK_ACCESS_2_TRANSFER_WRITE_BIT,
+			VK_PIPELINE_STAGE_2_NONE,
+			VK_ACCESS_2_NONE,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		);
 
 		if (vkEndCommandBuffer(generate_preview_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to record command buffer!");
@@ -1076,15 +1060,15 @@ struct ImageData : NodeData, Component {
 	}
 
 	void create_cmd_buffer_submit_info() {
-		std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
-		wait_semaphore_submit_info1.reserve(count_field_type_v<UboType, TextureIdData>);
+		//std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
+		//wait_semaphore_submit_info1.reserve(count_field_type_v<UboType, TextureIdData>);
 
-		cmd_buffer_submit_info1 = VkCommandBufferSubmitInfo{
+		cmd_buffer_submit_info_0 = VkCommandBufferSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
 			.commandBuffer = this->image_processing_cmd_buffer,
 		};
 
-		signal_semaphore_submit_info1 = VkSemaphoreSubmitInfo{
+		signal_semaphore_submit_info_0 = VkSemaphoreSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 			.pNext = nullptr,
 			.semaphore = semaphore,
@@ -1097,24 +1081,24 @@ struct ImageData : NodeData, Component {
 			//.waitSemaphoreInfoCount = static_cast<uint32_t>(wait_semaphore_submit_info1.size()),
 			//.pWaitSemaphoreInfos = wait_semaphore_submit_info1.data(),
 			.commandBufferInfoCount = 1,
-			.pCommandBufferInfos = &cmd_buffer_submit_info1,
+			.pCommandBufferInfos = &cmd_buffer_submit_info_0,
 			.signalSemaphoreInfoCount = 1,
-			.pSignalSemaphoreInfos = &signal_semaphore_submit_info1,
+			.pSignalSemaphoreInfos = &signal_semaphore_submit_info_0,
 		};
 
-		wait_semaphore_submit_info2 = VkSemaphoreSubmitInfo{
+		wait_semaphore_submit_info1 = VkSemaphoreSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 			.pNext = nullptr,
 			.semaphore = semaphore,
 			.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
 		};
 
-		cmd_buffer_submit_info2 = VkCommandBufferSubmitInfo{
+		cmd_buffer_submit_info1 = VkCommandBufferSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
 			.commandBuffer = generate_preview_cmd_buffer,
 		};
 
-		signal_semaphore_submit_info2 = VkSemaphoreSubmitInfo{
+		signal_semaphore_submit_info1 = VkSemaphoreSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 			.pNext = nullptr,
 			.semaphore = semaphore,
@@ -1125,11 +1109,11 @@ struct ImageData : NodeData, Component {
 			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
 			.pNext = nullptr,
 			.waitSemaphoreInfoCount = 1,
-			.pWaitSemaphoreInfos = &wait_semaphore_submit_info2,
+			.pWaitSemaphoreInfos = &wait_semaphore_submit_info1,
 			.commandBufferInfoCount = 1,
-			.pCommandBufferInfos = &cmd_buffer_submit_info2,
+			.pCommandBufferInfos = &cmd_buffer_submit_info1,
 			.signalSemaphoreInfoCount = 1,
-			.pSignalSemaphoreInfos = &signal_semaphore_submit_info2,
+			.pSignalSemaphoreInfos = &signal_semaphore_submit_info1,
 		};
 	}
 
@@ -1158,7 +1142,7 @@ struct ImageData : NodeData, Component {
 	}
 
 	void create_copy_image_cmd_buffers() {
-		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->command_pool, copy_image_cmd_buffers.size());
+		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, copy_image_cmd_buffers.size());
 
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, copy_image_cmd_buffers.data()) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
@@ -1177,35 +1161,20 @@ struct ImageData : NodeData, Component {
 				throw std::runtime_error("failed to begin recording command buffer!");
 			}
 
-			for (auto const& [texture, layout] : {
+			for (auto const& [texture, new_layout] : {
 				std::tuple{this->texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
 				std::tuple{dst_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
 
-				auto image_memory_barrier = VkImageMemoryBarrier2{
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-					.srcStageMask = VK_PIPELINE_STAGE_2_NONE,
-					.srcAccessMask = VK_ACCESS_2_NONE,
-					.dstStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
-					.dstAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-					.oldLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					.newLayout = layout,
-					.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-					.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-					.image = texture->image,
-					.subresourceRange = {
-						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-						.levelCount = 1,
-						.layerCount = 1,
-					},
-				};
-
-				const auto dependency_info = VkDependencyInfo{
-					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-					.imageMemoryBarrierCount = 1,
-					.pImageMemoryBarriers = &image_memory_barrier,
-				};
-
-				vkCmdPipelineBarrier2(copy_image_cmd_buffer, &dependency_info);
+				insert_image_memory_barrier(
+					copy_image_cmd_buffer,
+					texture->image,
+					VK_PIPELINE_STAGE_2_NONE,
+					VK_ACCESS_2_NONE,
+					VK_PIPELINE_STAGE_2_COPY_BIT,
+					VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+					new_layout
+				);
 			}
 
 			VkImageCopy2 image_copy_region{
@@ -1232,7 +1201,7 @@ struct ImageData : NodeData, Component {
 				},
 			};
 
-			VkCopyImageInfo2 copy_image_info{
+			const VkCopyImageInfo2 copy_image_info{
 				.sType = VK_STRUCTURE_TYPE_COPY_IMAGE_INFO_2,
 				.pNext = nullptr,
 				.srcImage = this->texture->image,
@@ -1245,35 +1214,20 @@ struct ImageData : NodeData, Component {
 
 			vkCmdCopyImage2(copy_image_cmd_buffer, &copy_image_info);
 
-			for (auto const& [texture, layout] : {
-				std::tuple{this->texture,VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
-				std::tuple{dst_texture,VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
+			for (auto const& [texture, old_layout] : {
+				std::tuple{this->texture, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL},
+				std::tuple{dst_texture, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL} }) {
 
-				auto image_memory_barrier = VkImageMemoryBarrier2{
-					.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
-					.srcStageMask = VK_PIPELINE_STAGE_2_COPY_BIT,
-					.srcAccessMask = VK_ACCESS_2_TRANSFER_WRITE_BIT,
-					.dstStageMask = VK_PIPELINE_STAGE_2_NONE,
-					.dstAccessMask = VK_ACCESS_2_NONE,
-					.oldLayout = layout,
-					.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-					.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-					.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-					.image = texture->image,
-					.subresourceRange = {
-						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-						.levelCount = 1,
-						.layerCount = 1,
-					},
-				};
-
-				auto dependency_info = VkDependencyInfo{
-					.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
-					.imageMemoryBarrierCount = 1,
-					.pImageMemoryBarriers = &image_memory_barrier,
-				};
-
-				vkCmdPipelineBarrier2(copy_image_cmd_buffer, &dependency_info);
+				insert_image_memory_barrier(
+					copy_image_cmd_buffer,
+					texture->image,
+					VK_PIPELINE_STAGE_2_COPY_BIT,
+					VK_ACCESS_2_TRANSFER_WRITE_BIT,
+					VK_PIPELINE_STAGE_2_NONE,
+					VK_ACCESS_2_NONE,
+					old_layout,
+					VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+				);
 			}
 
 			if (vkEndCommandBuffer(copy_image_cmd_buffer) != VK_SUCCESS) {

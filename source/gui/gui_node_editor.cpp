@@ -72,8 +72,10 @@ namespace engine {
 	}
 
 	void NodeEditor::execute_graph(const std::vector<uint32_t>& sorted_nodes) {
-		std::vector<VkSubmitInfo2> submits;
-		submits.reserve(sorted_nodes.size() * 2 + 2);
+		std::vector<VkSubmitInfo2> graphic_submits;
+		graphic_submits.reserve(sorted_nodes.size() * 2 + 2);
+		std::vector<VkSubmitInfo2> compute_submits;
+		compute_submits.reserve(sorted_nodes.size() * 2);
 		std::vector<CopyImageSubmitInfo> copy_image_submit_infos;
 		copy_image_submit_infos.reserve(PbrMaterialTextureNum);
 
@@ -81,7 +83,7 @@ namespace engine {
 			std::visit([&](auto&& node_data) {
 				using NodeDataT = std::remove_reference_t<decltype(node_data)>;
 				if constexpr (image_data<NodeDataT>) {
-					node_data->wait_semaphore_submit_info1.clear();
+					node_data->wait_semaphore_submit_info_0.clear();
 				}
 				}, nodes[i].data);
 		}
@@ -92,16 +94,16 @@ namespace engine {
 				if constexpr (image_data<NodeDataT>) {
 					uint64_t counter;
 					vkGetSemaphoreCounterValue(engine->device, node_data->semaphore, &counter);
-					node_data->signal_semaphore_submit_info1.value = counter + 1;
-					node_data->wait_semaphore_submit_info2.value = counter + 1;
-					node_data->signal_semaphore_submit_info2.value = counter + 2;
+					node_data->signal_semaphore_submit_info_0.value = counter + 1;
+					node_data->wait_semaphore_submit_info1.value = counter + 1;
+					node_data->signal_semaphore_submit_info1.value = counter + 2;
 					for (auto& pin : nodes[i].outputs) {
 						for (auto const connected_pin : pin.connected_pins) {
 
 							std::visit([&](auto&& connected_node_data) {
 								using NodeDataT = std::decay_t<decltype(connected_node_data)>;
 								if constexpr (image_data<NodeDataT>) {
-									connected_node_data->wait_semaphore_submit_info1.emplace_back(
+									connected_node_data->wait_semaphore_submit_info_0.emplace_back(
 										VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 										nullptr,
 										node_data->semaphore,
@@ -126,11 +128,19 @@ namespace engine {
 								}, nodes[connected_pin->node_index].data);
 						}
 					}
-					node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info1.size());
-					node_data->submit_info[0].pWaitSemaphoreInfos = (node_data->submit_info[0].waitSemaphoreInfoCount > 0) ? node_data->wait_semaphore_submit_info1.data() : nullptr;
+					node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info_0.size());
+					node_data->submit_info[0].pWaitSemaphoreInfos = (node_data->submit_info[0].waitSemaphoreInfoCount > 0) ? node_data->wait_semaphore_submit_info_0.data() : nullptr;
 
-					submits.push_back(node_data->submit_info[0]);
-					submits.push_back(node_data->submit_info[1]);
+					if (std::derived_from<ref_t<NodeDataT>, ComponentGraphicPipeline<typename ref_t<NodeDataT>::UboType>>) {
+						graphic_submits.push_back(node_data->submit_info[0]);
+						graphic_submits.push_back(node_data->submit_info[1]);
+					}
+					else if (std::derived_from<ref_t<NodeDataT>, ComponentUdf<typename ref_t<NodeDataT>::UboType>>){
+						if (node_data->submit_info[0].pCommandBufferInfos->commandBuffer) {
+							compute_submits.push_back(node_data->submit_info[0]);
+							graphic_submits.push_back(node_data->submit_info[1]);
+						}
+					}
 				}
 				else if constexpr (value_data<NodeDataT>) {
 					recalculate_node(i);
@@ -153,7 +163,7 @@ namespace engine {
 		}
 
 		for (auto& [wait_semaphore_submit_info, cmd_buffer_submit_info] : copy_image_submit_infos) {
-			submits.emplace_back(
+			graphic_submits.emplace_back(
 				VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
 				nullptr,
 				0,
@@ -164,15 +174,21 @@ namespace engine {
 			);
 		}
 
-		vkResetFences(engine->device, 1, &graphic_fence);
+		const std::array fences{graphic_fence, compute_fence};
+		vkResetFences(engine->device, fences.size(), fences.data());
 
-		if (vkQueueSubmit2(engine->graphics_queue, submits.size(), submits.data(), graphic_fence) != VK_SUCCESS) {
-			throw std::runtime_error("failed to submit draw command buffer!");
+		if (vkQueueSubmit2(engine->compute_queue, compute_submits.size(), compute_submits.data(), compute_fence) != VK_SUCCESS) {
+			throw std::runtime_error("failed to submit draw command buffer to compute queue!");
+		}
+
+		if (vkQueueSubmit2(engine->graphics_queue, graphic_submits.size(), graphic_submits.data(), graphic_fence) != VK_SUCCESS) {
+			throw std::runtime_error("failed to submit draw command buffer to graphic queue!");
 		}
 	}
 
 	void NodeEditor::update_from(uint32_t updated_node_index) {
-		if (vkGetFenceStatus(engine->device, graphic_fence) != VK_SUCCESS) {
+		if (vkGetFenceStatus(engine->device, graphic_fence) != VK_SUCCESS || 
+			vkGetFenceStatus(engine->device, compute_fence) != VK_SUCCESS) {
 			return;
 		}
 
@@ -188,7 +204,7 @@ namespace engine {
 	}
 
 	void NodeEditor::update_all_nodes() {
-		vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+		wait_node_execute_fences();
 
 		static std::vector<char> visited_nodes; //check if a node has been visited
 		visited_nodes.resize(nodes.size());
@@ -204,7 +220,7 @@ namespace engine {
 		}
 
 		execute_graph(sorted_nodes);
-		vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+		wait_node_execute_fences();
 	}
 
 	void NodeEditor::build_node(uint32_t node_index) {
@@ -721,7 +737,7 @@ namespace engine {
 								};
 								vkResetFences(engine->device, 1, &graphic_fence);
 								vkQueueSubmit(engine->graphics_queue, 1, &submit_info, graphic_fence);
-								vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+								wait_node_execute_fences();
 								update_from(*color_ramp_node_index);
 							}
 						}
@@ -755,7 +771,7 @@ namespace engine {
 											std::get_if<EnumData>(&enum_pin.default_value)->value = i;
 											if constexpr (image_data<NodeDataT>) {
 												if (field.template getAnnotation<FormatEnum>() == FormatEnum::True) {
-													vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+													wait_node_execute_fences();
 													node_data->recreate_texture_resource(str_format_map.at(items[i]));
 												}
 												else {
@@ -878,6 +894,7 @@ namespace engine {
 						std::visit([&](auto&& end_node_data) {
 							using EndNodeT = std::decay_t<decltype(end_node_data)>;
 							if constexpr (image_data<EndNodeT>) {
+								
 								UboOf<EndNodeT>::Class::FieldAt(end_pin_index, [&](auto& field) {
 									if (field.template getAnnotation<AutoFormat>() == AutoFormat::True) {
 										std::visit([&](auto&& start_node_data) {
@@ -885,9 +902,18 @@ namespace engine {
 											if constexpr (image_data<StartNodeT>) {
 												auto format = start_node_data->texture->format;
 												if (format != end_node_data->texture->format) {
-													vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+													wait_node_execute_fences();
 													end_node_data->recreate_texture_resource(format);
 												}
+											}
+											}, nodes[start_pin->node_index].data);
+									}
+									if constexpr (requires(EndNodeT node_data){node_data->record_image_processing_cmd_buffer_func(0);}) {
+										std::visit([&](auto&& start_node_data) {
+											using StartNodeT = std::decay_t<decltype(start_node_data)>;
+											if constexpr (image_data<StartNodeT>) {
+												end_node_data->record_image_processing_cmd_buffer_func(start_node_data->node_texture_id);
+												end_node_data->update_command_buffer_submit_info();
 											}
 											}, nodes[start_pin->node_index].data);
 									}
@@ -899,7 +925,7 @@ namespace engine {
 								end_node_data->update_ubo(start_pin->default_value, end_pin_index);
 							}
 							else if constexpr (shader_data<EndNodeT>) {
-								vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+								wait_node_execute_fences();
 								if (std::holds_alternative<FloatData>(start_pin->default_value) &&
 									std::holds_alternative<FloatTextureIdData>(end_pin->default_value)) {
 									std::get_if<FloatTextureIdData>(&end_pin->default_value)->value.id = -1;
@@ -944,7 +970,7 @@ namespace engine {
 										submit_info.pCommandBuffers = &start_node_data->copy_image_cmd_buffers[end_pin_index];
 										vkResetFences(engine->device, 1, &graphic_fence);
 										vkQueueSubmit(engine->graphics_queue, 1, &submit_info, graphic_fence);
-										vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+										wait_node_execute_fences();
 									}
 									}, nodes[start_pin->node_index].data);
 							}
@@ -1000,7 +1026,7 @@ namespace engine {
 								}
 							}
 							}, nodes[link_end_pin->node_index].data);
-						vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+						wait_node_execute_fences();
 						update_from(link_end_pin->node_index);
 					}
 				}
@@ -1018,7 +1044,7 @@ namespace engine {
 						color_ramp_pin_index.reset();
 						enum_pin_index.reset();
 
-						vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+						wait_node_execute_fences();
 						for (auto iter = deleted_node + 1; iter != nodes.end(); ++iter) {
 							for (auto& input : iter->inputs) {
 								--input.node_index;
@@ -1051,6 +1077,10 @@ namespace engine {
 		if (vkCreateFence(engine->device, &fence_info, nullptr, &graphic_fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create fence!");
 		}
+		
+		if (vkCreateFence(engine->device, &fence_info, nullptr, &compute_fence) != VK_SUCCESS) {
+			throw std::runtime_error("failed to create fence!");
+		}
 	}
 
 	NodeEditor::NodeEditor(VulkanEngine* engine) :engine(engine) {
@@ -1067,9 +1097,10 @@ namespace engine {
 
 		create_fence();
 
-		engine->main_deletion_queue.push_function([&nodes = nodes, device = engine->device, fence = graphic_fence, context = context]{
+		engine->main_deletion_queue.push_function([&nodes = nodes, device = engine->device, c_fence = compute_fence, g_fence = graphic_fence, context = context]{
 			nodes.clear();
-			vkDestroyFence(device, fence, nullptr);
+			vkDestroyFence(device, c_fence, nullptr);
+			vkDestroyFence(device, g_fence, nullptr);
 			ed::DestroyEditor(context);
 			});
 	}
@@ -1143,7 +1174,7 @@ namespace engine {
 								ramp_ui_value->insert_mark(json_mark["position"].get<float>(), json_mark["color"].get<ImColor>());
 							}
 							ramp_ui_value->refreshCache();
-							vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+							wait_node_execute_fences();
 							const VkSubmitInfo submit_info{
 								.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
 								.commandBufferCount = 1,
@@ -1151,7 +1182,7 @@ namespace engine {
 							};
 							vkResetFences(engine->device, 1, &graphic_fence);
 							vkQueueSubmit(engine->graphics_queue, 1, &submit_info, graphic_fence);
-							vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+							wait_node_execute_fences();
 						}
 						else if constexpr (!std::same_as<PinType, TextureIdData>) {
 							pin_value = json_node["pins"][pin_index].get<PinType>();
@@ -1240,7 +1271,7 @@ namespace engine {
 	}
 
 	void NodeEditor::clear() {
-		vkWaitForFences(engine->device, 1, &graphic_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT);
+		wait_node_execute_fences();
 		color_pin_index.reset();
 		color_ramp_pin_index.reset();
 		enum_pin_index.reset();

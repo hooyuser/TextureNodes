@@ -60,7 +60,7 @@ namespace engine {
 					vkDestroyShaderModule(engine->device, shaderModule.shader, nullptr);
 					});
 			}
-			return std::make_shared<Shader>(engine->device, std::move(shaderModuleVector));
+				return std::make_shared<Shader>(engine->device, std::move(shaderModuleVector));
 		}
 	};
 }

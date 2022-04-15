@@ -130,6 +130,7 @@ public:
 	VkDevice device;
 
 	VkQueue graphics_queue;
+	VkQueue compute_queue;
 	VkQueue present_queue;
 	QueueFamilyIndices queue_family_indices;
 
@@ -165,7 +166,7 @@ public:
 	BufferPtr material_preview_ubo;
 	MaterialPreviewUBO init_material_preview_ubo;
 
-	VkCommandPool command_pool;
+	VkCommandPool graphic_command_pool;
 	VkCommandPool compute_command_pool;
 
 	std::vector<VkFence> images_in_flight;

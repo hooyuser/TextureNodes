@@ -2,7 +2,7 @@
 cd assets
 IF NOT EXIST "shaders" mkdir "shaders"
 cd ..
-for /f %%f in ('git ls-files -m') do (
+for /f %%f in ('git diff --name-only --diff-filter=M') do (
     if %%~xf == .vert (
         .\extern\vulkan\Bin\glslc.exe %~dp0assets\glsl_shaders\%%~xnf -o %~dp0assets\shaders\%%~xnf.spv --target-env=vulkan1.3
         echo %%~xnf.spv is compiled ...

@@ -323,7 +323,8 @@ void VulkanEngine::create_logical_device() {
 	std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
 	std::set<uint32_t> unique_queue_families = {
 		queue_family_indices.graphics_family.value(),
-		queue_family_indices.present_family.value()
+		queue_family_indices.present_family.value(),
+		queue_family_indices.compute_family.value(),
 	};
 
 	float queue_priority = 1.0f;
@@ -383,6 +384,7 @@ void VulkanEngine::create_logical_device() {
 	}
 
 	vkGetDeviceQueue(device, queue_family_indices.graphics_family.value(), 0, &graphics_queue);
+	vkGetDeviceQueue(device, queue_family_indices.compute_family.value(), 0, &compute_queue);
 	vkGetDeviceQueue(device, queue_family_indices.present_family.value(), 0, &present_queue);
 }
 
@@ -838,7 +840,7 @@ void VulkanEngine::create_command_pool() {
 	const uint32_t queue_family_index = queue_family_indices.graphics_family.value();
 	const VkCommandPoolCreateInfo command_pool_info = vkinit::commandPoolCreateInfo(queue_family_index, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
-	if (vkCreateCommandPool(device, &command_pool_info, nullptr, &command_pool) != VK_SUCCESS) {
+	if (vkCreateCommandPool(device, &command_pool_info, nullptr, &graphic_command_pool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics command pool!");
 	}
 
@@ -850,7 +852,7 @@ void VulkanEngine::create_command_pool() {
 	}
 
 	main_deletion_queue.push_function([=] {
-		vkDestroyCommandPool(device, command_pool, nullptr);
+		vkDestroyCommandPool(device, graphic_command_pool, nullptr);
 		vkDestroyCommandPool(device, compute_command_pool, nullptr);
 		});
 }
@@ -1017,13 +1019,13 @@ void VulkanEngine::create_viewport_framebuffers() {
 
 void VulkanEngine::create_viewport_cmd_buffers() {
 	viewport_3d.cmd_buffers.resize(swapchain_image_count);
-	auto const cmd_alloc_info = vkinit::commandBufferAllocateInfo(command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()));
+	auto const cmd_alloc_info = vkinit::commandBufferAllocateInfo(graphic_command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()));
 
 	if (vkAllocateCommandBuffers(device, &cmd_alloc_info, viewport_3d.cmd_buffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
-	main_deletion_queue.push_function([device = device, command_pool = command_pool, &cmd_buffers = viewport_3d.cmd_buffers] {
+	main_deletion_queue.push_function([device = device, command_pool = graphic_command_pool, &cmd_buffers = viewport_3d.cmd_buffers] {
 		vkFreeCommandBuffers(device, command_pool, static_cast<uint32_t>(cmd_buffers.size()), cmd_buffers.data());
 		});
 }
@@ -1240,14 +1242,14 @@ void VulkanEngine::create_descriptor_sets() {
 
 void VulkanEngine::create_command_buffers() {
 	viewport_3d.cmd_buffers.resize(swapchain_image_count);
-	const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()));
+	const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(graphic_command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()));
 
 	if (vkAllocateCommandBuffers(device, &cmd_alloc_info, viewport_3d.cmd_buffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
 	swap_chain_deletion_queue.push_function([=] {
-		vkFreeCommandBuffers(device, command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()), viewport_3d.cmd_buffers.data());
+		vkFreeCommandBuffers(device, graphic_command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()), viewport_3d.cmd_buffers.data());
 		});
 }
 
@@ -1830,18 +1832,20 @@ QueueFamilyIndices VulkanEngine::find_queue_families(VkPhysicalDevice device) co
 			indices.transfer_family = i;
 		}
 
-		VkBool32 present_support = false;
-		vkGetPhysicalDeviceSurfaceSupportKHR(device, i, surface, &present_support);
-
-		if (present_support) {
-			indices.present_family = i;
-		}
-
 		if (indices.is_complete()) {
 			break;
 		}
 
 		i++;
+	}
+
+	VkBool32 present_support = false;
+	vkGetPhysicalDeviceSurfaceSupportKHR(device, indices.graphics_family.value(), surface, &present_support);
+	if (present_support) {
+		indices.present_family = indices.graphics_family.value();
+	}
+	else {
+		std::cerr<< "Presentation not supported" << std::endl;
 	}
 
 	return indices;

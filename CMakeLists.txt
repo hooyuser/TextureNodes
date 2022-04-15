@@ -1,4 +1,5 @@
-cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required (VERSION 3.21)
+
 set(CMAKE_CXX_STANDARD 23)
 
 get_filename_component(PROJECT_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
@@ -7,7 +8,7 @@ project(${PROJECT_NAME})
 
 add_subdirectory(extern)
 
-file(GLOB_RECURSE  SRC
+file(GLOB_RECURSE SRC
     "source/*.cpp"
 )
 
@@ -21,9 +22,8 @@ file(GLOB_RECURSE SHADERS
     "assets/glsl_shaders/*.comp"
 )
 
-if (MSVC)
-    add_compile_options(/Zc:preprocessor)
-endif()
+find_package(AVX)
+find_package(VendorIdentifier)
 
 add_executable(${PROJECT_NAME}
     ${SRC}
@@ -86,7 +86,22 @@ target_link_libraries(${PROJECT_NAME}
         imgui-node-editor
 )
 
+set(ALL_PROJECT_TARGETS ${PROJECT_NAME} imgui imgui-node-editor)
+set_target_properties(${ALL_PROJECT_TARGETS} PROPERTIES INTERPROCEDURAL_OPTIMIZATION TRUE)
+
 if (MSVC)
-    set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
-    set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DPI_AWARE "On")
+    set_target_properties(${PROJECT_NAME} PROPERTIES VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}")
+    set_target_properties(${ALL_PROJECT_TARGETS} PROPERTIES VS_DPI_AWARE "On")
+    target_compile_options(${PROJECT_NAME} PRIVATE /Zc:preprocessor /Oi /options:strict /MP)
+    if (${CXX_AVX512_FOUND})
+        set_target_properties(${ALL_PROJECT_TARGETS} PROPERTIES COMPILE_FLAGS "/arch:AVX512")
+    elseif (${CXX_AVX2_FOUND})
+        set_target_properties(${ALL_PROJECT_TARGETS} PROPERTIES COMPILE_FLAGS "/arch:AVX2")
+    endif()
+    message(STATUS "CPU_VENDOR: ${CPU_VENDOR}")
+    if (${CPU_VENDOR} STREQUAL "Intel")
+        set_target_properties(${ALL_PROJECT_TARGETS} PROPERTIES COMPILE_FLAGS "/favor:INTEL64")
+    elseif(${CPU_VENDOR} STREQUAL "AMD")
+        set_target_properties(${ALL_PROJECT_TARGETS} PROPERTIES COMPILE_FLAGS "/favor:AMD64")
+    endif()
 endif()

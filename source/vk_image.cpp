@@ -204,8 +204,12 @@ namespace engine {
 		return pImage;
 	}
 
-	void Image::transition_image_layout(VulkanEngine* engine, VkImageLayout oldLayout, VkImageLayout newLayout) {
-		immediate_submit(engine, [&](VkCommandBuffer commandBuffer) {
+	void Image::transition_image_layout(VulkanEngine* engine, VkImageLayout oldLayout, VkImageLayout newLayout, QueueFamilyCategory queue_family_category) {
+		auto [queue, command_pool] = queue_family_category == QueueFamilyCategory::GRAPHICS ? 
+			std::tuple{engine->graphics_queue, engine->graphic_command_pool} :
+			std::tuple{engine->compute_queue,engine->compute_command_pool};
+		
+		immediate_submit(engine, queue, command_pool, [&](VkCommandBuffer commandBuffer) {
 			VkImageMemoryBarrier barrier{
 				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
 				.oldLayout = oldLayout,
@@ -244,6 +248,13 @@ namespace engine {
 				barrier.dstAccessMask = 0;
 
 				sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+				destinationStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+			}
+			else if (oldLayout == VK_IMAGE_LAYOUT_UNDEFINED && newLayout == VK_IMAGE_LAYOUT_GENERAL) {
+				barrier.srcAccessMask = 0;
+				barrier.dstAccessMask = 0;
+
+				sourceStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
 				destinationStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
 			}
 			else {

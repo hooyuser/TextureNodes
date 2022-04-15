@@ -42,6 +42,23 @@ void immediate_submit(VkDevice device, VkCommandPool command_pool, VkQueue queue
 
 namespace engine {
 	void immediate_submit(VulkanEngine* engine, std::invocable<VkCommandBuffer> auto&& function) {
-		::immediate_submit(engine->device, engine->command_pool, engine->graphics_queue, engine->immediate_submit_fence, FWD(function));
+		::immediate_submit(engine->device, engine->graphic_command_pool, engine->graphics_queue, engine->immediate_submit_fence, FWD(function));
+	}
+
+	void immediate_submit(VulkanEngine* engine, VkQueue queue, VkCommandPool command_pool, std::invocable<VkCommandBuffer> auto&& function) {
+		::immediate_submit(engine->device, command_pool, queue, engine->immediate_submit_fence, FWD(function));
 	}
 }
+
+void insert_image_memory_barrier(
+	VkCommandBuffer            command_buffer,
+	VkImage                    image,
+	VkPipelineStageFlags2      src_stage_mask,
+	VkAccessFlags2             src_access_mask,
+	VkPipelineStageFlags2      dst_stage_mask,
+	VkAccessFlags2             dst_access_mask,
+	VkImageLayout              old_layout,
+	VkImageLayout              new_layout,
+	uint32_t                   src_queue_family_index = VK_QUEUE_FAMILY_IGNORED,
+	uint32_t                   dst_queue_family_index = VK_QUEUE_FAMILY_IGNORED
+);

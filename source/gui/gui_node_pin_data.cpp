@@ -148,7 +148,7 @@ RampTexture::~RampTexture() {
 }
 
 void RampTexture::create_command_buffer() {
-	const VkCommandBufferAllocateInfo cmd_allocate_info = vkinit::commandBufferAllocateInfo(engine->command_pool, 1);
+	const VkCommandBufferAllocateInfo cmd_allocate_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
 
 	if (vkAllocateCommandBuffers(engine->device, &cmd_allocate_info, &command_buffer) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");

@@ -351,6 +351,11 @@ namespace engine {
 			assert(("get_output_pin_index() error: vector access violation!", ubo_index != node.outputs.end()));
 			return ubo_index - node.outputs.begin();
 		}
+
+		void wait_node_execute_fences() const {
+			const std::array fences{graphic_fence,compute_fence};
+			vkWaitForFences(engine->device, fences.size(), fences.data(), VK_TRUE, VULKAN_WAIT_TIMEOUT);
+		}
 	};
 };
 

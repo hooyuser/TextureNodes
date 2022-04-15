@@ -9,9 +9,9 @@ struct NodeUdf : NodeTypeImageBase {
 			.value = -1
 		};
 
-		NOTE(max_distance, NumberInputWidgetInfo{ .min = 1, .max = 120000, .speed = 3.0f, .enable_slider = true })
+		NOTE(max_distance, NumberInputWidgetInfo{ .min = 1, .max = 120000, .speed = 3.0f, .enable_slider = false })
 			FloatData max_distance {
-			.value = 800.0f
+			.value = 1000.0f
 		};
 
 		REFLECT(UBO,
@@ -20,8 +20,8 @@ struct NodeUdf : NodeTypeImageBase {
 		)
 
 		constexpr static std::array shader_file_paths{
-			"assets/shaders/node_udf_preprocess.comp.spv"
-			"assets/shaders/node_udf_process.comp.spv"
+			"assets/shaders/node_udf_preprocess.comp.spv",
+			"assets/shaders/node_udf_process.comp.spv",
 		};
 
 		constexpr auto static default_format = VK_FORMAT_R16_UNORM; 
