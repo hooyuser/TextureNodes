@@ -126,6 +126,12 @@ struct ShaderData : NodeData, UboMixin<UniformBufferType> {
 	explicit ShaderData(VulkanEngine* engine) : UboMixin<UniformBufferType>(engine) {}
 };
 
+struct SubmitInfoMembers{
+	VkSemaphoreSubmitInfo wait_semaphore_submit_info;
+	VkCommandBufferSubmitInfo cmd_buffer_submit_info;
+	VkSemaphoreSubmitInfo signal_semaphore_submit_info;
+};
+
 template<typename UniformBufferType>
 struct ComponentUdf : UboMixin<UniformBufferType> {
 	using UboT = UniformBufferType;
@@ -135,14 +141,29 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 	inline static std::array<VkPipeline, shader_num> image_processing_compute_pipelines{ nullptr };
 
 	TexturePtr texture;
+	TexturePtr preview_texture;
 	std::array<VkDescriptorSet, UboT::shader_file_paths.size()> ubo_descriptor_sets;
 	std::array<TexturePtr, 2> ping_pong_images;
 	VkImageView result_image_view;
 	std::function<void(int)> record_image_processing_cmd_buffer_func;
+	std::function<void(int)> record_preview_cmd_buffer_func;
+
 	VkCommandBuffer ownership_release_cmd_buffer = nullptr;
 	VkCommandBuffer image_processing_cmd_buffer = nullptr;
+	VkCommandBuffer generate_preview_cmd_buffer = nullptr;
+
 	uint32_t width = TEXTURE_IMAGE_SIZE;
 	uint32_t height = TEXTURE_IMAGE_SIZE;
+
+	VkSemaphore semaphore;
+
+	std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info_0;
+	VkCommandBufferSubmitInfo cmd_buffer_submit_info_0;
+	VkSemaphoreSubmitInfo signal_semaphore_submit_info_0;
+
+	std::array<SubmitInfoMembers, 2> submit_info_members;
+
+	std::array<VkSubmitInfo2, 3> submit_info;
 
 	explicit ComponentUdf(VulkanEngine* engine) :UboMixin<UniformBufferType>(engine) {}
 
@@ -390,7 +411,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 		}
 	}
 
-	void create_image_processing_compute_command_buffer_func(VulkanEngine* engine) {
+	void create_image_processing_compute_command_buffer_func(const VulkanEngine* engine) {
 		record_image_processing_cmd_buffer_func = [=](int input_image_idx) {
 			
 			VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
@@ -405,31 +426,31 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				throw std::runtime_error("failed to begin recording command buffer!");
 			}
 
-			insert_image_memory_barrier(
-				image_processing_cmd_buffer,
-				engine->texture_manager->textures[input_image_idx]->image,
-				VK_PIPELINE_STAGE_2_NONE,
-				VK_ACCESS_2_NONE,
-				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-				VK_ACCESS_2_SHADER_READ_BIT,
-				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				engine->queue_family_indices.graphics_family.value(),
-				engine->queue_family_indices.compute_family.value()
-			);
+			//insert_image_memory_barrier(
+			//	ownership_release_cmd_buffer,
+			//	engine->texture_manager->textures[input_image_idx]->image,
+			//	VK_PIPELINE_STAGE_2_NONE,
+			//	VK_ACCESS_2_NONE,
+			//	VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+			//	VK_ACCESS_2_SHADER_READ_BIT,
+			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			//	engine->queue_family_indices.graphics_family.value(),
+			//	engine->queue_family_indices.compute_family.value()
+			//);
 
-			insert_image_memory_barrier(
-				image_processing_cmd_buffer,
-				texture->image,
-				VK_PIPELINE_STAGE_2_NONE,
-				VK_ACCESS_2_NONE,
-				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-				VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
-				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				VK_IMAGE_LAYOUT_GENERAL,
-				engine->queue_family_indices.graphics_family.value(),
-				engine->queue_family_indices.compute_family.value()
-			);
+			//insert_image_memory_barrier(
+			//	ownership_release_cmd_buffer,
+			//	texture->image,
+			//	VK_PIPELINE_STAGE_2_NONE,
+			//	VK_ACCESS_2_NONE,
+			//	VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+			//	VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			//	VK_IMAGE_LAYOUT_GENERAL,
+			//	engine->queue_family_indices.graphics_family.value(),
+			//	engine->queue_family_indices.compute_family.value()
+			//);
 
 			if (vkEndCommandBuffer(ownership_release_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to record command buffer!");
@@ -445,7 +466,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				throw std::runtime_error("failed to begin recording command buffer!");
 			}
 
-			insert_image_memory_barrier(
+			/*insert_image_memory_barrier(
 				image_processing_cmd_buffer,
 				engine->texture_manager->textures[input_image_idx]->image,
 				VK_PIPELINE_STAGE_2_NONE,
@@ -456,20 +477,9 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 				engine->queue_family_indices.graphics_family.value(),
 				engine->queue_family_indices.compute_family.value()
-			);
+			);*/
 
-			insert_image_memory_barrier(
-				image_processing_cmd_buffer,
-				texture->image,
-				VK_PIPELINE_STAGE_2_NONE,
-				VK_ACCESS_2_NONE,
-				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-				VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
-				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				VK_IMAGE_LAYOUT_GENERAL,
-				engine->queue_family_indices.graphics_family.value(),
-				engine->queue_family_indices.compute_family.value()
-			);
+			
 
 			vkCmdBindPipeline(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, image_processing_compute_pipelines[0]);
 
@@ -486,17 +496,41 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 
 			vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
 
+			//insert_image_memory_barrier(
+			//	image_processing_cmd_buffer,
+			//	engine->texture_manager->textures[input_image_idx]->image,
+			//	VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+			//	VK_ACCESS_2_NONE,
+			//	VK_PIPELINE_STAGE_2_NONE,
+			//	VK_ACCESS_2_NONE,
+			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			//	engine->queue_family_indices.compute_family.value(),
+			//	engine->queue_family_indices.graphics_family.value()
+			//);
+
 			insert_image_memory_barrier(
 				image_processing_cmd_buffer,
-				engine->texture_manager->textures[input_image_idx]->image,
+				ping_pong_images[0]->image,
 				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+				VK_IMAGE_LAYOUT_GENERAL,
+				VK_IMAGE_LAYOUT_GENERAL
+			);
+
+			insert_image_memory_barrier(
+				image_processing_cmd_buffer,
+				texture->image,
+				VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
 				VK_ACCESS_2_NONE,
-				VK_PIPELINE_STAGE_2_NONE,
-				VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
 				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				engine->queue_family_indices.compute_family.value(),
-				engine->queue_family_indices.graphics_family.value()
+				VK_IMAGE_LAYOUT_GENERAL//,
+				//engine->queue_family_indices.graphics_family.value(),
+				//engine->queue_family_indices.compute_family.value()
 			);
 
 			vkCmdBindPipeline(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, image_processing_compute_pipelines[1]);
@@ -513,28 +547,248 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 			while (size >> idx) {
 				vkCmdPushConstants(image_processing_cmd_buffer, image_processing_pipeline_layouts[1], VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(int), &idx);
 				vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
+				insert_image_memory_barrier(
+					image_processing_cmd_buffer,
+					ping_pong_images[idx%2]->image,
+					VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+					VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+					VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+					VK_IMAGE_LAYOUT_GENERAL,
+					VK_IMAGE_LAYOUT_GENERAL
+				);
 				++idx;
 			}
 			vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
+			insert_image_memory_barrier(
+				image_processing_cmd_buffer,
+				ping_pong_images[idx%2]->image,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+				VK_IMAGE_LAYOUT_GENERAL,
+				VK_IMAGE_LAYOUT_GENERAL
+			);
+
 			idx = -1;
 			vkCmdPushConstants(image_processing_cmd_buffer, image_processing_pipeline_layouts[1], VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(int), &idx);
 			vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
 
+			//insert_image_memory_barrier(
+			//	image_processing_cmd_buffer,
+			//	texture->image,
+			//	VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+			//	VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+			//	VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+			//	VK_ACCESS_2_NONE,
+			//	VK_IMAGE_LAYOUT_GENERAL,
+			//	VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			//	engine->queue_family_indices.compute_family.value(),
+			//	engine->queue_family_indices.graphics_family.value()
+			//);
+
+			if (vkEndCommandBuffer(image_processing_cmd_buffer) != VK_SUCCESS) {
+				throw std::runtime_error("failed to record command buffer!");
+			}
+		};
+	}
+
+	void update_command_buffer_submit_info() {
+		cmd_buffer_submit_info_0.commandBuffer = ownership_release_cmd_buffer;
+		submit_info_members[0].cmd_buffer_submit_info.commandBuffer = image_processing_cmd_buffer;
+		submit_info_members[1].cmd_buffer_submit_info.commandBuffer = generate_preview_cmd_buffer;
+	}
+
+	void create_cmd_buffer_submit_info() {
+		//std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
+		//wait_semaphore_submit_info1.reserve(count_field_type_v<UboType, TextureIdData>);
+
+		cmd_buffer_submit_info_0 = VkCommandBufferSubmitInfo{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+			.commandBuffer = ownership_release_cmd_buffer,
+		};
+
+		signal_semaphore_submit_info_0 = VkSemaphoreSubmitInfo{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+			.pNext = nullptr,
+			.semaphore = semaphore,
+			.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+		};
+
+		submit_info[0] = VkSubmitInfo2{
+			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+			.pNext = nullptr,
+			//.waitSemaphoreInfoCount = static_cast<uint32_t>(wait_semaphore_submit_info1.size()),
+			//.pWaitSemaphoreInfos = wait_semaphore_submit_info1.data(),
+			.commandBufferInfoCount = 1,
+			.pCommandBufferInfos = &cmd_buffer_submit_info_0,
+			.signalSemaphoreInfoCount = 1,
+			.pSignalSemaphoreInfos = &signal_semaphore_submit_info_0,
+		};
+
+		submit_info_members = {
+			SubmitInfoMembers{
+				.wait_semaphore_submit_info = {
+					.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+					.pNext = nullptr,
+					.semaphore = semaphore,
+					.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+				},
+				.cmd_buffer_submit_info = {
+					.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+					.commandBuffer = image_processing_cmd_buffer,
+				},
+				.signal_semaphore_submit_info = {
+					.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+					.pNext = nullptr,
+					.semaphore = semaphore,
+					.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+				}
+			},
+			SubmitInfoMembers{
+				.wait_semaphore_submit_info = {
+					.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+					.pNext = nullptr,
+					.semaphore = semaphore,
+					.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+				},
+				.cmd_buffer_submit_info = {
+					.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+					.commandBuffer = generate_preview_cmd_buffer,
+				},
+				.signal_semaphore_submit_info = {
+					.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+					.pNext = nullptr,
+					.semaphore = semaphore,
+					.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+				}
+			}
+		};
+
+		for(size_t i=1; i<=submit_info_members.size(); ++i) {
+			submit_info[i] = VkSubmitInfo2{
+				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
+				.waitSemaphoreInfoCount = 1,
+				.pWaitSemaphoreInfos = &submit_info_members[i-1].wait_semaphore_submit_info,
+				.commandBufferInfoCount = 1,
+				.pCommandBufferInfos = &submit_info_members[i-1].cmd_buffer_submit_info,
+				.signalSemaphoreInfoCount = 1,
+				.pSignalSemaphoreInfos = &submit_info_members[i-1].signal_semaphore_submit_info,
+			};
+		}
+	}
+
+	void create_preview_command_buffer(VulkanEngine* engine) {
+		record_preview_cmd_buffer_func = [=](int input_image_idx) {
+			const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
+
+			if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &this->generate_preview_cmd_buffer) != VK_SUCCESS) {
+				throw std::runtime_error("failed to allocate command buffers!");
+			}
+
+			const VkCommandBufferBeginInfo begin_info{
+				.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+			};
+
+			if (vkBeginCommandBuffer(this->generate_preview_cmd_buffer, &begin_info) != VK_SUCCESS) {
+				throw std::runtime_error("failed to begin recording command buffer!");
+			}
+
+			//insert_image_memory_barrier(
+			//	this->generate_preview_cmd_buffer,
+			//	engine->texture_manager->textures[input_image_idx]->image,
+			//	VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+			//	VK_ACCESS_2_NONE,
+			//	VK_PIPELINE_STAGE_2_NONE,
+			//	VK_ACCESS_2_NONE,
+			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			//	engine->queue_family_indices.compute_family.value(),
+			//	engine->queue_family_indices.graphics_family.value()
+			//);
+
 			insert_image_memory_barrier(
-				image_processing_cmd_buffer,
+				this->generate_preview_cmd_buffer,
 				texture->image,
 				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
 				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-				VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-				VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_BLIT_BIT,
+				VK_ACCESS_2_TRANSFER_READ_BIT,
 				VK_IMAGE_LAYOUT_GENERAL,
-				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-				engine->queue_family_indices.compute_family.value(),
-				engine->queue_family_indices.graphics_family.value()
+				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL//,
+				//engine->queue_family_indices.compute_family.value(),
+				//engine->queue_family_indices.graphics_family.value()
 			);
 
-			
-			if (vkEndCommandBuffer(image_processing_cmd_buffer) != VK_SUCCESS) {
+			insert_image_memory_barrier(
+				this->generate_preview_cmd_buffer,
+				preview_texture->image,
+				VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+				VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_BLIT_BIT,
+				VK_ACCESS_2_TRANSFER_WRITE_BIT,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+			);
+
+			const VkImageBlit image_blit{
+				.srcSubresource = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.mipLevel = 0,
+					.baseArrayLayer = 0,
+					.layerCount = 1,
+				},
+				.srcOffsets = {
+					{0, 0, 0},
+					{static_cast<int32_t>(this->texture->width), static_cast<int32_t>(this->texture->height), 1},
+				},
+				.dstSubresource = {
+					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+					.mipLevel = 0,
+					.baseArrayLayer = 0,
+					.layerCount = 1,
+				},
+				.dstOffsets = {
+					{0, 0, 0},
+					{static_cast<int32_t>(preview_texture->width), static_cast<int32_t>(preview_texture->height), 1},
+				},
+			};
+
+			vkCmdBlitImage(
+				this->generate_preview_cmd_buffer,
+				this->texture->image,
+				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				preview_texture->image,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				1,
+				&image_blit,
+				VK_FILTER_LINEAR
+			);
+
+			insert_image_memory_barrier(
+				this->generate_preview_cmd_buffer,
+				preview_texture->image,
+				VK_PIPELINE_STAGE_2_BLIT_BIT,
+				VK_ACCESS_2_TRANSFER_WRITE_BIT,
+				VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+				VK_ACCESS_2_NONE,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			);
+
+			insert_image_memory_barrier(
+				this->generate_preview_cmd_buffer,
+				texture->image,
+				VK_PIPELINE_STAGE_2_BLIT_BIT,
+				VK_ACCESS_2_TRANSFER_READ_BIT,
+				VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+				VK_ACCESS_2_NONE,
+				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			);
+
+			if (vkEndCommandBuffer(this->generate_preview_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to record command buffer!");
 			}
 		};
@@ -555,10 +809,25 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 	inline static std::unordered_map<VkFormat, VkRenderPass> image_processing_render_passes;
 
 	TexturePtr texture;
+	TexturePtr preview_texture;
 	VkImageView render_target_image_view;
 	VkDescriptorSet ubo_descriptor_set;
 	VkFramebuffer image_processing_framebuffer;
 	VkCommandBuffer image_processing_cmd_buffer = nullptr;
+	VkCommandBuffer generate_preview_cmd_buffer = nullptr;
+
+	VkSemaphore semaphore;
+
+	std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info_0;
+	VkCommandBufferSubmitInfo cmd_buffer_submit_info_0;
+	VkSemaphoreSubmitInfo signal_semaphore_submit_info_0;
+
+	VkSemaphoreSubmitInfo wait_semaphore_submit_info1;
+	VkCommandBufferSubmitInfo cmd_buffer_submit_info1;
+	VkSemaphoreSubmitInfo signal_semaphore_submit_info1;
+
+	std::array<VkSubmitInfo2, 2> submit_info;
+
 	uint32_t width = TEXTURE_IMAGE_SIZE;
 	uint32_t height = TEXTURE_IMAGE_SIZE;
 
@@ -847,216 +1116,9 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 		}
 	}
 
-	void clear(VulkanEngine* engine) const {
-		vkDestroyImageView(engine->device, render_target_image_view, nullptr);
-		vkFreeCommandBuffers(engine->device, engine->graphic_command_pool, 1, &image_processing_cmd_buffer);
-		vkDestroyFramebuffer(engine->device, image_processing_framebuffer, nullptr);
-	}
-};
-
-template<typename Component>
-struct ImageData : NodeData, Component {
-	using UboType = typename Component::UboT;
-
-	VulkanEngine* engine;
-
-	int node_texture_id = -1;
-	TexturePtr preview_texture;
-
-	void* gui_texture;
-	void* gui_preview_texture;
-
-	VkCommandBuffer generate_preview_cmd_buffer = nullptr;
-	std::array<VkCommandBuffer, PbrMaterialTextureNum> copy_image_cmd_buffers;
-
-	VkSemaphore semaphore;
-
-	std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info_0;
-	VkCommandBufferSubmitInfo cmd_buffer_submit_info_0;
-	VkSemaphoreSubmitInfo signal_semaphore_submit_info_0;
-
-	VkSemaphoreSubmitInfo wait_semaphore_submit_info1;
-	VkCommandBufferSubmitInfo cmd_buffer_submit_info1;
-	VkSemaphoreSubmitInfo signal_semaphore_submit_info1;
-
-	std::array<VkSubmitInfo2, 2> submit_info;
-
-	explicit ImageData(VulkanEngine* engine) :Component(engine), engine(engine) {
-
-		create_semaphore();
-
-		Component::create_ubo_descriptor_set_layout(engine);
-
-		Component::create_ubo_descriptor_sets(engine);
-
-		Component::create_image_processing_pipeline_layouts(engine);
-
-		create_texture_resource(UboType::default_format);
-
-		create_cmd_buffer_submit_info();
-	}
-
 	void update_command_buffer_submit_info() {
-		cmd_buffer_submit_info_0.commandBuffer = this->image_processing_cmd_buffer;
+		cmd_buffer_submit_info_0.commandBuffer = image_processing_cmd_buffer;
 		cmd_buffer_submit_info1.commandBuffer = generate_preview_cmd_buffer;
-	}
-
-	void create_texture_resource(VkFormat format) {
-		Component::create_textures(engine, format);
-		create_preview_texture(format);
-		update_image_descriptor_sets();
-		Component::update_ubo_descriptor_sets(engine);
-		Component::create_image_processing_pipeline_resource(engine, format);
-
-		create_preview_command_buffer();
-		create_copy_image_cmd_buffers();
-	}
-
-	void recreate_texture_resource(VkFormat format) {
-		Component::clear(engine);
-		vkFreeCommandBuffers(engine->device, engine->graphic_command_pool, 1, &generate_preview_cmd_buffer);
-		create_texture_resource(format);
-		update_command_buffer_submit_info();
-	}
-
-	~ImageData() {
-		engine->texture_manager->delete_id(node_texture_id);
-		Component::clear(engine);
-		vkFreeCommandBuffers(engine->device, engine->graphic_command_pool, 1, &generate_preview_cmd_buffer);
-		if constexpr (std::same_as<Component, ComponentUdf<UboType>>) {
-			vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, this->ubo_descriptor_sets.size(), this->ubo_descriptor_sets.data());
-			vkDestroyImageView(engine->device, this->result_image_view, nullptr);
-		}
-		else {
-			vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, 1, &this->ubo_descriptor_set);
-		}
-		vkDestroySemaphore(engine->device, semaphore, nullptr);
-	}
-
-	void create_semaphore() {
-		constexpr VkSemaphoreTypeCreateInfo timeline_semaphore_create_info{
-			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
-			.pNext = nullptr,
-			.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
-			.initialValue = 0,
-		};
-
-		constexpr VkSemaphoreCreateInfo semaphore_create_info{
-			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
-			.pNext = &timeline_semaphore_create_info,
-			.flags = 0,
-		};
-
-		vkCreateSemaphore(engine->device, &semaphore_create_info, nullptr, &semaphore);
-	}
-
-	void update_image_descriptor_sets() const {
-		const VkDescriptorImageInfo image_info{
-			.sampler = this->texture->sampler,
-			.imageView = this->texture->image_view,
-			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-		};
-
-		const std::array descriptor_writes{
-			VkWriteDescriptorSet {
-				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
-				.dstSet = engine->texture_manager->descriptor_set,
-				.dstBinding = 0,
-				.dstArrayElement = static_cast<uint32_t>(node_texture_id),
-				.descriptorCount = 1,
-				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
-				.pImageInfo = &image_info,
-			},
-		};
-
-		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
-	}
-
-	void create_preview_command_buffer() {
-		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
-
-		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &generate_preview_cmd_buffer) != VK_SUCCESS) {
-			throw std::runtime_error("failed to allocate command buffers!");
-		}
-
-		const VkCommandBufferBeginInfo begin_info{
-			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
-		};
-
-		if (vkBeginCommandBuffer(generate_preview_cmd_buffer, &begin_info) != VK_SUCCESS) {
-			throw std::runtime_error("failed to begin recording command buffer!");
-		}
-
-		insert_image_memory_barrier(
-			generate_preview_cmd_buffer,
-			preview_texture->image,
-			VK_PIPELINE_STAGE_2_NONE,
-			VK_ACCESS_2_NONE,
-			VK_PIPELINE_STAGE_2_BLIT_BIT,
-			VK_ACCESS_2_TRANSFER_WRITE_BIT,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
-		);
-
-		const VkImageBlit image_blit{
-			.srcSubresource = {
-				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-				.mipLevel = 0,
-				.baseArrayLayer = 0,
-				.layerCount = 1,
-			},
-			.srcOffsets = {
-				{0, 0, 0},
-				{static_cast<int32_t>(this->texture->width), static_cast<int32_t>(this->texture->height), 1},
-			},
-			.dstSubresource = {
-				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-				.mipLevel = 0,
-				.baseArrayLayer = 0,
-				.layerCount = 1,
-			},
-			.dstOffsets = {
-				{0, 0, 0},
-				{static_cast<int32_t>(preview_texture->width), static_cast<int32_t>(preview_texture->height), 1},
-			},
-		};
-
-		vkCmdBlitImage(
-			generate_preview_cmd_buffer,
-			this->texture->image,
-			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			preview_texture->image,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			1,
-			&image_blit,
-			VK_FILTER_LINEAR
-		);
-
-		insert_image_memory_barrier(
-			generate_preview_cmd_buffer,
-			preview_texture->image,
-			VK_PIPELINE_STAGE_2_BLIT_BIT,
-			VK_ACCESS_2_TRANSFER_WRITE_BIT,
-			VK_PIPELINE_STAGE_2_NONE,
-			VK_ACCESS_2_NONE,
-			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-		);
-
-		insert_image_memory_barrier(
-			generate_preview_cmd_buffer,
-			this->texture->image,
-			VK_PIPELINE_STAGE_2_BLIT_BIT,
-			VK_ACCESS_2_TRANSFER_WRITE_BIT,
-			VK_PIPELINE_STAGE_2_NONE,
-			VK_ACCESS_2_NONE,
-			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
-		);
-
-		if (vkEndCommandBuffer(generate_preview_cmd_buffer) != VK_SUCCESS) {
-			throw std::runtime_error("failed to record command buffer!");
-		}
 	}
 
 	void create_cmd_buffer_submit_info() {
@@ -1117,9 +1179,206 @@ struct ImageData : NodeData, Component {
 		};
 	}
 
+	void create_preview_command_buffer(VulkanEngine* engine) {
+		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
+
+		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &this->generate_preview_cmd_buffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to allocate command buffers!");
+		}
+
+		const VkCommandBufferBeginInfo begin_info{
+			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_BEGIN_INFO,
+		};
+
+		if (vkBeginCommandBuffer(this->generate_preview_cmd_buffer, &begin_info) != VK_SUCCESS) {
+			throw std::runtime_error("failed to begin recording command buffer!");
+		}
+
+		insert_image_memory_barrier(
+			this->generate_preview_cmd_buffer,
+			preview_texture->image,
+			VK_PIPELINE_STAGE_2_NONE,
+			VK_ACCESS_2_NONE,
+			VK_PIPELINE_STAGE_2_BLIT_BIT,
+			VK_ACCESS_2_TRANSFER_WRITE_BIT,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL
+		);
+
+		const VkImageBlit image_blit{
+			.srcSubresource = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.mipLevel = 0,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+			.srcOffsets = {
+				{0, 0, 0},
+				{static_cast<int32_t>(this->texture->width), static_cast<int32_t>(this->texture->height), 1},
+			},
+			.dstSubresource = {
+				.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+				.mipLevel = 0,
+				.baseArrayLayer = 0,
+				.layerCount = 1,
+			},
+			.dstOffsets = {
+				{0, 0, 0},
+				{static_cast<int32_t>(preview_texture->width), static_cast<int32_t>(preview_texture->height), 1},
+			},
+		};
+
+		vkCmdBlitImage(
+			this->generate_preview_cmd_buffer,
+			this->texture->image,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			preview_texture->image,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			1,
+			&image_blit,
+			VK_FILTER_LINEAR
+		);
+
+		insert_image_memory_barrier(
+			this->generate_preview_cmd_buffer,
+			preview_texture->image,
+			VK_PIPELINE_STAGE_2_BLIT_BIT,
+			VK_ACCESS_2_TRANSFER_WRITE_BIT,
+			VK_PIPELINE_STAGE_2_NONE,
+			VK_ACCESS_2_NONE,
+			VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		);
+
+		insert_image_memory_barrier(
+			this->generate_preview_cmd_buffer,
+			this->texture->image,
+			VK_PIPELINE_STAGE_2_BLIT_BIT,
+			VK_ACCESS_2_TRANSFER_WRITE_BIT,
+			VK_PIPELINE_STAGE_2_NONE,
+			VK_ACCESS_2_NONE,
+			VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+			VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+		);
+
+		if (vkEndCommandBuffer(this->generate_preview_cmd_buffer) != VK_SUCCESS) {
+			throw std::runtime_error("failed to record command buffer!");
+		}
+	}
+
+
+	void clear(VulkanEngine* engine) const {
+		vkDestroyImageView(engine->device, render_target_image_view, nullptr);
+		vkFreeCommandBuffers(engine->device, engine->graphic_command_pool, 1, &image_processing_cmd_buffer);
+		vkDestroyFramebuffer(engine->device, image_processing_framebuffer, nullptr);
+	}
+};
+
+template<typename Component>
+struct ImageData : NodeData, Component {
+	using UboType = typename Component::UboT;
+
+	VulkanEngine* engine;
+
+	int node_texture_id = -1;
+
+	void* gui_texture;
+	void* gui_preview_texture;
+
+	std::array<VkCommandBuffer, PbrMaterialTextureNum> copy_image_cmd_buffers;
+
+	explicit ImageData(VulkanEngine* engine) :Component(engine), engine(engine) {
+
+		create_semaphore();
+
+		Component::create_ubo_descriptor_set_layout(engine);
+
+		Component::create_ubo_descriptor_sets(engine);
+
+		Component::create_image_processing_pipeline_layouts(engine);
+
+		create_texture_resource(UboType::default_format);
+
+		Component::create_cmd_buffer_submit_info();
+	}
+
+	void create_texture_resource(VkFormat format) {
+		Component::create_textures(engine, format);
+		create_preview_texture(format);
+		update_image_descriptor_sets();
+		Component::update_ubo_descriptor_sets(engine);
+		Component::create_image_processing_pipeline_resource(engine, format);
+
+		Component::create_preview_command_buffer(engine);
+		create_copy_image_cmd_buffers();
+	}
+
+	void recreate_texture_resource(VkFormat format) {
+		Component::clear(engine);
+		vkFreeCommandBuffers(engine->device, engine->graphic_command_pool, 1, &this->generate_preview_cmd_buffer);
+		create_texture_resource(format);
+		Component::update_command_buffer_submit_info();
+	}
+
+	~ImageData() {
+		engine->texture_manager->delete_id(node_texture_id);
+		Component::clear(engine);
+		vkFreeCommandBuffers(engine->device, engine->graphic_command_pool, 1, &this->generate_preview_cmd_buffer);
+		if constexpr (std::same_as<Component, ComponentUdf<UboType>>) {
+			vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, this->ubo_descriptor_sets.size(), this->ubo_descriptor_sets.data());
+			vkDestroyImageView(engine->device, this->result_image_view, nullptr);
+		}
+		else {
+			vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, 1, &this->ubo_descriptor_set);
+		}
+		vkDestroySemaphore(engine->device, this->semaphore, nullptr);
+	}
+
+	void create_semaphore() {
+		constexpr VkSemaphoreTypeCreateInfo timeline_semaphore_create_info{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_TYPE_CREATE_INFO,
+			.pNext = nullptr,
+			.semaphoreType = VK_SEMAPHORE_TYPE_TIMELINE,
+			.initialValue = 0,
+		};
+
+		constexpr VkSemaphoreCreateInfo semaphore_create_info{
+			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
+			.pNext = &timeline_semaphore_create_info,
+			.flags = 0,
+		};
+
+		vkCreateSemaphore(engine->device, &semaphore_create_info, nullptr, &this->semaphore);
+	}
+
+	void update_image_descriptor_sets() const {
+		const VkDescriptorImageInfo image_info{
+			.sampler = this->texture->sampler,
+			.imageView = this->texture->image_view,
+			.imageLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+		};
+
+		const std::array descriptor_writes{
+			VkWriteDescriptorSet {
+				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+				.dstSet = engine->texture_manager->descriptor_set,
+				.dstBinding = 0,
+				.dstArrayElement = static_cast<uint32_t>(node_texture_id),
+				.descriptorCount = 1,
+				.descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+				.pImageInfo = &image_info,
+			},
+		};
+
+		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
+	}
+
+	
+	
+
 	void create_preview_texture(const VkFormat format) {
 		const bool is_gray_scale = (format == VK_FORMAT_R16_UNORM || format == VK_FORMAT_R16_SFLOAT);
-		preview_texture = engine::Texture::create_device_texture(engine,
+		this->preview_texture = engine::Texture::create_device_texture(engine,
 			PREVIEW_IMAGE_SIZE,
 			PREVIEW_IMAGE_SIZE,
 			format,
@@ -1128,10 +1387,10 @@ struct ImageData : NodeData, Component {
 			SWAPCHAIN_INDEPENDENT_BIT,
 			is_gray_scale);
 
-		preview_texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		this->preview_texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		gui_texture = ImGui_ImplVulkan_AddTexture(this->texture->sampler, this->texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		gui_preview_texture = ImGui_ImplVulkan_AddTexture(preview_texture->sampler, preview_texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		gui_preview_texture = ImGui_ImplVulkan_AddTexture(this->preview_texture->sampler, this->preview_texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		if (node_texture_id == -1) {
 			node_texture_id = engine->texture_manager->add_texture(this->texture);

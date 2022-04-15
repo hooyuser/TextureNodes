@@ -95,8 +95,21 @@ namespace engine {
 					uint64_t counter;
 					vkGetSemaphoreCounterValue(engine->device, node_data->semaphore, &counter);
 					node_data->signal_semaphore_submit_info_0.value = counter + 1;
-					node_data->wait_semaphore_submit_info1.value = counter + 1;
-					node_data->signal_semaphore_submit_info1.value = counter + 2;
+					const uint64_t duration = ((node_data->submit_info.size() + 1) >> 1) << 1;
+					uint64_t last_signal_counter = counter + duration;
+					if constexpr (std::derived_from<ref_t<NodeDataT>, ComponentGraphicPipeline<typename ref_t<NodeDataT>::UboType>>) {
+						node_data->wait_semaphore_submit_info1.value = counter + 1;
+						node_data->signal_semaphore_submit_info1.value = last_signal_counter;
+					}
+					else if constexpr (std::derived_from<ref_t<NodeDataT>, ComponentUdf<typename ref_t<NodeDataT>::UboType>>){
+						if (node_data->submit_info[0].pCommandBufferInfos->commandBuffer) {
+							node_data->submit_info_members[0].wait_semaphore_submit_info.value = counter + 1;
+							node_data->submit_info_members[0].signal_semaphore_submit_info.value = counter + 2;
+							node_data->submit_info_members[1].wait_semaphore_submit_info.value = counter + 2;
+							node_data->submit_info_members[1].signal_semaphore_submit_info.value = last_signal_counter;
+						}
+					}
+					
 					for (auto& pin : nodes[i].outputs) {
 						for (auto const connected_pin : pin.connected_pins) {
 
@@ -107,7 +120,7 @@ namespace engine {
 										VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 										nullptr,
 										node_data->semaphore,
-										counter + 2,
+										last_signal_counter,
 										VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
 								}
 								else if constexpr (shader_data<NodeDataT>) {
@@ -116,7 +129,7 @@ namespace engine {
 											.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 											.pNext = nullptr,
 											.semaphore = node_data->semaphore,
-											.value = counter + 2,
+											.value = last_signal_counter,
 											.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
 										},
 										VkCommandBufferSubmitInfo{
@@ -131,14 +144,15 @@ namespace engine {
 					node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info_0.size());
 					node_data->submit_info[0].pWaitSemaphoreInfos = (node_data->submit_info[0].waitSemaphoreInfoCount > 0) ? node_data->wait_semaphore_submit_info_0.data() : nullptr;
 
-					if (std::derived_from<ref_t<NodeDataT>, ComponentGraphicPipeline<typename ref_t<NodeDataT>::UboType>>) {
+					if constexpr (std::derived_from<ref_t<NodeDataT>, ComponentGraphicPipeline<typename ref_t<NodeDataT>::UboType>>) {
 						graphic_submits.push_back(node_data->submit_info[0]);
 						graphic_submits.push_back(node_data->submit_info[1]);
 					}
-					else if (std::derived_from<ref_t<NodeDataT>, ComponentUdf<typename ref_t<NodeDataT>::UboType>>){
+					else if constexpr (std::derived_from<ref_t<NodeDataT>, ComponentUdf<typename ref_t<NodeDataT>::UboType>>){
 						if (node_data->submit_info[0].pCommandBufferInfos->commandBuffer) {
-							compute_submits.push_back(node_data->submit_info[0]);
-							graphic_submits.push_back(node_data->submit_info[1]);
+							graphic_submits.push_back(node_data->submit_info[0]);
+							compute_submits.push_back(node_data->submit_info[1]);
+							graphic_submits.push_back(node_data->submit_info[2]);
 						}
 					}
 				}
@@ -184,6 +198,8 @@ namespace engine {
 		if (vkQueueSubmit2(engine->graphics_queue, graphic_submits.size(), graphic_submits.data(), graphic_fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer to graphic queue!");
 		}
+
+		
 	}
 
 	void NodeEditor::update_from(uint32_t updated_node_index) {
@@ -913,6 +929,7 @@ namespace engine {
 											using StartNodeT = std::decay_t<decltype(start_node_data)>;
 											if constexpr (image_data<StartNodeT>) {
 												end_node_data->record_image_processing_cmd_buffer_func(start_node_data->node_texture_id);
+												end_node_data->record_preview_cmd_buffer_func(start_node_data->node_texture_id);
 												end_node_data->update_command_buffer_submit_info();
 											}
 											}, nodes[start_pin->node_index].data);

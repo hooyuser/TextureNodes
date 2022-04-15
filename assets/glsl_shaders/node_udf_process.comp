@@ -3,8 +3,8 @@
 layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(std140, set = 0, binding = 0) uniform UniformBufferObject {
-    int texture_id;
-    float max_distance;
+	int texture_id;
+	float max_distance;
 } ubo;
 
 layout(set = 0, binding = 1, rg16ui) uniform uimage2D Image0;
@@ -16,9 +16,10 @@ layout(push_constant) uniform constants {
 } PushConstants;
 
 bool in0_out1 = PushConstants.idx % 2 == 1;
+ivec2 size = imageSize(Image0);
 
 uint square_dist(uvec2 coord) {
-    uint x = uint(coord.x);
+	uint x = uint(coord.x);
 	uint y = uint(coord.y);
 	return x * x + y * y;
 }
@@ -27,37 +28,35 @@ uvec2 load_input_image(uvec2 coord) {
 	return in0_out1 ? imageLoad(Image0, ivec2(coord)).rg : imageLoad(Image1, ivec2(coord)).rg;
 }
 
+bool inside_image(ivec2 coord) {
+	return coord.x < size.x && coord.y < size.y && coord.x >= 0 && coord.y >= 0;
+}
+
 void main() {
-	// Fetch neighbouring texels
-	ivec2 size = imageSize(Image0);
-	int stride = PushConstants.idx > 0 ? size.x >> PushConstants.idx: 1;
-	
+	int stride = PushConstants.idx > 0 ? size.x >> PushConstants.idx : 1;
 	ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
-	int i = coord.x;
-	int j = coord.y;
 	uvec2 best_coord = load_input_image(coord);
-	uint best_dist = square_dist(coord - best_coord);
-	
-	for(int di=-1; di<=1; di++){
-		for(int dj=-1; dj<=1; dj++){
-			uvec2 offset_coord = clamp(coord + stride * ivec2(di, dj), ivec2(0), ivec2(size));
-			if(load_input_image(offset_coord).x != 0x0000FFFF){
-				uint dist = square_dist(offset_coord - coord);
-				if(dist < best_dist){
-					best_coord = offset_coord;
+	uint best_dist = 0xFFFFFFFF;
+
+	for(int di = -1; di <= 1; di++) {
+		for(int dj = -1; dj <= 1; dj++) {
+			ivec2 offset_coord = coord + stride * ivec2(di, dj);
+			uvec2 offset_stored_coord = load_input_image(offset_coord);
+			if(offset_stored_coord.x < 0x0000FFFF && inside_image(offset_coord)) {
+				uint dist = square_dist(offset_stored_coord - coord);
+				if(dist < best_dist) {
+					best_coord = offset_stored_coord;
 					best_dist = dist;
 				}
 			}
 		}
 	}
-	if (PushConstants.idx < 0) {
-		//imageStore(outputImage, coord, vec4(sqrt(float(best_dist)) / ubo.max_distance));
-		imageStore(outputImage, coord, vec4(1));
-	}
-	else if (in0_out1){
+
+	if(PushConstants.idx < 0) {
+		imageStore(outputImage, coord, vec4(sqrt(float(best_dist)) / ubo.max_distance));
+	} else if(in0_out1) {
 		imageStore(Image1, coord, uvec4(best_coord, 0, 0));
-	}
-	else{
+	} else {
 		imageStore(Image0, coord, uvec4(best_coord, 0, 0));
 	}
 }

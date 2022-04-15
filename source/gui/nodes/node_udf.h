@@ -11,7 +11,7 @@ struct NodeUdf : NodeTypeImageBase {
 
 		NOTE(max_distance, NumberInputWidgetInfo{ .min = 1, .max = 120000, .speed = 3.0f, .enable_slider = false })
 			FloatData max_distance {
-			.value = 1000.0f
+			.value = 150.0f
 		};
 
 		REFLECT(UBO,

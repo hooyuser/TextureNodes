@@ -412,7 +412,7 @@ void VulkanEngine::create_swap_chain() {
 
 	const std::array queue_family_index_array{
 		queue_family_indices.graphics_family.value(),
-		queue_family_indices.present_family.value()
+		queue_family_indices.compute_family.value()
 	};
 
 	if (queue_family_indices.graphics_family != queue_family_indices.present_family) {
@@ -423,6 +423,10 @@ void VulkanEngine::create_swap_chain() {
 	else {
 		create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	}
+
+	create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
+	create_info.queueFamilyIndexCount = queue_family_index_array.size();
+	create_info.pQueueFamilyIndices = queue_family_index_array.data();
 
 	create_info.preTransform = swap_chain_capabilities.currentTransform;
 	create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;

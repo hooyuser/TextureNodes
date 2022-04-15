@@ -4,8 +4,8 @@
 layout(local_size_x = 16, local_size_y = 16) in;
 
 layout(std140, set = 0, binding = 0) uniform UniformBufferObject {
-    int texture_id;
-    float max_distance;
+	int texture_id;
+	float max_distance;
 } ubo;
 
 layout(set = 0, binding = 1, rg16ui) uniform uimage2D outputImage;
@@ -15,11 +15,11 @@ layout(set = 1, binding = 0) uniform sampler2D nodeTextures[];
 void main() {
 	ivec2 coord = ivec2(gl_GlobalInvocationID.xy);
 	float level = texelFetch(nodeTextures[ubo.texture_id], coord, 0).r;
-	uvec2 dist;
-	if (level < 0.5) {
-		dist = uvec2(0);
+	uvec2 initial_value;
+	if(level < 0.5) {
+		initial_value = coord;
 	} else {
-		dist = uvec2(0xFFFFFFFF, 0);
+		initial_value = uvec2(0xFFFFFFFF, 0);
 	}
-	imageStore(outputImage, coord, uvec4(dist, 0, 0));
+	imageStore(outputImage, coord, uvec4(initial_value, 0, 0));
 }
