@@ -1,4 +1,5 @@
-#version 450
+#version 460
+#extension GL_EXT_control_flow_attributes: enable
 
 layout(local_size_x = 16, local_size_y = 16) in;
 
@@ -38,8 +39,8 @@ void main() {
 	uvec2 best_coord = load_input_image(coord);
 	uint best_dist = 0xFFFFFFFF;
 
-	for(int di = -1; di <= 1; di++) {
-		for(int dj = -1; dj <= 1; dj++) {
+	[[unroll]] for(int di = -1; di <= 1; di++) {
+		[[unroll]] for(int dj = -1; dj <= 1; dj++) {
 			ivec2 offset_coord = coord + stride * ivec2(di, dj);
 			uvec2 offset_stored_coord = load_input_image(offset_coord);
 			if(offset_stored_coord.x < 0x0000FFFF && inside_image(offset_coord)) {

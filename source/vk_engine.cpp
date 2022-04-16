@@ -424,10 +424,6 @@ void VulkanEngine::create_swap_chain() {
 		create_info.imageSharingMode = VK_SHARING_MODE_EXCLUSIVE;
 	}
 
-	create_info.imageSharingMode = VK_SHARING_MODE_CONCURRENT;
-	create_info.queueFamilyIndexCount = queue_family_index_array.size();
-	create_info.pQueueFamilyIndices = queue_family_index_array.data();
-
 	create_info.preTransform = swap_chain_capabilities.currentTransform;
 	create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
 	create_info.presentMode = present_mode;
