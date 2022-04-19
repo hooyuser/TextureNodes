@@ -431,31 +431,31 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				throw std::runtime_error("failed to begin recording command buffer!");
 			}
 
-			//insert_image_memory_barrier(
-			//	ownership_release_cmd_buffer,
-			//	engine->texture_manager->textures[input_image_idx]->image,
-			//	VK_PIPELINE_STAGE_2_NONE,
-			//	VK_ACCESS_2_NONE,
-			//	VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-			//	VK_ACCESS_2_SHADER_READ_BIT,
-			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			//	engine->queue_family_indices.graphics_family.value(),
-			//	engine->queue_family_indices.compute_family.value()
-			//);
+			insert_image_memory_barrier(
+				ownership_release_cmd_buffer,
+				engine->texture_manager->textures[input_image_idx]->image,
+				VK_PIPELINE_STAGE_2_NONE,
+				VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				engine->queue_family_indices.graphics_family.value(),
+				engine->queue_family_indices.compute_family.value()
+			);
 
-			//insert_image_memory_barrier(
-			//	ownership_release_cmd_buffer,
-			//	texture->image,
-			//	VK_PIPELINE_STAGE_2_NONE,
-			//	VK_ACCESS_2_NONE,
-			//	VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-			//	VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
-			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			//	VK_IMAGE_LAYOUT_GENERAL,
-			//	engine->queue_family_indices.graphics_family.value(),
-			//	engine->queue_family_indices.compute_family.value()
-			//);
+			insert_image_memory_barrier(
+				ownership_release_cmd_buffer,
+				texture->image,
+				VK_PIPELINE_STAGE_2_NONE,
+				VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_READ_BIT,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				engine->queue_family_indices.graphics_family.value(),
+				engine->queue_family_indices.compute_family.value()
+			);
 
 			if (vkEndCommandBuffer(ownership_release_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to record command buffer!");
@@ -471,7 +471,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				throw std::runtime_error("failed to begin recording command buffer!");
 			}
 
-			/*insert_image_memory_barrier(
+			insert_image_memory_barrier(
 				image_processing_cmd_buffer,
 				engine->texture_manager->textures[input_image_idx]->image,
 				VK_PIPELINE_STAGE_2_NONE,
@@ -482,9 +482,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
 				engine->queue_family_indices.graphics_family.value(),
 				engine->queue_family_indices.compute_family.value()
-			);*/
-
-			
+			);
 
 			vkCmdBindPipeline(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, image_processing_compute_pipelines[0]);
 
@@ -501,19 +499,6 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 
 			vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
 
-			//insert_image_memory_barrier(
-			//	image_processing_cmd_buffer,
-			//	engine->texture_manager->textures[input_image_idx]->image,
-			//	VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-			//	VK_ACCESS_2_NONE,
-			//	VK_PIPELINE_STAGE_2_NONE,
-			//	VK_ACCESS_2_NONE,
-			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			//	VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-			//	engine->queue_family_indices.compute_family.value(),
-			//	engine->queue_family_indices.graphics_family.value()
-			//);
-
 			insert_image_memory_barrier(
 				image_processing_cmd_buffer,
 				ping_pong_images[0]->image,
@@ -528,14 +513,14 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 			insert_image_memory_barrier(
 				image_processing_cmd_buffer,
 				texture->image,
-				VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT,
+				VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
 				VK_ACCESS_2_NONE,
 				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
 				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
 				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				VK_IMAGE_LAYOUT_GENERAL//,
-				//engine->queue_family_indices.graphics_family.value(),
-				//engine->queue_family_indices.compute_family.value()
+				VK_IMAGE_LAYOUT_GENERAL,
+				engine->queue_family_indices.graphics_family.value(),
+				engine->queue_family_indices.compute_family.value()
 			);
 
 			vkCmdBindPipeline(image_processing_cmd_buffer, VK_PIPELINE_BIND_POINT_COMPUTE, image_processing_compute_pipelines[1]);
@@ -580,18 +565,31 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 			vkCmdPushConstants(image_processing_cmd_buffer, image_processing_pipeline_layouts[1], VK_SHADER_STAGE_COMPUTE_BIT, 0, sizeof(int), &idx);
 			vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
 
-			//insert_image_memory_barrier(
-			//	image_processing_cmd_buffer,
-			//	texture->image,
-			//	VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
-			//	VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
-			//	VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
-			//	VK_ACCESS_2_NONE,
-			//	VK_IMAGE_LAYOUT_GENERAL,
-			//	VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
-			//	engine->queue_family_indices.compute_family.value(),
-			//	engine->queue_family_indices.graphics_family.value()
-			//);
+			insert_image_memory_barrier(
+				image_processing_cmd_buffer,
+				engine->texture_manager->textures[input_image_idx]->image,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_NONE,
+				VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+				VK_ACCESS_2_NONE,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
+				engine->queue_family_indices.compute_family.value(),
+				engine->queue_family_indices.graphics_family.value()
+			);
+
+			insert_image_memory_barrier(
+				image_processing_cmd_buffer,
+				texture->image,
+				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
+				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
+				VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT,
+				VK_ACCESS_2_NONE,
+				VK_IMAGE_LAYOUT_GENERAL,
+				VK_IMAGE_LAYOUT_GENERAL,
+				engine->queue_family_indices.compute_family.value(),
+				engine->queue_family_indices.graphics_family.value()
+			);
 
 			if (vkEndCommandBuffer(image_processing_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to record command buffer!");
@@ -721,7 +719,9 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				VK_PIPELINE_STAGE_2_BLIT_BIT,
 				VK_ACCESS_2_TRANSFER_READ_BIT,
 				VK_IMAGE_LAYOUT_GENERAL,
-				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL
+				VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
+				engine->queue_family_indices.compute_family.value(),
+				engine->queue_family_indices.graphics_family.value()
 			);
 
 			insert_image_memory_barrier(
