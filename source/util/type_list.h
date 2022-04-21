@@ -130,3 +130,8 @@ consteval auto make_unique_typeset(TypeSet<T, Rest...>) {
 		return TypeSet<T>{};
 	}
 }
+
+template <typename T>
+concept is_type_list = requires (T t) {
+	[] <typename... Ts> (TypeList<Ts...>) {}(t);
+};

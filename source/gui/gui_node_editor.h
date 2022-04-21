@@ -2,6 +2,7 @@
 
 #include <unordered_set>
 #include <concepts>
+#include <format>
 #include <functional>
 #define IMGUI_DEFINE_MATH_OPERATORS
 
@@ -10,6 +11,14 @@
 
 #include "all_node_headers.h"
 #include "../util/class_field_type_list.h"
+
+
+#ifdef NDEBUG
+constexpr bool enableValidationLayers = false;
+#else
+#include <iostream>
+#include "../util/debug_type.h"
+#endif
 
 namespace ed = ax::NodeEditor;
 
@@ -47,6 +56,59 @@ using NodeTypeList = TypeList<
 	NodeUdf,
 	NodePbrShader
 >;
+
+//Node Menus
+using NodeMenuFilter = TypeList<
+	NodeUniformColor,
+	NodeTransform,
+	NodeBlend,
+	NodeColorRamp,
+	NodeBlur,
+	NodeSlopeBlur,
+	NodeUdf
+>;
+
+using NodeMenuGenerator = TypeList<
+	NodePolygon
+>;
+
+using NodeMenuNumerical = TypeList<
+	NodeAdd
+>;
+
+using NodeMenuShader = TypeList<
+	NodePbrShader
+>;
+
+using NodeMenu = TypeList<
+	NodeMenuGenerator,
+	NodeMenuFilter,
+	NodeMenuNumerical,
+	NodeMenuShader
+>;
+
+template<typename T>
+constexpr std::string_view type_alias() {
+	using Type = std::decay_t<T>;
+	if constexpr (std::same_as<NodeMenuGenerator, Type>) {
+		return "Generator";
+	}
+	else if constexpr (std::same_as<NodeMenuFilter, Type>) {
+		return "Filter";
+	}
+	else if constexpr (std::same_as<NodeMenuNumerical, Type>) {
+		return "Numerical";
+	}
+	else if constexpr (std::same_as<NodeMenuShader, Type>) {
+		return "Shader";
+	}
+	else {
+		return "Unknown Type";
+	}
+}
+
+template<typename T>
+constexpr inline static auto menu_name = type_alias<T>();
 
 //Cast node types to their data types
 using NodeDataTypeList = to_data_type<NodeTypeList>;
@@ -198,6 +260,8 @@ struct CopyImageSubmitInfo {
 	VkCommandBufferSubmitInfo cmd_buffer_submit_info;
 };
 
+struct SetNodePositionTag {};
+
 namespace engine {
 	class NodeEditor {
 	private:
@@ -301,6 +365,27 @@ namespace engine {
 
 		void draw();
 
+		template<typename NodeTypeList, typename SetPos = void>
+		void node_menu() {
+			NodeTypeList::for_each([&]<typename T> () {
+				if constexpr (is_type_list<T>) {
+					if (ImGui::BeginMenu(std::format(" {}", menu_name<T>).c_str())) {
+						node_menu<T, SetPos>();
+						ImGui::EndMenu();
+					}
+				}
+				else {
+					if (ImGui::MenuItem(std::format(" {}", T::name()).c_str())) {
+						auto node_i = create_node<T>();
+						update_from(node_i);
+						if constexpr (std::same_as<SetPos, SetNodePositionTag>) {
+							ed::SetNodePosition(nodes[node_i].id, ed::ScreenToCanvas(ImGui::GetMousePos()));
+						}
+					}
+				}
+			});
+		}
+
 		void serialize(std::string_view file_path);
 
 		void deserialize(std::string_view file_path);
@@ -353,7 +438,7 @@ namespace engine {
 		}
 
 		void wait_node_execute_fences() const {
-			const std::array fences{graphic_fence,compute_fence};
+			const std::array fences{ graphic_fence,compute_fence };
 			vkWaitForFences(engine->device, fences.size(), fences.data(), VK_TRUE, VULKAN_WAIT_TIMEOUT);
 		}
 	};
