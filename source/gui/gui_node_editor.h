@@ -12,14 +12,6 @@
 #include "all_node_headers.h"
 #include "../util/class_field_type_list.h"
 
-
-#ifdef NDEBUG
-constexpr bool enableValidationLayers = false;
-#else
-#include <iostream>
-#include "../util/debug_type.h"
-#endif
-
 namespace ed = ax::NodeEditor;
 
 static std::string first_letter_to_upper(std::string_view str);

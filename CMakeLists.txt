@@ -22,6 +22,7 @@ file(GLOB_RECURSE SHADERS
     "assets/glsl_shaders/*.comp"
 )
 
+list(APPEND CMAKE_MODULE_PATH "${CMAKE_CURRENT_SOURCE_DIR}/cmake")
 find_package(AVX)
 find_package(VendorIdentifier)
 
