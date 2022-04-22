@@ -83,7 +83,7 @@ namespace engine {
 			}
 		}
 	}
-
+	#pragma optimize("", off )
 	void NodeEditor::execute_graph(const std::vector<uint32_t>& sorted_nodes) {
 		std::vector<VkSubmitInfo2> graphic_submits;
 		graphic_submits.reserve(sorted_nodes.size() * 2 + 2);
@@ -102,6 +102,7 @@ namespace engine {
 		}
 
 		for (auto i : sorted_nodes | std::views::reverse) {
+			
 			std::visit([&](auto&& node_data) {
 				using NodeDataT = std::decay_t<decltype(node_data)>;
 				if constexpr (image_data<NodeDataT>) {
@@ -125,7 +126,6 @@ namespace engine {
 
 					for (auto& pin : nodes[i].outputs) {
 						for (auto const connected_pin : pin.connected_pins) {
-
 							std::visit([&](auto&& connected_node_data) {
 								using NodeDataT = std::decay_t<decltype(connected_node_data)>;
 								if constexpr (image_data<NodeDataT>) {
@@ -179,6 +179,7 @@ namespace engine {
 					}
 				}
 				}, nodes[i].data);
+			
 		}
 
 		for (auto& [wait_semaphore_submit_info, cmd_buffer_submit_info] : copy_image_submit_infos) {
@@ -204,6 +205,7 @@ namespace engine {
 			throw std::runtime_error("failed to submit draw command buffer to compute queue!");
 		}
 	}
+	#pragma optimize("", on )
 
 	void NodeEditor::update_from(uint32_t updated_node_index) {
 		if (vkGetFenceStatus(engine->device, graphic_fence) != VK_SUCCESS ||
@@ -279,11 +281,6 @@ namespace engine {
 
 		ed::SetCurrentEditor(context);
 		ed::Begin("My Editor", ImVec2(0.0f, 0.0f));
-
-		//if (first) {
-		//	ed::EnableShortcuts(true);
-		//	first = false;
-		//}
 
 		ed::Suspend();
 		if (ImGui::IsKeyPressed(io.KeyMap[ImGuiKey_Tab])) {
