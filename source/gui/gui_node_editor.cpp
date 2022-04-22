@@ -175,15 +175,6 @@ namespace engine {
 						for (Pin* connected_pin : output.connected_pins) {
 							auto& connected_node = nodes[connected_pin->node_index];
 							update_node_ubo(connected_node.data, output.default_value, get_input_pin_index(*connected_pin));
-							/*std::visit([&](auto&& connected_node_data) {
-								using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
-								if constexpr (image_data<NodeDataT>) {
-									connected_node_data->update_ubo(output.default_value, get_input_pin_index(*connected_pin));
-								}
-								else if constexpr (shader_data<NodeDataT>) {
-									connected_node_data.update_ubo(output.default_value, get_input_pin_index(*connected_pin));
-								}
-								}, connected_node.data);*/
 						}
 					}
 				}
@@ -212,8 +203,6 @@ namespace engine {
 		if (vkQueueSubmit2(engine->compute_queue, compute_submits.size(), compute_submits.data(), compute_fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to submit draw command buffer to compute queue!");
 		}
-
-
 	}
 
 	void NodeEditor::update_from(uint32_t updated_node_index) {

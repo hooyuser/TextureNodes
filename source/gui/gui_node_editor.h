@@ -40,13 +40,13 @@ enum class PinInOut {
 
 //Node Menus
 using NodeMenuGenerator = TypeList<
+	NodeUniformColor,
 	NodePolygon,
 	NodeNoise,
 	NodeVoronoi
 >;
 
 using NodeMenuFilter = TypeList<
-	NodeUniformColor,
 	NodeTransform,
 	NodeBlend,
 	NodeColorRamp,
