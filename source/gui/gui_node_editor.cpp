@@ -42,7 +42,7 @@ namespace engine {
 	int NodeEditor::get_next_id() noexcept {
 		return next_id++;
 	}
-
+	#pragma optimize("", off )
 	void NodeEditor::update_node_ubo(NodeDataVariant& node_data, const PinVariant& value, size_t index) {
 		std::visit([&](auto&& _node_data) {
 			using NodeDataT = std::remove_reference_t<decltype(_node_data)>;
@@ -54,6 +54,7 @@ namespace engine {
 			}
 			}, node_data);
 	}
+	#pragma optimize("", on )
 
 	void NodeEditor::topological_sort(const uint32_t index, std::vector<char>& visited_nodes, std::vector<uint32_t>& sorted_nodes) const {
 		std::stack<int64_t> topo_sort_stack;
@@ -111,20 +112,31 @@ namespace engine {
 					node_data->signal_semaphore_submit_info_0.value = counter + 1;
 					const uint64_t duration = ((node_data->submit_info.size() + 1) >> 1) << 1;
 					uint64_t last_signal_counter = counter + duration;
-					if constexpr (std::derived_from<ref_t<NodeDataT>, ComponentGraphicPipeline<typename ref_t<NodeDataT>::UboType>>) {
+					using ref_data = ref_t<NodeDataT>;
+					constexpr bool is_component_graphic = std::derived_from<ref_data, ComponentGraphicPipeline<typename ref_data::UboType>>;
+					constexpr bool is_component_udf = std::derived_from<ref_data, ComponentUdf<typename ref_data::UboType>>;
+					if constexpr (is_component_graphic) {
 						node_data->wait_semaphore_submit_info1.value = counter + 1;
 						node_data->signal_semaphore_submit_info1.value = last_signal_counter;
+						set_wait_semaphore(i, node_data, copy_image_submit_infos, last_signal_counter);
+						graphic_submits.push_back(node_data->submit_info[0]);
+						graphic_submits.push_back(node_data->submit_info[1]);
 					}
-					else if constexpr (std::derived_from<ref_t<NodeDataT>, ComponentUdf<typename ref_t<NodeDataT>::UboType>>) {
+					else if constexpr (is_component_udf) {
 						if (node_data->submit_info[0].pCommandBufferInfos->commandBuffer) {
 							node_data->submit_info_members[0].wait_semaphore_submit_info.value = counter + 1;
 							node_data->submit_info_members[0].signal_semaphore_submit_info.value = counter + 2;
 							node_data->submit_info_members[1].wait_semaphore_submit_info.value = counter + 2;
 							node_data->submit_info_members[1].signal_semaphore_submit_info.value = last_signal_counter;
+							set_wait_semaphore(i, node_data, copy_image_submit_infos, last_signal_counter);
+							graphic_submits.push_back(node_data->submit_info[0]);
+							compute_submits.push_back(node_data->submit_info[1]);
+							graphic_submits.push_back(node_data->submit_info[2]);
 						}
 					}
 
-					for (auto& pin : nodes[i].outputs) {
+					
+					/*for (auto& pin : nodes[i].outputs) {
 						for (auto const connected_pin : pin.connected_pins) {
 							std::visit([&](auto&& connected_node_data) {
 								using NodeDataT = std::decay_t<decltype(connected_node_data)>;
@@ -155,19 +167,7 @@ namespace engine {
 						}
 					}
 					node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info_0.size());
-					node_data->submit_info[0].pWaitSemaphoreInfos = (node_data->submit_info[0].waitSemaphoreInfoCount > 0) ? node_data->wait_semaphore_submit_info_0.data() : nullptr;
-
-					if constexpr (std::derived_from<ref_t<NodeDataT>, ComponentGraphicPipeline<typename ref_t<NodeDataT>::UboType>>) {
-						graphic_submits.push_back(node_data->submit_info[0]);
-						graphic_submits.push_back(node_data->submit_info[1]);
-					}
-					else if constexpr (std::derived_from<ref_t<NodeDataT>, ComponentUdf<typename ref_t<NodeDataT>::UboType>>) {
-						if (node_data->submit_info[0].pCommandBufferInfos->commandBuffer) {
-							graphic_submits.push_back(node_data->submit_info[0]);
-							compute_submits.push_back(node_data->submit_info[1]);
-							graphic_submits.push_back(node_data->submit_info[2]);
-						}
-					}
+					node_data->submit_info[0].pWaitSemaphoreInfos = (node_data->submit_info[0].waitSemaphoreInfoCount > 0) ? node_data->wait_semaphore_submit_info_0.data() : nullptr;*/
 				}
 				else if constexpr (value_data<NodeDataT>) {
 					recalculate_node(i);

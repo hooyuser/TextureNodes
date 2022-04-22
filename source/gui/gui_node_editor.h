@@ -409,6 +409,42 @@ namespace engine {
 	
 		static void update_node_ubo(NodeDataVariant& node_data, const PinVariant& value, size_t index);
 
+		template<NodeDataConcept NodeDataT>
+		void set_wait_semaphore(const uint32_t i, const NodeDataT& node_data, std::vector<CopyImageSubmitInfo>& copy_image_submit_infos, uint64_t last_signal_counter) {
+			for (auto& pin : nodes[i].outputs) {
+				for (auto const connected_pin : pin.connected_pins) {
+					std::visit([&](auto&& connected_node_data) {
+						using NodeDataT = std::decay_t<decltype(connected_node_data)>;
+						if constexpr (image_data<NodeDataT>) {
+							connected_node_data->wait_semaphore_submit_info_0.emplace_back(
+								VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+								nullptr,
+								node_data->semaphore,
+								last_signal_counter,
+								VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
+						}
+						else if constexpr (shader_data<NodeDataT>) {
+							copy_image_submit_infos.emplace_back(
+								VkSemaphoreSubmitInfo{
+									.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
+									.pNext = nullptr,
+									.semaphore = node_data->semaphore,
+									.value = last_signal_counter,
+									.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
+								},
+								VkCommandBufferSubmitInfo{
+									.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
+									.commandBuffer = node_data->copy_image_cmd_buffers[get_input_pin_index(*connected_pin)],
+								}
+							);
+						}
+						}, nodes[connected_pin->node_index].data);
+				}
+			}
+			node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info_0.size());
+			node_data->submit_info[0].pWaitSemaphoreInfos = (node_data->submit_info[0].waitSemaphoreInfoCount > 0) ? node_data->wait_semaphore_submit_info_0.data() : nullptr;
+		}
+
 		void recalculate_node(size_t index);
 
 		void update_all_nodes();
