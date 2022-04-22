@@ -410,7 +410,7 @@ namespace engine {
 		static void update_node_ubo(NodeDataVariant& node_data, const PinVariant& value, size_t index);
 
 		template<NodeDataConcept NodeDataT>
-		void set_wait_semaphore(const uint32_t i, const NodeDataT& node_data, std::vector<CopyImageSubmitInfo>& copy_image_submit_infos, uint64_t last_signal_counter) {
+		void update_wait_semaphores(const uint32_t i, const NodeDataT& node_data, std::vector<CopyImageSubmitInfo>& copy_image_submit_infos, uint64_t last_signal_counter) {
 			for (auto& pin : nodes[i].outputs) {
 				for (auto const connected_pin : pin.connected_pins) {
 					std::visit([&](auto&& connected_node_data) {

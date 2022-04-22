@@ -12,6 +12,13 @@ using json = nlohmann::json;
 constexpr bool SHOW_IMGUI_DEMO = false;
 constexpr float NODE_WIDTH = 160.0f;
 
+
+template<typename NodeDataT>
+constexpr static bool is_component_graphic = std::derived_from<ref_t<NodeDataT>, ComponentGraphicPipeline<typename ref_t<NodeDataT>::UboType>>;
+
+template<typename NodeDataT>
+constexpr static bool is_component_udf = std::derived_from<ref_t<NodeDataT>, ComponentUdf<typename ref_t<NodeDataT>::UboType>>;
+
 template <typename T, typename ArrayElementT>
 concept std_array = requires (std::remove_cvref_t<T> t) {
 	[] <size_t I> (std::array<ArrayElementT, I>) {}(t);
@@ -42,7 +49,7 @@ namespace engine {
 	int NodeEditor::get_next_id() noexcept {
 		return next_id++;
 	}
-	#pragma optimize("", off )
+
 	void NodeEditor::update_node_ubo(NodeDataVariant& node_data, const PinVariant& value, size_t index) {
 		std::visit([&](auto&& _node_data) {
 			using NodeDataT = std::remove_reference_t<decltype(_node_data)>;
@@ -54,7 +61,6 @@ namespace engine {
 			}
 			}, node_data);
 	}
-	#pragma optimize("", on )
 
 	void NodeEditor::topological_sort(const uint32_t index, std::vector<char>& visited_nodes, std::vector<uint32_t>& sorted_nodes) const {
 		std::stack<int64_t> topo_sort_stack;
@@ -84,7 +90,7 @@ namespace engine {
 			}
 		}
 	}
-	#pragma optimize("", off )
+	
 	void NodeEditor::execute_graph(const std::vector<uint32_t>& sorted_nodes) {
 		std::vector<VkSubmitInfo2> graphic_submits;
 		graphic_submits.reserve(sorted_nodes.size() * 2 + 2);
@@ -112,62 +118,26 @@ namespace engine {
 					node_data->signal_semaphore_submit_info_0.value = counter + 1;
 					const uint64_t duration = ((node_data->submit_info.size() + 1) >> 1) << 1;
 					uint64_t last_signal_counter = counter + duration;
-					using ref_data = ref_t<NodeDataT>;
-					constexpr bool is_component_graphic = std::derived_from<ref_data, ComponentGraphicPipeline<typename ref_data::UboType>>;
-					constexpr bool is_component_udf = std::derived_from<ref_data, ComponentUdf<typename ref_data::UboType>>;
-					if constexpr (is_component_graphic) {
+					
+					if constexpr (is_component_graphic<NodeDataT>) {
 						node_data->wait_semaphore_submit_info1.value = counter + 1;
 						node_data->signal_semaphore_submit_info1.value = last_signal_counter;
-						set_wait_semaphore(i, node_data, copy_image_submit_infos, last_signal_counter);
+						update_wait_semaphores(i, node_data, copy_image_submit_infos, last_signal_counter);
 						graphic_submits.push_back(node_data->submit_info[0]);
 						graphic_submits.push_back(node_data->submit_info[1]);
 					}
-					else if constexpr (is_component_udf) {
+					else if constexpr (is_component_udf<NodeDataT>) {
 						if (node_data->submit_info[0].pCommandBufferInfos->commandBuffer) {
 							node_data->submit_info_members[0].wait_semaphore_submit_info.value = counter + 1;
 							node_data->submit_info_members[0].signal_semaphore_submit_info.value = counter + 2;
 							node_data->submit_info_members[1].wait_semaphore_submit_info.value = counter + 2;
 							node_data->submit_info_members[1].signal_semaphore_submit_info.value = last_signal_counter;
-							set_wait_semaphore(i, node_data, copy_image_submit_infos, last_signal_counter);
+							update_wait_semaphores(i, node_data, copy_image_submit_infos, last_signal_counter);
 							graphic_submits.push_back(node_data->submit_info[0]);
 							compute_submits.push_back(node_data->submit_info[1]);
 							graphic_submits.push_back(node_data->submit_info[2]);
 						}
 					}
-
-					
-					/*for (auto& pin : nodes[i].outputs) {
-						for (auto const connected_pin : pin.connected_pins) {
-							std::visit([&](auto&& connected_node_data) {
-								using NodeDataT = std::decay_t<decltype(connected_node_data)>;
-								if constexpr (image_data<NodeDataT>) {
-									connected_node_data->wait_semaphore_submit_info_0.emplace_back(
-										VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-										nullptr,
-										node_data->semaphore,
-										last_signal_counter,
-										VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT);
-								}
-								else if constexpr (shader_data<NodeDataT>) {
-									copy_image_submit_infos.emplace_back(
-										VkSemaphoreSubmitInfo{
-											.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
-											.pNext = nullptr,
-											.semaphore = node_data->semaphore,
-											.value = last_signal_counter,
-											.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
-										},
-										VkCommandBufferSubmitInfo{
-											.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
-											.commandBuffer = node_data->copy_image_cmd_buffers[get_input_pin_index(*connected_pin)],
-										}
-									);
-								}
-								}, nodes[connected_pin->node_index].data);
-						}
-					}
-					node_data->submit_info[0].waitSemaphoreInfoCount = static_cast<uint32_t>(node_data->wait_semaphore_submit_info_0.size());
-					node_data->submit_info[0].pWaitSemaphoreInfos = (node_data->submit_info[0].waitSemaphoreInfoCount > 0) ? node_data->wait_semaphore_submit_info_0.data() : nullptr;*/
 				}
 				else if constexpr (value_data<NodeDataT>) {
 					recalculate_node(i);
@@ -205,7 +175,6 @@ namespace engine {
 			throw std::runtime_error("failed to submit draw command buffer to compute queue!");
 		}
 	}
-	#pragma optimize("", on )
 
 	void NodeEditor::update_from(uint32_t updated_node_index) {
 		if (vkGetFenceStatus(engine->device, graphic_fence) != VK_SUCCESS ||
