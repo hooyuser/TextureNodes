@@ -118,6 +118,9 @@ consteval auto concat(TypeSet<Ts1...>, TypeSet<Ts2...>)->TypeSet<Ts1..., Ts2...>
 template<template<typename ...> typename TypeSet, typename ...Ts1, typename ...Ts2, typename... Rest>
 consteval auto concat(TypeSet<Ts1...>, TypeSet<Ts2...>, Rest...) -> decltype(concat(std::declval<TypeSet<Ts1..., Ts2...>>(), std::declval<Rest>()...));
 
+template <typename ...TypeSetFrom>
+using concat_t = std::decay_t<decltype(concat(std::declval<TypeSetFrom>()...))>;
+
 template <template<typename, typename ...> typename TypeSet, typename T, typename ...Rest >
 consteval auto make_unique_typeset(TypeSet<T, Rest...>) {
 	if constexpr ((std::same_as<T, Rest> || ...)) {

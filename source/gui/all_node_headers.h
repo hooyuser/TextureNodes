@@ -9,3 +9,4 @@
 #include "nodes/node_transform.h"
 #include "nodes/node_udf.h"
 #include "nodes/node_uniform_color.h"
+#include "nodes/node_voronoi.h"

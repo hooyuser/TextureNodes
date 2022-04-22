@@ -44,20 +44,14 @@ enum class PinInOut {
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 //All Node Types
-using NodeTypeList = TypeList<
-	NodeUniformColor,
-	NodePolygon,
-	NodeTransform,
-	NodeBlend,
-	NodeColorRamp,
-	NodeAdd,
-	NodeBlur,
-	NodeSlopeBlur,
-	NodeUdf,
-	NodePbrShader
->;
+
 
 //Node Menus
+using NodeMenuGenerator = TypeList<
+	NodePolygon,
+	NodeVoronoi
+>;
+
 using NodeMenuFilter = TypeList<
 	NodeUniformColor,
 	NodeTransform,
@@ -66,10 +60,6 @@ using NodeMenuFilter = TypeList<
 	NodeBlur,
 	NodeSlopeBlur,
 	NodeUdf
->;
-
-using NodeMenuGenerator = TypeList<
-	NodePolygon
 >;
 
 using NodeMenuNumerical = TypeList<
@@ -81,6 +71,13 @@ using NodeMenuShader = TypeList<
 >;
 
 using NodeMenu = TypeList<
+	NodeMenuGenerator,
+	NodeMenuFilter,
+	NodeMenuNumerical,
+	NodeMenuShader
+>;
+
+using NodeTypeList = concat_t<
 	NodeMenuGenerator,
 	NodeMenuFilter,
 	NodeMenuNumerical,
