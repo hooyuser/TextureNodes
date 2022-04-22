@@ -41,6 +41,7 @@ enum class PinInOut {
 //Node Menus
 using NodeMenuGenerator = TypeList<
 	NodePolygon,
+	NodeNoise,
 	NodeVoronoi
 >;
 
@@ -102,6 +103,9 @@ constexpr inline static auto menu_name = type_alias<T>();
 //Cast node types to their data types
 using NodeDataTypeList = to_data_type<NodeTypeList>;
 
+template <typename T>
+concept NodeDataConcept = NodeDataTypeList::has_type<T>;
+
 //Generate aliases for std::variant
 using NodeVariant = NodeTypeList::cast_to<std::variant>;
 using NodeDataVariant = NodeDataTypeList::cast_to<std::variant>;
@@ -161,7 +165,6 @@ struct Pin {
 	std::string name;
 	PinInOut flow_direction = PinInOut::INPUT;
 	PinVariant default_value;
-
 
 	template<typename T> requires std::constructible_from<PinVariant, T>
 	Pin(const ed::PinId id, const uint32_t node_index, std::string name, const T&) :
@@ -403,6 +406,8 @@ namespace engine {
 				}
 			}
 		}
+	
+		static void update_node_ubo(NodeDataVariant& node_data, const PinVariant& value, size_t index);
 
 		void recalculate_node(size_t index);
 

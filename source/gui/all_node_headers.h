@@ -3,6 +3,7 @@
 #include "nodes/node_blend.h"
 #include "nodes/node_blur.h"
 #include "nodes/node_color_ramp.h"
+#include "nodes/node_noise.h"
 #include "nodes/node_pbr_shader.h"
 #include "nodes/node_polygon.h"
 #include "nodes/node_slope_blur.h"

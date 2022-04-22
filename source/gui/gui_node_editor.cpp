@@ -10,6 +10,7 @@
 using json = nlohmann::json;
 
 constexpr bool SHOW_IMGUI_DEMO = false;
+constexpr float NODE_WIDTH = 160.0f;
 
 template <typename T, typename ArrayElementT>
 concept std_array = requires (std::remove_cvref_t<T> t) {
@@ -40,6 +41,18 @@ std::string first_letter_to_upper(std::string_view str) {
 namespace engine {
 	int NodeEditor::get_next_id() noexcept {
 		return next_id++;
+	}
+
+	void NodeEditor::update_node_ubo(NodeDataVariant& node_data, const PinVariant& value, size_t index) {
+		std::visit([&](auto&& _node_data) {
+			using NodeDataT = std::remove_reference_t<decltype(_node_data)>;
+			if constexpr (image_data<NodeDataT>) {
+				_node_data->update_ubo(value, index);
+			}
+			else if constexpr (shader_data<NodeDataT>) {
+				_node_data.update_ubo(value, index);
+			}
+			}, node_data);
 	}
 
 	void NodeEditor::topological_sort(const uint32_t index, std::vector<char>& visited_nodes, std::vector<uint32_t>& sorted_nodes) const {
@@ -161,7 +174,8 @@ namespace engine {
 					for (auto& output : nodes[i].outputs) {
 						for (Pin* connected_pin : output.connected_pins) {
 							auto& connected_node = nodes[connected_pin->node_index];
-							std::visit([&](auto&& connected_node_data) {
+							update_node_ubo(connected_node.data, output.default_value, get_input_pin_index(*connected_pin));
+							/*std::visit([&](auto&& connected_node_data) {
 								using NodeDataT = std::remove_reference_t<decltype(connected_node_data)>;
 								if constexpr (image_data<NodeDataT>) {
 									connected_node_data->update_ubo(output.default_value, get_input_pin_index(*connected_pin));
@@ -169,7 +183,7 @@ namespace engine {
 								else if constexpr (shader_data<NodeDataT>) {
 									connected_node_data.update_ubo(output.default_value, get_input_pin_index(*connected_pin));
 								}
-								}, connected_node.data);
+								}, connected_node.data);*/
 						}
 					}
 				}
@@ -318,7 +332,7 @@ namespace engine {
 			auto yy = ImGui::GetCursorPosY();
 			auto const draw_list = ImGui::GetWindowDrawList();
 			bool display_panel_cache = node.display_panel;
-			node.display_panel ^= ImGui::InvisibleButton(std::format("##{}",node.id.Get()).c_str(), ImGui::CalcTextSize(".O") * ImVec2 { 1.5f, 1 });
+			node.display_panel ^= ImGui::InvisibleButton(std::format("##{}", node.id.Get()).c_str(), ImGui::CalcTextSize(".O") * ImVec2 { 1.5f, 1 });
 			auto dummy_rect = imgui_get_item_rect();
 			//ImGui::SetCursorPosX(dummy_rect.Max.x);
 			//ImGui::SetCursorPosY(dummy_rect.Max.y);
@@ -338,7 +352,7 @@ namespace engine {
 			ImGui::SameLine();
 			ImGui::SetCursorPosX(dummy_rect.Min.x + ImGui::CalcTextSize("OO").x);
 			ImGui::Text(node.name.c_str());
-			ImGui::Dummy(ImVec2(160.0f, 3.0f));
+			ImGui::Dummy(ImVec2(NODE_WIDTH, 3.0f));
 
 			//ImGui::BeginVertical("delegates", ImVec2(0, 28));
 
@@ -541,7 +555,8 @@ namespace engine {
 											ImGui::PushItemWidth(50.f);
 											ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 											ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.0f,0.0f });
-											if (ImGui::Button(std::format("{}##{}", items[default_value.value], pin->id.Get()).c_str(), ImVec2{ 90,28 })) {
+											auto const pin_name_width = ImGui::CalcTextSize(pin->name.c_str()).x;
+											if (ImGui::Button(std::format("{}##{}", items[default_value.value], pin->id.Get()).c_str(), ImVec2{ NODE_WIDTH - pin_name_width - 10,28 })) {
 												enum_node_index = node_index;
 												enum_pin_index = i;
 												hit_enum_pin = true;
@@ -725,10 +740,10 @@ namespace engine {
 			auto& color_ramp_node = nodes[*color_ramp_node_index];
 			auto& color_ramp_pin = color_ramp_node.inputs[*color_ramp_pin_index];
 			if (hit_color_ramp_pin) {
-				ImGui::OpenPopup(std::format("ColorRampPopup##{}",color_ramp_pin.id.Get()).c_str());
+				ImGui::OpenPopup(std::format("ColorRampPopup##{}", color_ramp_pin.id.Get()).c_str());
 			}
 
-			if (ImGui::BeginPopup(std::format("ColorRampPopup##{}",color_ramp_pin.id.Get()).c_str())) {
+			if (ImGui::BeginPopup(std::format("ColorRampPopup##{}", color_ramp_pin.id.Get()).c_str())) {
 				auto& color_ramp_data = *std::get_if<ColorRampData>(&color_ramp_pin.default_value);
 				if (ImGui::GradientEditor(std::format("ColorRampEditor##{}", color_ramp_pin.id.Get()).c_str(), color_ramp_data.ui_value.get(), color_ramp_data.dragging_mark, color_ramp_data.selected_mark)) {
 					std::visit([&](auto&& node_data) {

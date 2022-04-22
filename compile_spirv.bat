@@ -1,10 +1,17 @@
 @echo off
-cd assets
-IF NOT EXIST "shaders" mkdir "shaders"
-cd ..
-for /f %%f in ('dir /b %~dp0assets\glsl_shaders') do (
-    .\extern\vulkan\Bin\glslc.exe %~dp0assets\glsl_shaders\%%f -o %~dp0assets\shaders\%%f.spv
-    echo %%f.spv is compiled ...
+
+IF NOT EXIST "assets\shaders" mkdir "assets\shaders"
+
+SET asset_path=%~dp0assets
+SET glsl_shader_path=%asset_path%\glsl_shaders
+
+ECHO [GLSLC] SPIRV compilation starts!
+
+FOR %%f IN (%glsl_shader_path%\*.vert, %glsl_shader_path%\*.frag, %glsl_shader_path%\*.comp) DO (
+    .\extern\vulkan\Bin\glslc.exe %%f -o %asset_path%\shaders\%%~xnf.spv
+    ECHO   "%%~xnf" is compiled ...
 )
-echo SPIRV compilation completes!
-pause
+
+ECHO [GLSLC] SPIRV compilation completes!
+
+PAUSE

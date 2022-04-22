@@ -1,4 +1,5 @@
 #version 460
+#include "include/hash.glsl"
 
 layout(location = 0) in vec2 fragUV;
 layout(location = 0) out vec4 outColor;
@@ -18,7 +19,7 @@ layout(set = 0, binding = 0) uniform UniformBufferObject {
 
 vec3 texcoord = vec3(fragUV.x + ubo.x, fragUV.y + ubo.y, ubo.z);
 
-#define rot(x, k) (((x) << (k)) | ((x) >> (32 - (k))))
+/* #define rot(x, k) (((x) << (k)) | ((x) >> (32 - (k))))
 
 #define mix3(a, b, c) \
   { \
@@ -128,7 +129,7 @@ vec3 hash_vec3_to_vec3(vec3 k) {
 
 vec3 hash_vec2_to_vec3(vec2 k) {
   return vec3(hash_vec2_to_float(k), hash_vec3_to_float(vec3(k, 1.0)), hash_vec3_to_float(vec3(k, 2.0)));
-}
+} */
 
 float voronoi_distance(vec2 a, vec2 b, int metric, float exponent) {
   if(metric == 0) {// SHD_VORONOI_EUCLIDEAN
