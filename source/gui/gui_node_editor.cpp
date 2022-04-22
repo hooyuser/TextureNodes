@@ -2,6 +2,7 @@
 #include <imgui_internal.h>
 
 #include "../vk_shader.h"
+
 #include <IconsFontAwesome5.h>
 #include <json.hpp>
 #include <ranges>
@@ -1087,7 +1088,8 @@ namespace engine {
 		ed::SetCurrentEditor(context);
 		for (auto& node : nodes) {
 			json_file["nodes"].emplace_back(json{
-				{"type", node.data.index()} ,
+				{"type", NODE_TYPE_NAMES[node.data.index()]},
+				{"type_hash", NODE_TYPE_HASH_VALUES[node.data.index()]},
 				{"pins", node.inputs},
 				{"pos", GetNodePosition(node.id)},
 				});
@@ -1130,8 +1132,8 @@ namespace engine {
 
 		for (size_t node_index = 0; node_index < json_file["nodes"].size(); ++node_index) {
 			auto& json_node = json_file["nodes"][node_index];
-			UNROLL<std::variant_size_v<NodeVariant>>([&] <std::size_t type_index>() {
-				if (json_node["type"] == type_index) {
+			UNROLL<NodeTypeList::size>([&] <std::size_t type_index>() {
+				if (json_node["type_hash"] == NODE_TYPE_HASH_VALUES[type_index]) {
 					using NodeType = NodeTypeList::at<type_index>;
 					create_node<NodeType>();
 

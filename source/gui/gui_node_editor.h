@@ -11,6 +11,8 @@
 
 #include "all_node_headers.h"
 #include "../util/class_field_type_list.h"
+#include "../util/cpp_type.h"
+#include "../util/hash_str.h"
 
 namespace ed = ax::NodeEditor;
 
@@ -35,9 +37,6 @@ enum class PinInOut {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-//All Node Types
-
-
 //Node Menus
 using NodeMenuGenerator = TypeList<
 	NodeUniformColor,
@@ -70,12 +69,25 @@ using NodeMenu = TypeList<
 	NodeMenuShader
 >;
 
+//All Node Types
 using NodeTypeList = concat_t<
 	NodeMenuGenerator,
 	NodeMenuFilter,
 	NodeMenuNumerical,
 	NodeMenuShader
 >;
+
+inline static constexpr auto NODE_TYPE_NAMES = [] <typename ...NodeT>  (TypeList<NodeT...>) consteval {
+	return std::array{
+		cpp_type_name<NodeT>...
+	};
+}(NodeTypeList{});
+
+inline static constexpr auto NODE_TYPE_HASH_VALUES = [&] <std::size_t... I> (std::index_sequence<I...>) consteval {
+	return std::array{
+		hash_str(NODE_TYPE_NAMES[I])...
+	};
+}(std::make_index_sequence<NodeTypeList::size>{});
 
 template<typename T>
 constexpr std::string_view type_alias() {
@@ -406,7 +418,7 @@ namespace engine {
 				}
 			}
 		}
-	
+
 		static void update_node_ubo(NodeDataVariant& node_data, const PinVariant& value, size_t index);
 
 		template<NodeDataConcept NodeDataT>
