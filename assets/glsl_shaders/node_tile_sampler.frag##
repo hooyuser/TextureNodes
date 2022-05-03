@@ -2,7 +2,6 @@
 #extension GL_EXT_nonuniform_qualifier:enable
 
 layout(std140, set = 0, binding = 0) uniform UniformBufferObject {
-    uint format;
     int input_texture_id;
     int displacement_texture_id;
     float rotation;

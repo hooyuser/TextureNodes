@@ -1641,7 +1641,7 @@ void VulkanEngine::imgui_render(uint32_t image_index) {
 }
 
 void VulkanEngine::draw_frame() {
-	//drawFrame will first acquire the index of the available swapchain image, then render into this image, and finally request to prensent this image
+	//draw_frame() will first acquire the index of the available swapchain image, then render into this image, and finally request to prensent this image
 
 	vkWaitForFences(device, 1, &frame_data[current_frame].in_flight_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT); // begin draw i+2 frame if we've complete rendering at frame i
 
@@ -1657,7 +1657,7 @@ void VulkanEngine::draw_frame() {
 	}
 
 	// IMGUI RENDERING
-	gui->begin_render();
+	GUI::begin_render();
 
 	imgui_render(image_index);
 
