@@ -14,28 +14,6 @@ namespace vk_base {
 			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		};
 
-		//if (vkCreateBuffer(device, &buffer_info, nullptr, &buffer) != VK_SUCCESS) {
-		//	throw std::runtime_error("failed to create buffer!");
-		//}
-
-		//VkMemoryRequirements memory_requirements;
-		//vkGetBufferMemoryRequirements(device, buffer, &memory_requirements);
-
-		//const VkMemoryAllocateInfo allocate_info{
-		//	.sType = VK_STRUCTURE_TYPE_MEMORY_ALLOCATE_INFO,
-		//	.allocationSize = memory_requirements.size,
-		//	.memoryTypeIndex = find_memory_type(physical_device, memory_requirements.memoryTypeBits, memory_properties),
-		//};
-
-		//if (vkAllocateMemory(device, &allocate_info, nullptr, &memory) != VK_SUCCESS) {
-		//	throw std::runtime_error("failed to allocate buffer memory!");
-		//}
-
-		//vkBindBufferMemory(device, buffer, memory, 0);
-
-		//if (VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT & memory_properties) {
-		//	vkMapMemory(device, memory, 0, size, 0, &mapped_buffer);
-		//}
 		VmaAllocationCreateInfo alloc_create_info;
 		switch (preferred_memory_type) {
 			using enum PreferredMemoryType;

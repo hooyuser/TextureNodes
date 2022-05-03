@@ -11,9 +11,7 @@ namespace vk_base {
 	class Buffer {
 	public:
 		VmaAllocator vma_allocator = nullptr;
-
 		VkBuffer buffer = VK_NULL_HANDLE;
-		//VkDeviceMemory memory = VK_NULL_HANDLE;
 		VmaAllocation allocation;
 		VkDeviceSize size = 0;
 		void* mapped_buffer = nullptr;

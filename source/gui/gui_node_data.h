@@ -30,15 +30,15 @@ struct UboMixin {
 	BufferPtr uniform_buffer;
 
 	explicit UboMixin(VulkanEngine* engine, BufferPtr buffer = nullptr) {
-		if(buffer) {
+		if (buffer) {
 			uniform_buffer = buffer;
 		}
 		else {
 			uniform_buffer = engine::Buffer::create_buffer(engine,
-			sizeof(UboType),
-			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			PreferredMemoryType::VRAM_MAPPABLE,
-			SWAPCHAIN_INDEPENDENT_BIT);
+				sizeof(UboType),
+				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
+				PreferredMemoryType::VRAM_MAPPABLE,
+				SWAPCHAIN_INDEPENDENT_BIT);
 		}
 	}
 
@@ -131,7 +131,7 @@ struct ShaderData : NodeData, UboMixin<UniformBufferType> {
 	explicit ShaderData(VulkanEngine* engine) : UboMixin<UniformBufferType>(engine, engine->material_preview_ubo) {}
 };
 
-struct SubmitInfoMembers{
+struct SubmitInfoMembers {
 	VkSemaphoreSubmitInfo wait_semaphore_submit_info;
 	VkCommandBufferSubmitInfo cmd_buffer_submit_info;
 	VkSemaphoreSubmitInfo signal_semaphore_submit_info;
@@ -198,14 +198,14 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 	}
 
 	void create_ubo_descriptor_sets(VulkanEngine* engine) {
-	
+
 		VkDescriptorSetAllocateInfo descriptor_set_allocate_infos{
 			.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_SET_ALLOCATE_INFO,
 			.descriptorPool = engine->dynamic_descriptor_pool,
 			.descriptorSetCount = ubo_descriptor_set_layouts.size(),
 			.pSetLayouts = ubo_descriptor_set_layouts.data(),
 		};
-	
+
 
 		if (vkAllocateDescriptorSets(engine->device, &descriptor_set_allocate_infos, ubo_descriptor_sets.data()) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
@@ -418,7 +418,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 
 	void create_image_processing_compute_command_buffer_func(const VulkanEngine* engine) {
 		record_image_processing_cmd_buffer_func = [=](int input_image_idx) {
-			
+
 			VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
 			if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &ownership_release_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to allocate command buffers!");
@@ -539,7 +539,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
 				insert_image_memory_barrier(
 					image_processing_cmd_buffer,
-					ping_pong_images[idx%2]->image,
+					ping_pong_images[idx % 2]->image,
 					VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
 					VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
 					VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
@@ -552,7 +552,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 			vkCmdDispatch(image_processing_cmd_buffer, texture->width / 16, texture->height / 16, 1);
 			insert_image_memory_barrier(
 				image_processing_cmd_buffer,
-				ping_pong_images[idx%2]->image,
+				ping_pong_images[idx % 2]->image,
 				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
 				VK_ACCESS_2_SHADER_STORAGE_WRITE_BIT,
 				VK_PIPELINE_STAGE_2_COMPUTE_SHADER_BIT,
@@ -669,15 +669,15 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 			}
 		};
 
-		for(size_t i=1; i<=submit_info_members.size(); ++i) {
+		for (size_t i = 1; i <= submit_info_members.size(); ++i) {
 			submit_info[i] = VkSubmitInfo2{
 				.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
 				.waitSemaphoreInfoCount = 1,
-				.pWaitSemaphoreInfos = &submit_info_members[i-1].wait_semaphore_submit_info,
+				.pWaitSemaphoreInfos = &submit_info_members[i - 1].wait_semaphore_submit_info,
 				.commandBufferInfoCount = 1,
-				.pCommandBufferInfos = &submit_info_members[i-1].cmd_buffer_submit_info,
+				.pCommandBufferInfos = &submit_info_members[i - 1].cmd_buffer_submit_info,
 				.signalSemaphoreInfoCount = 1,
-				.pSignalSemaphoreInfos = &submit_info_members[i-1].signal_semaphore_submit_info,
+				.pSignalSemaphoreInfos = &submit_info_members[i - 1].signal_semaphore_submit_info,
 			};
 		}
 	}
@@ -1374,8 +1374,8 @@ struct ImageData : NodeData, Component {
 		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 	}
 
-	
-	
+
+
 
 	void create_preview_texture(const VkFormat format) {
 		const bool is_gray_scale = (format == VK_FORMAT_R16_UNORM || format == VK_FORMAT_R16_SFLOAT);
