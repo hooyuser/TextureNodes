@@ -218,7 +218,7 @@ namespace engine {
 		auto const staging_vertex_buffer = engine::Buffer::create_buffer(engine,
 			vertex_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			PreferredMemoryType::RAM_FOR_UPLOAD,
 			TEMP_BIT);
 
 		staging_vertex_buffer->copy_from_host(_vertices.data());
@@ -226,7 +226,7 @@ namespace engine {
 		vertex_buffer = engine::Buffer::create_buffer(engine,
 			vertex_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_VERTEX_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			PreferredMemoryType::VRAM_UNMAPPABLE,
 			SWAPCHAIN_INDEPENDENT_BIT);
 
 		vertex_buffer->copy_from_buffer(engine, staging_vertex_buffer->buffer);
@@ -236,7 +236,7 @@ namespace engine {
 		auto const staging_index_buffer = engine::Buffer::create_buffer(engine,
 			index_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			PreferredMemoryType::RAM_FOR_UPLOAD,
 			TEMP_BIT);
 
 		staging_index_buffer->copy_from_host(_indices.data());
@@ -244,7 +244,7 @@ namespace engine {
 		index_buffer = engine::Buffer::create_buffer(engine,
 			index_buffer_size,
 			VK_BUFFER_USAGE_TRANSFER_DST_BIT | VK_BUFFER_USAGE_INDEX_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+			PreferredMemoryType::VRAM_UNMAPPABLE,
 			SWAPCHAIN_INDEPENDENT_BIT);
 
 		index_buffer->copy_from_buffer(engine, staging_index_buffer->buffer);

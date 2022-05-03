@@ -14,6 +14,8 @@
 #include <algorithm>
 #include <iostream>
 
+#include <vk_mem_alloc.h>
+
 #include <IconsFontAwesome5.h>
 
 #include <GLFW/glfw3.h>
@@ -386,6 +388,17 @@ void VulkanEngine::create_logical_device() {
 	vkGetDeviceQueue(device, queue_family_indices.graphics_family.value(), 0, &graphics_queue);
 	vkGetDeviceQueue(device, queue_family_indices.compute_family.value(), 0, &compute_queue);
 	vkGetDeviceQueue(device, queue_family_indices.present_family.value(), 0, &present_queue);
+
+	VmaAllocatorCreateInfo allocator_create_info {		
+		.physicalDevice = physical_device,
+		.device = device,
+		.instance = instance,
+		.vulkanApiVersion = VK_API_VERSION_1_3,
+	};
+	vmaCreateAllocator(&allocator_create_info, &vma_allocator);
+	main_deletion_queue.push_function([=] {
+		vmaDestroyAllocator(vma_allocator);
+		});
 }
 
 void VulkanEngine::create_swap_chain() {
@@ -1117,14 +1130,14 @@ void VulkanEngine::create_uniform_buffers() {
 		uniform_buffers[i] = engine::Buffer::create_buffer(this,
 			sizeof(UniformBufferObject),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			PreferredMemoryType::VRAM_MAPPABLE,
 			SWAPCHAIN_INDEPENDENT_BIT);
 	}
 
 	material_preview_ubo = Buffer::create_buffer(this,
 		sizeof(MaterialPreviewUBO),
 		VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		PreferredMemoryType::VRAM_MAPPABLE,
 		SWAPCHAIN_INDEPENDENT_BIT);
 }
 

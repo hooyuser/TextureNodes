@@ -3,6 +3,7 @@
 #include "../vk_util.h"
 #include "../vk_image.h"
 #include "../vk_initializers.h"
+#include "../vk_types.h"
 
 constexpr uint32_t RAMP_TEXTURE_SIZE = 256;
 
@@ -15,10 +16,9 @@ ColorRampData::ColorRampData(VulkanEngine* engine) {
 RampTexture::RampTexture(VulkanEngine* engine) :
 	engine(engine),
 	staging_buffer(engine::Buffer(
-		engine->device,
-		engine->physical_device,
+		engine->vma_allocator,
 		VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-		VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+		PreferredMemoryType::RAM_FOR_UPLOAD,
 		RAMP_TEXTURE_SIZE * 4 * sizeof(float))) {
 
 	const VkImageCreateInfo imageInfo{

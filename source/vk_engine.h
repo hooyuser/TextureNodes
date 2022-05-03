@@ -40,6 +40,8 @@ struct Pbr;
 struct PbrMaterialTextureSet;
 struct HDRi;
 struct TextureManager;
+struct VmaAllocator_T;
+using VmaAllocator = VmaAllocator_T*;
 
 namespace engine {
 	class Mesh;
@@ -133,6 +135,8 @@ public:
 	VkQueue compute_queue;
 	VkQueue present_queue;
 	QueueFamilyIndices queue_family_indices;
+
+	VmaAllocator vma_allocator;
 
 	VkSwapchainKHR swapchain;
 	std::vector<VkImage> swapchain_images;

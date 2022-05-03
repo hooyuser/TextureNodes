@@ -37,7 +37,7 @@ struct UboMixin {
 			uniform_buffer = engine::Buffer::create_buffer(engine,
 			sizeof(UboType),
 			VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			PreferredMemoryType::VRAM_MAPPABLE,
 			SWAPCHAIN_INDEPENDENT_BIT);
 		}
 	}

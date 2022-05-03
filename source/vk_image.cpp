@@ -636,7 +636,7 @@ namespace engine {
 		auto const staging_buffer = engine::Buffer::create_buffer(engine,
 			image_size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			PreferredMemoryType::RAM_FOR_UPLOAD,
 			TEMP_BIT);
 		staging_buffer->copy_from_host(host_pixels);
 
@@ -704,7 +704,7 @@ namespace engine {
 		auto const staging_buffer = engine::Buffer::create_buffer(engine,
 			image_size,
 			VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-			VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+			PreferredMemoryType::RAM_FOR_UPLOAD,
 			TEMP_BIT);
 
 		for (int8_t i = 0; i < 6; i++) {
@@ -764,7 +764,7 @@ namespace engine {
 			auto const staging_buffer = engine::Buffer::create_buffer(engine,
 				image_size,
 				VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-				VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+				PreferredMemoryType::RAM_FOR_UPLOAD,
 				TEMP_BIT);
 
 			for (int8_t i = 0; i < 6; i++) {
