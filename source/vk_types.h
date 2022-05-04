@@ -80,11 +80,3 @@ struct AllocatedImage {
 	VkImage _image;
 	VkDeviceMemory _imageMemory;
 };
-
-enum class PreferredMemoryType : uint32_t {
-	VRAM_UNMAPPABLE,
-	VRAM_MAPPABLE,
-	RAM_FOR_UPLOAD,
-	RAM_FOR_DOWNLOAD,
-};
-

@@ -1,8 +1,11 @@
+#define VMA_IMPLEMENTATION  //vk_mem_alloc.h
+
 #include "vk_engine.h"
 #include "vk_shader.h"
 #include "vk_mesh.h"
 #include "vk_camera.h"
 #include "vk_gui.h"
+#include "vk_memory.h"
 #include "gui/gui_node_editor.h"
 #include "gui/ImGuiFileDialog.h"
 
@@ -13,8 +16,6 @@
 #include <chrono>
 #include <algorithm>
 #include <iostream>
-
-#include <vk_mem_alloc.h>
 
 #include <IconsFontAwesome5.h>
 

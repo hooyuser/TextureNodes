@@ -1,9 +1,7 @@
 #include "vk_buffer.h"
 #include "vk_util.h"
-#include <stdexcept>
 
-#define VMA_IMPLEMENTATION
-#include <vk_mem_alloc.h>
+#include <stdexcept>
 
 namespace vk_base {
 	Buffer::Buffer(VmaAllocator vma_allocator, VkBufferUsageFlags buffer_usage, PreferredMemoryType preferred_memory_type, VkDeviceSize size) : vma_allocator(vma_allocator), size(size) {
@@ -14,37 +12,11 @@ namespace vk_base {
 			.sharingMode = VK_SHARING_MODE_EXCLUSIVE,
 		};
 
-		VmaAllocationCreateInfo alloc_create_info;
-		switch (preferred_memory_type) {
-			using enum PreferredMemoryType;
-		case VRAM_UNMAPPABLE:
-			alloc_create_info = VmaAllocationCreateInfo{
-				.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-			};
-			break;
-		case VRAM_MAPPABLE:
-			alloc_create_info = VmaAllocationCreateInfo{
-				.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
-				.usage = VMA_MEMORY_USAGE_AUTO_PREFER_DEVICE,
-			};
-			break;
-		case RAM_FOR_UPLOAD:
-			alloc_create_info = VmaAllocationCreateInfo{
-				.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_SEQUENTIAL_WRITE_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
-				.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
-			};
-			break;
-		case RAM_FOR_DOWNLOAD:
-			alloc_create_info = VmaAllocationCreateInfo{
-				.flags = VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT | VMA_ALLOCATION_CREATE_MAPPED_BIT,
-				.usage = VMA_MEMORY_USAGE_AUTO_PREFER_HOST,
-			};
-		}
 		VmaAllocationInfo allocation_info;
 		if (vmaCreateBuffer(
 			vma_allocator,
 			&buffer_info,
-			&alloc_create_info,
+			&memory_type_vma_alloc_map.at(preferred_memory_type),
 			&buffer,
 			&allocation,
 			&allocation_info) != VK_SUCCESS

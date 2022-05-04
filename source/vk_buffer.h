@@ -1,5 +1,6 @@
 #pragma once
 #include "vk_types.h"
+#include "vk_memory.h"
 
 class VulkanEngine;
 struct VmaAllocation_T;
