@@ -76,7 +76,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 		throw std::runtime_error("failed to create texture image view!");
 	}
 
-	const VkSamplerCreateInfo sampler_info = vk_init::samplerCreateInfo(
+	const VkSamplerCreateInfo sampler_info = vk_init::sampler_create_info(
 		engine->physical_device,
 		VK_FILTER_LINEAR,
 		1,

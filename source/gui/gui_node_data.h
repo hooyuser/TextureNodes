@@ -262,7 +262,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 			SWAPCHAIN_INDEPENDENT_BIT,
 			is_gray_scale);
 
-		texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		texture->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		for (size_t i = 0; i < 2; ++i) {
 			ping_pong_images[i] = engine::Texture::create_device_texture(engine,
@@ -272,7 +272,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				VK_IMAGE_ASPECT_COLOR_BIT,
 				VK_IMAGE_USAGE_STORAGE_BIT,
 				SWAPCHAIN_INDEPENDENT_BIT);
-			ping_pong_images[i]->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, QueueFamilyCategory::COMPUTE);
+			ping_pong_images[i]->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, QueueFamilyCategory::COMPUTE);
 		}
 	}
 
@@ -925,7 +925,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 			SWAPCHAIN_INDEPENDENT_BIT,
 			is_gray_scale);
 
-		texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		texture->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 	}
 
 	static void create_image_processing_render_pass(VulkanEngine* engine, const VkFormat format) {
@@ -1388,7 +1388,7 @@ struct ImageData : NodeData, Component {
 			SWAPCHAIN_INDEPENDENT_BIT,
 			is_gray_scale);
 
-		this->preview_texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		this->preview_texture->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
 		gui_texture = ImGui_ImplVulkan_AddTexture(this->texture->sampler, this->texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 		gui_preview_texture = ImGui_ImplVulkan_AddTexture(this->preview_texture->sampler, this->preview_texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);

@@ -50,11 +50,11 @@ const std::vector validationLayers{
 	"VK_LAYER_KHRONOS_synchronization2",
 };
 
-constexpr std::array<const char*, 0> instance_extensions{
+constexpr std::array<const char*, 0> INSTANCE_EXTENSIONS{
 
 };
 
-constexpr std::array deviceExtensions{
+constexpr std::array DEVICE_EXTENSIONS{
 	VK_KHR_SWAPCHAIN_EXTENSION_NAME,
 	//VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME
 };
@@ -369,8 +369,8 @@ void VulkanEngine::create_logical_device() {
 		.pNext = &vk12_features,
 		.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size()),
 		.pQueueCreateInfos = queueCreateInfos.data(),
-		.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size()),
-		.ppEnabledExtensionNames = deviceExtensions.data(),
+		.enabledExtensionCount = static_cast<uint32_t>(DEVICE_EXTENSIONS.size()),
+		.ppEnabledExtensionNames = DEVICE_EXTENSIONS.data(),
 		.pEnabledFeatures = &device_features,
 	};
 
@@ -1815,7 +1815,7 @@ bool VulkanEngine::check_device_extension_support(VkPhysicalDevice device) {
 	std::vector<VkExtensionProperties> availableExtensions(extensionCount);
 	vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
-	std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+	std::set<std::string> requiredExtensions(DEVICE_EXTENSIONS.begin(), DEVICE_EXTENSIONS.end());
 
 	for (const auto& extension : availableExtensions) {
 		requiredExtensions.erase(extension.extensionName);
@@ -1875,7 +1875,7 @@ std::vector<const char*> VulkanEngine::get_required_extensions() {
 		extensions.emplace_back(VK_EXT_DEBUG_UTILS_EXTENSION_NAME);
 	}
 
-	extensions.insert(extensions.end(), instance_extensions.begin(), instance_extensions.end());
+	extensions.insert(extensions.end(), INSTANCE_EXTENSIONS.begin(), INSTANCE_EXTENSIONS.end());
 
 	return extensions;
 }

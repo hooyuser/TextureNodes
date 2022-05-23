@@ -926,7 +926,7 @@ namespace engine {
 														input_format,
 														VK_IMAGE_ASPECT_COLOR_BIT,
 														VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-													pbr_texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+													pbr_texture->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 													engine->update_image_descriptor(pbr_texture, pbr_texture_id);
 													start_node_data->record_copy_image_cmd_buffers(end_pin_index);
 												}
@@ -1211,7 +1211,7 @@ namespace engine {
 										input_format,
 										VK_IMAGE_ASPECT_COLOR_BIT,
 										VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT);
-									pbr_texture->transition_image_layout(engine, VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+									pbr_texture->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 									engine->update_image_descriptor(pbr_texture, pbr_texture_id);
 									start_node_data->record_copy_image_cmd_buffers(end_pin_index);
 								}

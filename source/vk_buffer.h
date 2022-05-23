@@ -3,10 +3,6 @@
 #include "vk_memory.h"
 
 class VulkanEngine;
-struct VmaAllocation_T;
-using VmaAllocation = VmaAllocation_T*;
-struct VmaAllocator_T;
-using VmaAllocator = VmaAllocator_T*;
 
 namespace vk_base {
 	class Buffer {
