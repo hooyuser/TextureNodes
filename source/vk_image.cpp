@@ -89,7 +89,7 @@ namespace engine {
 		const VkImageViewCreateInfo view_info{
 			.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 			.image = image,
-			.viewType = VK_IMAGE_VIEW_TYPE_2D,
+			.viewType = layer_count == 1 ? VK_IMAGE_VIEW_TYPE_2D : VK_IMAGE_VIEW_TYPE_CUBE,
 			.format = format,
 			.components = components,
 			.subresourceRange = {
@@ -97,7 +97,7 @@ namespace engine {
 				.baseMipLevel = 0,
 				.levelCount = mip_levels,
 				.baseArrayLayer = 0,
-				.layerCount = 1,
+				.layerCount = layer_count,
 			}
 		};
 
@@ -117,7 +117,7 @@ namespace engine {
 		}
 	}
 
-	ImagePtr Image::create_image(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels, VkSampleCountFlagBits sample_count_flag,
+	/*ImagePtr Image::create_image(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels, VkSampleCountFlagBits sample_count_flag,
 		VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, PreferredMemoryType preferred_memory_type, VkImageAspectFlags aspect_flags,
 		CreateResourceFlagBits image_description) {
 		auto image = std::make_shared<Image>(
@@ -142,7 +142,7 @@ namespace engine {
 				});
 		}
 		return image;
-	}
+	}*/
 
 	void Image::transition_image_layout(VkImageLayout old_layout, VkImageLayout new_layout, QueueFamilyCategory queue_family_category) {
 		auto [queue, command_pool] = queue_family_category == QueueFamilyCategory::GRAPHICS ?
@@ -402,7 +402,7 @@ namespace engine {
 		const VkImageUsageFlagBits usage_flag = (aspect_flags == VK_IMAGE_ASPECT_COLOR_BIT) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		auto texture = std::make_shared<Texture>(
 			/*engine*/                 engine,
-		    /*width*/	               width,
+			/*width*/	               width,
 			/*height*/                 height,
 			/*mip_levels*/             1,
 			/*sample_count_flag*/      sample_count_flag,
@@ -438,7 +438,7 @@ namespace engine {
 											VK_COMPONENT_SWIZZLE_R,
 											VK_COMPONENT_SWIZZLE_R,
 											VK_COMPONENT_SWIZZLE_ONE
-											});
+				});
 		}
 		else {
 			texture = std::make_shared<Texture>(engine,

@@ -42,9 +42,9 @@ namespace engine {
 
 		~Image();
 
-		static ImagePtr create_image(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels,
+	/*	static ImagePtr create_image(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels,
 			VkSampleCountFlagBits sample_count_flag, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-			PreferredMemoryType preferred_memory_type, VkImageAspectFlags aspect_flags, CreateResourceFlagBits image_description);
+			PreferredMemoryType preferred_memory_type, VkImageAspectFlags aspect_flags, CreateResourceFlagBits image_description);*/
 
 		void transition_image_layout(VkImageLayout old_layout, VkImageLayout new_layout, QueueFamilyCategory = QueueFamilyCategory::GRAPHICS);
 
