@@ -20,11 +20,11 @@
 #include <tinyexr.h>
 
 namespace vk_init {
-	VkSamplerCreateInfo sampler_create_info(VkPhysicalDevice physicalDevice, VkFilter filters, uint32_t mipLevels,
+	VkSamplerCreateInfo sampler_create_info(VkPhysicalDevice physical_device, VkFilter filters, uint32_t mipLevels,
 		VkSamplerAddressMode samplerAdressMode /*= VK_SAMPLER_ADDRESS_MODE_REPEAT*/) {
 
 		VkPhysicalDeviceProperties properties{};
-		vkGetPhysicalDeviceProperties(physicalDevice, &properties);
+		vkGetPhysicalDeviceProperties(physical_device, &properties);
 
 		return VkSamplerCreateInfo{
 			.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
@@ -116,33 +116,6 @@ namespace engine {
 			image = VK_NULL_HANDLE;
 		}
 	}
-
-	/*ImagePtr Image::create_image(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels, VkSampleCountFlagBits sample_count_flag,
-		VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, PreferredMemoryType preferred_memory_type, VkImageAspectFlags aspect_flags,
-		CreateResourceFlagBits image_description) {
-		auto image = std::make_shared<Image>(
-			engine,
-			width,
-			height,
-			mip_levels,
-			sample_count_flag,
-			format,
-			tiling,
-			usage,
-			preferred_memory_type,
-			aspect_flags);
-
-		if (image_description & 0x00000001) {
-			((image_description == SWAPCHAIN_DEPENDENT_BIT) ? engine->swap_chain_deletion_queue : engine->main_deletion_queue).push_function([=] {
-				vkDestroyImageView(engine->device, image->image_view, nullptr);
-				vkDestroyImage(engine->device, image->image, nullptr);
-				vmaDestroyImage(engine->vma_allocator, image->image, image->allocation);
-				image->image = VK_NULL_HANDLE;
-				image->image_view = VK_NULL_HANDLE;
-				});
-		}
-		return image;
-	}*/
 
 	void Image::insert_memory_barrier(
 		VkCommandBuffer            command_buffer,
@@ -340,12 +313,24 @@ namespace engine {
 			});
 	}
 
-	Texture::Texture(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels, VkSampleCountFlagBits sample_count_flag,
-		VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, PreferredMemoryType preferred_memory_type,
-		VkImageAspectFlags aspect_flags, VkFilter filter, uint32_t layer_count, VkImageCreateFlags image_flag,
-		VkComponentMapping components) :
-		Image(engine, width, height, mip_levels, sample_count_flag, format, tiling,
-			usage, preferred_memory_type, aspect_flags, layer_count, image_flag, components) {
+	Texture::Texture(
+		VulkanEngine* engine,
+		const uint32_t tex_width,
+		const uint32_t tex_height,
+		const uint32_t mip_levels,
+		const VkSampleCountFlagBits sample_count_flag,
+		const VkFormat img_format, 
+		const VkImageTiling img_tiling,
+		const VkImageUsageFlags img_usage, 
+		const PreferredMemoryType preferred_memory_type,
+		const VkImageAspectFlags aspect_flags,
+		const VkFilter filter,
+		const uint32_t layer_count, 
+		const VkImageCreateFlags image_flag,
+		const VkComponentMapping components
+	) :
+		Image(engine, tex_width, tex_height, mip_levels, sample_count_flag, img_format, img_tiling,
+			img_usage, preferred_memory_type, aspect_flags, layer_count, image_flag, components) {
 
 		const VkSamplerCreateInfo sampler_info = vk_init::sampler_create_info(engine->physical_device, filter, mip_levels);
 
@@ -373,15 +358,6 @@ namespace engine {
 				});
 		}
 	}
-
-	//TexturePtr Texture::create_texture(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels,
-	//	VkSampleCountFlagBits sample_count_flag, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-	//	PreferredMemoryType preferred_memory_type, VkImageAspectFlags aspect_flags, VkFilter filter,
-	//	CreateResourceFlagBits image_description) {
-	//	auto texture = std::make_shared<Texture>(engine, width, height, mip_levels, sample_count_flag, format, tiling, usage, preferred_memory_type, aspect_flags, filter);
-	//	texture->add_resource_release_callback(image_description);
-	//	return texture;
-	//}
 
 	TexturePtr Texture::create_2d_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits image_description) {
 		auto mip_levels = static_cast<uint32_t>(std::floor(std::log2(std::max(width, height)))) + 1;
@@ -554,19 +530,19 @@ namespace engine {
 	}
 
 	TexturePtr Texture::load_cubemap_texture(VulkanEngine* engine, const std::span<std::string const> file_paths) {
-		int texWidth, texHeight, texChannels;
+		int tex_width, tex_height, tex_channels;
 		float* pixels[6];
 		for (int8_t i = 0; i < 6; i++) {
 			auto const extension_name = std::filesystem::path(file_paths[i]).extension();
 			if (extension_name == ".hdr") { // hdr layout: r8g8b8e8(32-bit)
-				pixels[i] = stbi_loadf(file_paths[i].c_str(), &texWidth, &texHeight, &texChannels, 4);
+				pixels[i] = stbi_loadf(file_paths[i].c_str(), &tex_width, &tex_height, &tex_channels, 4);
 				if (!pixels[i]) {
 					throw std::runtime_error("Error occurs when loading hdr!");
 				}
 			}
 			else if (extension_name == ".exr") {
 				const char* err;
-				const int ret = LoadEXR(&pixels[i], &texWidth, &texHeight, file_paths[i].c_str(), &err); // LoadEXR returned layout: r32g32b32a32
+				const int ret = LoadEXR(&pixels[i], &tex_width, &tex_height, file_paths[i].c_str(), &err); // LoadEXR returned layout: r32g32b32a32
 
 				if (ret != TINYEXR_SUCCESS) {
 					if (err) {
@@ -581,7 +557,7 @@ namespace engine {
 			}
 		}
 
-		const VkDeviceSize layer_size = static_cast<uint64_t>(texWidth) * texHeight * 4 * sizeof(float);
+		const VkDeviceSize layer_size = static_cast<uint64_t>(tex_width) * tex_height * 4 * sizeof(float);
 		const VkDeviceSize image_size = layer_size * 6;
 
 		auto const staging_buffer = engine::Buffer::create_buffer(engine,
@@ -591,11 +567,11 @@ namespace engine {
 			TEMP_BIT);
 
 		for (int8_t i = 0; i < 6; i++) {
-			memcpy(static_cast<char*>(staging_buffer->mapped_buffer) + (layer_size * i), pixels[i], layer_size);
+			memcpy(static_cast<char*>(staging_buffer->mapped_buffer) + layer_size * i, pixels[i], layer_size);
 			stbi_image_free(pixels[i]);
 		}
 
-		auto texture = engine::Texture::create_cubemap_texture(engine, texWidth, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT);
+		auto texture = engine::Texture::create_cubemap_texture(engine, tex_width, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT);
 
 		texture->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
 

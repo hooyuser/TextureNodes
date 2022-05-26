@@ -4,12 +4,11 @@
 #include "vk_memory.h"
 
 #include <span>
-#include <array>
 
 class VulkanEngine;
 
 namespace vk_init {
-	VkSamplerCreateInfo sampler_create_info(VkPhysicalDevice physicalDevice, VkFilter filters, uint32_t mipLevels, VkSamplerAddressMode samplerAdressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
+	VkSamplerCreateInfo sampler_create_info(VkPhysicalDevice physical_device, VkFilter filters, uint32_t mipLevels, VkSamplerAddressMode samplerAdressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
 }
 
 enum class QueueFamilyCategory {
@@ -26,7 +25,6 @@ namespace engine {
 		VulkanEngine* engine;
 		VkImage image = VK_NULL_HANDLE;
 		VmaAllocation allocation = nullptr;
-		//VkDeviceMemory memory = VK_NULL_HANDLE;
 		VkImageView image_view = VK_NULL_HANDLE;
 
 		uint32_t width;
@@ -41,10 +39,6 @@ namespace engine {
 			VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 
 		~Image();
-
-	/*	static ImagePtr create_image(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels,
-			VkSampleCountFlagBits sample_count_flag, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-			PreferredMemoryType preferred_memory_type, VkImageAspectFlags aspect_flags, CreateResourceFlagBits image_description);*/
 
 		void insert_memory_barrier(
 			VkCommandBuffer            command_buffer,
@@ -71,19 +65,14 @@ namespace engine {
 	public:
 		VkSampler sampler = VK_NULL_HANDLE;
 
-		Texture(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels, VkSampleCountFlagBits sample_count_flag, 
-			VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, PreferredMemoryType preferred_memory_type,
+		Texture(VulkanEngine* engine, uint32_t tex_width, uint32_t tex_height, uint32_t mip_levels, VkSampleCountFlagBits sample_count_flag, 
+			VkFormat img_format, VkImageTiling img_tiling, VkImageUsageFlags img_usage, PreferredMemoryType preferred_memory_type,
 			VkImageAspectFlags aspect_flags, VkFilter filter, uint32_t layer_count = 1, VkImageCreateFlags image_flag = 0, 
 			VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 
 		~Texture();
 
 		void add_resource_release_callback(CreateResourceFlagBits image_description);
-
-		//static TexturePtr create_texture(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels,
-		//	VkSampleCountFlagBits sample_count_flag, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
-		//	PreferredMemoryType preferred_memory_type, VkImageAspectFlags aspect_flags, VkFilter filter, 
-		//	CreateResourceFlagBits image_description);
 
 		static TexturePtr create_2d_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits image_description);
 
@@ -111,6 +100,3 @@ namespace engine {
 
 using ImagePtr = std::shared_ptr<engine::Image>;
 using TexturePtr = std::shared_ptr<engine::Texture>;
-
-
-
