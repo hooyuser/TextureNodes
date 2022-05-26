@@ -76,7 +76,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 		throw std::runtime_error("failed to create texture image view!");
 	}
 
-	const VkSamplerCreateInfo sampler_info = vk_init::sampler_create_info(
+	const VkSamplerCreateInfo sampler_info = vkinit::sampler_create_info(
 		engine->physical_device,
 		VK_FILTER_LINEAR,
 		1,
@@ -87,7 +87,7 @@ RampTexture::RampTexture(VulkanEngine* engine) :
 	}
 
 	engine::immediate_submit(engine, [=](VkCommandBuffer cmd) {
-		const VkImageMemoryBarrier2 image_memory_barrier {
+		const VkImageMemoryBarrier2 image_memory_barrier{
 			.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
 			.srcStageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
 			.srcAccessMask = VK_ACCESS_2_NONE,
@@ -181,7 +181,7 @@ void RampTexture::create_command_buffer() {
 			},
 		};
 
-		const VkDependencyInfo dependency_info {
+		const VkDependencyInfo dependency_info{
 			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
 			.imageMemoryBarrierCount = 1,
 			.pImageMemoryBarriers = &image_memory_barrier,
@@ -228,7 +228,7 @@ void RampTexture::create_command_buffer() {
 			},
 		};
 
-		const VkDependencyInfo dependency_info {
+		const VkDependencyInfo dependency_info{
 			.sType = VK_STRUCTURE_TYPE_DEPENDENCY_INFO,
 			.imageMemoryBarrierCount = 1,
 			.pImageMemoryBarriers = &image_memory_barrier,

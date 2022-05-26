@@ -189,3 +189,30 @@ VkDescriptorSetLayoutBinding vkinit::descriptorSetLayoutBinding(VkDescriptorType
 		.pImmutableSamplers = nullptr,
 	};
 }
+
+VkSamplerCreateInfo vkinit::sampler_create_info(VkPhysicalDevice physical_device, VkFilter filters, uint32_t mip_levels,
+	VkSamplerAddressMode sampler_address_mode /*= VK_SAMPLER_ADDRESS_MODE_REPEAT*/) {
+
+	VkPhysicalDeviceProperties properties{};
+	vkGetPhysicalDeviceProperties(physical_device, &properties);
+
+	return VkSamplerCreateInfo{
+		.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
+		.pNext = nullptr,
+		.magFilter = filters,
+		.minFilter = filters,
+		.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
+		.addressModeU = sampler_address_mode,
+		.addressModeV = sampler_address_mode,
+		.addressModeW = sampler_address_mode,
+		.mipLodBias = 0.0f,
+		.anisotropyEnable = VK_TRUE,
+		.maxAnisotropy = properties.limits.maxSamplerAnisotropy,
+		.compareEnable = VK_FALSE,
+		.compareOp = VK_COMPARE_OP_ALWAYS,
+		.minLod = 0.0f,
+		.maxLod = static_cast<float>(mip_levels),
+		.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
+		.unnormalizedCoordinates = VK_FALSE,
+	};
+}

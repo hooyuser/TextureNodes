@@ -46,7 +46,7 @@ namespace vkinit {
 
 	VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount = 1);
 
-	constexpr VkSemaphoreCreateInfo semaphoreCreateInfo(VkSemaphoreCreateFlags flags = 0) noexcept {
+	constexpr VkSemaphoreCreateInfo semaphore_create_info(VkSemaphoreCreateFlags flags = 0) noexcept {
 		return {
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 			.pNext = nullptr,
@@ -54,11 +54,13 @@ namespace vkinit {
 		};
 	}
 
-	constexpr VkFenceCreateInfo fenceCreateInfo(VkFenceCreateFlags flags /*= 0*/) noexcept {
+	constexpr VkFenceCreateInfo fence_create_info(VkFenceCreateFlags flags /*= 0*/) noexcept {
 		return {
 			.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO,
 			.pNext = nullptr,
 			.flags = flags,
 		};
 	}
+
+	VkSamplerCreateInfo sampler_create_info(VkPhysicalDevice physical_device, VkFilter filters, uint32_t mip_levels, VkSamplerAddressMode sampler_address_mode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
 }

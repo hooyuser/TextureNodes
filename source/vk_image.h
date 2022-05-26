@@ -7,10 +7,6 @@
 
 class VulkanEngine;
 
-namespace vk_init {
-	VkSamplerCreateInfo sampler_create_info(VkPhysicalDevice physical_device, VkFilter filters, uint32_t mipLevels, VkSamplerAddressMode samplerAdressMode = VK_SAMPLER_ADDRESS_MODE_REPEAT);
-}
-
 enum class QueueFamilyCategory {
 	GRAPHICS,
 	COMPUTE,
@@ -35,7 +31,7 @@ namespace engine {
 
 		Image(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels, VkSampleCountFlagBits sample_count_flag,
 			VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage, PreferredMemoryType preferred_memory_type,
-			VkImageAspectFlags aspect_flags, uint32_t layer_count = 1, VkImageCreateFlags image_flag = 0, 
+			VkImageAspectFlags aspect_flags, uint32_t layer_count = 1, VkImageCreateFlags image_flag = 0,
 			VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 
 		~Image();
@@ -65,9 +61,9 @@ namespace engine {
 	public:
 		VkSampler sampler = VK_NULL_HANDLE;
 
-		Texture(VulkanEngine* engine, uint32_t tex_width, uint32_t tex_height, uint32_t mip_levels, VkSampleCountFlagBits sample_count_flag, 
+		Texture(VulkanEngine* engine, uint32_t tex_width, uint32_t tex_height, uint32_t mip_levels, VkSampleCountFlagBits sample_count_flag,
 			VkFormat img_format, VkImageTiling img_tiling, VkImageUsageFlags img_usage, PreferredMemoryType preferred_memory_type,
-			VkImageAspectFlags aspect_flags, VkFilter filter, uint32_t layer_count = 1, VkImageCreateFlags image_flag = 0, 
+			VkImageAspectFlags aspect_flags, VkFilter filter, uint32_t layer_count = 1, VkImageCreateFlags image_flag = 0,
 			VkComponentMapping components = { VK_COMPONENT_SWIZZLE_IDENTITY });
 
 		~Texture();
@@ -76,7 +72,7 @@ namespace engine {
 
 		static TexturePtr create_2d_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits image_description);
 
-		static TexturePtr create_2d_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits image_description,  uint32_t mip_levels);
+		static TexturePtr create_2d_texture(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, CreateResourceFlagBits image_description, uint32_t mip_levels);
 
 		static TexturePtr create_2D_render_target(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspect_flags, CreateResourceFlagBits image_description = SWAPCHAIN_INDEPENDENT_BIT, VkSampleCountFlagBits sample_count_flag = VK_SAMPLE_COUNT_1_BIT);
 

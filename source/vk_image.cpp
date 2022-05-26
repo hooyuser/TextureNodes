@@ -1,6 +1,7 @@
 #include "vk_image.h"
 #include "vk_util.h"
 #include "vk_buffer.h"
+#include "vk_initializers.h"
 
 #include <stdexcept>
 #include <filesystem>
@@ -18,36 +19,6 @@
 #define TINYEXR_USE_OPENMP 1
 #define TINYEXR_IMPLEMENTATION
 #include <tinyexr.h>
-
-namespace vk_init {
-	VkSamplerCreateInfo sampler_create_info(VkPhysicalDevice physical_device, VkFilter filters, uint32_t mipLevels,
-		VkSamplerAddressMode samplerAdressMode /*= VK_SAMPLER_ADDRESS_MODE_REPEAT*/) {
-
-		VkPhysicalDeviceProperties properties{};
-		vkGetPhysicalDeviceProperties(physical_device, &properties);
-
-		return VkSamplerCreateInfo{
-			.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO,
-			.pNext = nullptr,
-			.magFilter = filters,
-			.minFilter = filters,
-			.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR,
-			.addressModeU = samplerAdressMode,
-			.addressModeV = samplerAdressMode,
-			.addressModeW = samplerAdressMode,
-			.mipLodBias = 0.0f,
-			.anisotropyEnable = VK_TRUE,
-			.maxAnisotropy = properties.limits.maxSamplerAnisotropy,
-			.compareEnable = VK_FALSE,
-			.compareOp = VK_COMPARE_OP_ALWAYS,
-			.minLod = 0.0f,
-			.maxLod = static_cast<float>(mipLevels),
-			.borderColor = VK_BORDER_COLOR_INT_OPAQUE_BLACK,
-			.unnormalizedCoordinates = VK_FALSE,
-		};
-	}
-}
-
 
 namespace engine {
 	Image::Image(VulkanEngine* engine, uint32_t width, uint32_t height, uint32_t mip_levels, VkSampleCountFlagBits sample_count_flag,
@@ -319,20 +290,20 @@ namespace engine {
 		const uint32_t tex_height,
 		const uint32_t mip_levels,
 		const VkSampleCountFlagBits sample_count_flag,
-		const VkFormat img_format, 
+		const VkFormat img_format,
 		const VkImageTiling img_tiling,
-		const VkImageUsageFlags img_usage, 
+		const VkImageUsageFlags img_usage,
 		const PreferredMemoryType preferred_memory_type,
 		const VkImageAspectFlags aspect_flags,
 		const VkFilter filter,
-		const uint32_t layer_count, 
+		const uint32_t layer_count,
 		const VkImageCreateFlags image_flag,
 		const VkComponentMapping components
 	) :
 		Image(engine, tex_width, tex_height, mip_levels, sample_count_flag, img_format, img_tiling,
 			img_usage, preferred_memory_type, aspect_flags, layer_count, image_flag, components) {
 
-		const VkSamplerCreateInfo sampler_info = vk_init::sampler_create_info(engine->physical_device, filter, mip_levels);
+		const VkSamplerCreateInfo sampler_info = vkinit::sampler_create_info(engine->physical_device, filter, mip_levels);
 
 		if (vkCreateSampler(engine->device, &sampler_info, nullptr, &sampler) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create texture sampler!");

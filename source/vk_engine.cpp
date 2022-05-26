@@ -390,7 +390,7 @@ void VulkanEngine::create_logical_device() {
 	vkGetDeviceQueue(device, queue_family_indices.compute_family.value(), 0, &compute_queue);
 	vkGetDeviceQueue(device, queue_family_indices.present_family.value(), 0, &present_queue);
 
-	VmaAllocatorCreateInfo allocator_create_info {		
+	VmaAllocatorCreateInfo allocator_create_info{
 		.physicalDevice = physical_device,
 		.device = device,
 		.instance = instance,
@@ -1039,7 +1039,7 @@ void VulkanEngine::create_viewport_cmd_buffers() {
 		throw std::runtime_error("failed to allocate command buffers!");
 	}
 
-	main_deletion_queue.push_function([device = device, command_pool = graphic_command_pool, &cmd_buffers = viewport_3d.cmd_buffers] {
+	main_deletion_queue.push_function([device = device, command_pool = graphic_command_pool, &cmd_buffers = viewport_3d.cmd_buffers]{
 		vkFreeCommandBuffers(device, command_pool, static_cast<uint32_t>(cmd_buffers.size()), cmd_buffers.data());
 		});
 }
@@ -1405,8 +1405,8 @@ void VulkanEngine::create_sync_objects() {
 	frame_data.resize(MAX_FRAMES_IN_FLIGHT);
 	images_in_flight.resize(swapchain_image_count, VK_NULL_HANDLE);
 
-	const VkSemaphoreCreateInfo semaphore_info = vkinit::semaphoreCreateInfo();
-	const VkFenceCreateInfo fence_info = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+	const VkSemaphoreCreateInfo semaphore_info = vkinit::semaphore_create_info();
+	const VkFenceCreateInfo fence_info = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
 
 	for (size_t i = 0; i < MAX_FRAMES_IN_FLIGHT; i++) {
 		if (vkCreateSemaphore(device, &semaphore_info, nullptr, &frame_data[i].image_available_semaphore) != VK_SUCCESS ||
@@ -1835,14 +1835,14 @@ QueueFamilyIndices VulkanEngine::find_queue_families(VkPhysicalDevice device) co
 
 	int i = 0;
 	for (const auto& queueFamily : queue_families) {
-		
+
 		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
 			indices.graphics_family = i;
 		}
-		else if(queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
+		else if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
 			indices.compute_family = i;
 		}
-		else if(queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) {
+		else if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) {
 			indices.transfer_family = i;
 		}
 
@@ -1859,7 +1859,7 @@ QueueFamilyIndices VulkanEngine::find_queue_families(VkPhysicalDevice device) co
 		indices.present_family = indices.graphics_family.value();
 	}
 	else {
-		std::cerr<< "Presentation not supported" << std::endl;
+		std::cerr << "Presentation not supported" << std::endl;
 	}
 
 	return indices;

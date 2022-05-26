@@ -91,7 +91,7 @@ namespace engine {
 			}
 		}
 	}
-	
+
 	void NodeEditor::execute_graph(const std::vector<uint32_t>& sorted_nodes) {
 		std::vector<VkSubmitInfo2> graphic_submits;
 		graphic_submits.reserve(sorted_nodes.size() * 2 + 2);
@@ -110,7 +110,7 @@ namespace engine {
 		}
 
 		for (auto i : sorted_nodes | std::views::reverse) {
-			
+
 			std::visit([&](auto&& node_data) {
 				using NodeDataT = std::decay_t<decltype(node_data)>;
 				if constexpr (image_data<NodeDataT>) {
@@ -119,7 +119,7 @@ namespace engine {
 					node_data->signal_semaphore_submit_info_0.value = counter + 1;
 					const uint64_t duration = ((node_data->submit_info.size() + 1) >> 1) << 1;
 					uint64_t last_signal_counter = counter + duration;
-					
+
 					if constexpr (is_component_graphic<NodeDataT>) {
 						node_data->wait_semaphore_submit_info1.value = counter + 1;
 						node_data->signal_semaphore_submit_info1.value = last_signal_counter;
@@ -150,7 +150,7 @@ namespace engine {
 					}
 				}
 				}, nodes[i].data);
-			
+
 		}
 
 		for (auto& [wait_semaphore_submit_info, cmd_buffer_submit_info] : copy_image_submit_infos) {
@@ -348,7 +348,6 @@ namespace engine {
 					ed::BeginPin(pin->id, ed::PinKind::Input);
 					//ed::PinPivotRect(rect.GetCenter(), rect.GetCenter());
 					//ed::PinRect(rect.GetTL(), rect.GetBR());
-
 
 					ImRect rect;
 					std::visit([&](auto&& default_value) {
@@ -1051,7 +1050,7 @@ namespace engine {
 	}
 
 	void NodeEditor::create_fence() {
-		auto const fence_info = vkinit::fenceCreateInfo(VK_FENCE_CREATE_SIGNALED_BIT);
+		auto const fence_info = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
 		if (vkCreateFence(engine->device, &fence_info, nullptr, &graphic_fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create fence!");
 		}
