@@ -46,6 +46,18 @@ namespace engine {
 			VkSampleCountFlagBits sample_count_flag, VkFormat format, VkImageTiling tiling, VkImageUsageFlags usage,
 			PreferredMemoryType preferred_memory_type, VkImageAspectFlags aspect_flags, CreateResourceFlagBits image_description);*/
 
+		void insert_memory_barrier(
+			VkCommandBuffer            command_buffer,
+			VkPipelineStageFlags2      src_stage_mask,
+			VkAccessFlags2             src_access_mask,
+			VkPipelineStageFlags2      dst_stage_mask,
+			VkAccessFlags2             dst_access_mask,
+			VkImageLayout              old_layout,
+			VkImageLayout              new_layout,
+			uint32_t                   src_queue_family_index = VK_QUEUE_FAMILY_IGNORED,
+			uint32_t                   dst_queue_family_index = VK_QUEUE_FAMILY_IGNORED
+		) const;
+
 		void transition_image_layout(VkImageLayout old_layout, VkImageLayout new_layout, QueueFamilyCategory = QueueFamilyCategory::GRAPHICS);
 
 		void copy_from_buffer(VkBuffer buffer, uint32_t mip_level = 0);

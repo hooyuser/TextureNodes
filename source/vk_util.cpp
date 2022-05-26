@@ -25,7 +25,9 @@ void insert_image_memory_barrier(
 	VkImageLayout              old_layout,
 	VkImageLayout              new_layout,
 	uint32_t                   src_queue_family_index,
-	uint32_t                   dst_queue_family_index
+	uint32_t                   dst_queue_family_index,
+	uint32_t                   level_count,
+	uint32_t                   layer_count
 ) {
 	const VkImageMemoryBarrier2 image_memory_barrier{
 		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,
@@ -40,8 +42,10 @@ void insert_image_memory_barrier(
 		.image = image,
 		.subresourceRange = {
 			.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-			.levelCount = 1,
-			.layerCount = 1,
+			.baseMipLevel = 0,
+			.levelCount = level_count,
+			.baseArrayLayer = 0,
+			.layerCount = layer_count,
 		},
 	};
 

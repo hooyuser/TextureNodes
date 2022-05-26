@@ -144,70 +144,79 @@ namespace engine {
 		return image;
 	}*/
 
+	void Image::insert_memory_barrier(
+		VkCommandBuffer            command_buffer,
+		VkPipelineStageFlags2      src_stage_mask,
+		VkAccessFlags2             src_access_mask,
+		VkPipelineStageFlags2      dst_stage_mask,
+		VkAccessFlags2             dst_access_mask,
+		VkImageLayout              old_layout,
+		VkImageLayout              new_layout,
+		uint32_t                   src_queue_family_index /*= VK_QUEUE_FAMILY_IGNORED*/,
+		uint32_t                   dst_queue_family_index /*= VK_QUEUE_FAMILY_IGNORED*/
+	) const {
+		insert_image_memory_barrier(
+			command_buffer,
+			image,
+			src_stage_mask,
+			src_access_mask,
+			dst_stage_mask,
+			dst_access_mask,
+			old_layout,
+			new_layout,
+			src_queue_family_index,
+			dst_queue_family_index,
+			mip_levels,
+			layer_count
+		);
+	}
+
 	void Image::transition_image_layout(VkImageLayout old_layout, VkImageLayout new_layout, QueueFamilyCategory queue_family_category) {
 		auto [queue, command_pool] = queue_family_category == QueueFamilyCategory::GRAPHICS ?
 			std::tuple{ engine->graphics_queue, engine->graphic_command_pool } :
 			std::tuple{ engine->compute_queue,engine->compute_command_pool };
 
 		immediate_submit(engine, queue, command_pool, [&](VkCommandBuffer commandBuffer) {
-			VkImageMemoryBarrier barrier{
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-				.oldLayout = old_layout,
-				.newLayout = new_layout,
-				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.image = image,
-				.subresourceRange = {
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.baseMipLevel = 0,
-					.levelCount = mip_levels,
-					.baseArrayLayer = 0,
-					.layerCount = layer_count,
-				}
-			};
-
-			VkPipelineStageFlags sourceStage;
-			VkPipelineStageFlags destinationStage;
+			VkPipelineStageFlags2 source_stage;
+			VkPipelineStageFlags2 destination_stage;
+			VkAccessFlags2 src_access_mask;
+			VkAccessFlags2 dst_access_mask;
 
 			if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL) {
-				barrier.srcAccessMask = 0;
-				barrier.dstAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-
-				sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-				destinationStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
+				source_stage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+				src_access_mask = VK_ACCESS_2_NONE;
+				destination_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+				dst_access_mask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
 			}
 			else if (old_layout == VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-				barrier.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT;
-				barrier.dstAccessMask = VK_ACCESS_SHADER_READ_BIT;
-
-				sourceStage = VK_PIPELINE_STAGE_TRANSFER_BIT;
-				destinationStage = VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT;
+				source_stage = VK_PIPELINE_STAGE_2_TRANSFER_BIT;
+				src_access_mask = VK_ACCESS_2_TRANSFER_WRITE_BIT;
+				destination_stage = VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT;
+				dst_access_mask = VK_ACCESS_2_SHADER_READ_BIT;
 			}
 			else if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL) {
-				barrier.srcAccessMask = 0;
-				barrier.dstAccessMask = 0;
-
-				sourceStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
-				destinationStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+				source_stage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+				src_access_mask = VK_ACCESS_2_NONE;
+				destination_stage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+				dst_access_mask = VK_ACCESS_2_NONE;
 			}
 			else if (old_layout == VK_IMAGE_LAYOUT_UNDEFINED && new_layout == VK_IMAGE_LAYOUT_GENERAL) {
-				barrier.srcAccessMask = 0;
-				barrier.dstAccessMask = 0;
-
-				sourceStage = VK_PIPELINE_STAGE_BOTTOM_OF_PIPE_BIT;
-				destinationStage = VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT;
+				source_stage = VK_PIPELINE_STAGE_2_BOTTOM_OF_PIPE_BIT;
+				src_access_mask = VK_ACCESS_2_NONE;
+				destination_stage = VK_PIPELINE_STAGE_2_TOP_OF_PIPE_BIT;
+				dst_access_mask = VK_ACCESS_2_NONE;
 			}
 			else {
 				throw std::invalid_argument("unsupported layout transition!");
 			}
 
-			vkCmdPipelineBarrier(
-				commandBuffer,
-				sourceStage, destinationStage,
-				0,
-				0, nullptr,
-				0, nullptr,
-				1, &barrier
+			insert_memory_barrier(commandBuffer,
+				source_stage,
+				src_access_mask,
+				destination_stage,
+				dst_access_mask,
+				old_layout,
+				new_layout
 			);
 			});
 	}
@@ -273,19 +282,28 @@ namespace engine {
 					0, nullptr,
 					1, &barrier);
 
-				VkImageBlit blit{};
-				blit.srcOffsets[0] = { 0, 0, 0 };
-				blit.srcOffsets[1] = { mipWidth, mipHeight, 1 };
-				blit.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-				blit.srcSubresource.mipLevel = i - 1;
-				blit.srcSubresource.baseArrayLayer = 0;
-				blit.srcSubresource.layerCount = layer_count;
-				blit.dstOffsets[0] = { 0, 0, 0 };
-				blit.dstOffsets[1] = { mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 };
-				blit.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-				blit.dstSubresource.mipLevel = i;
-				blit.dstSubresource.baseArrayLayer = 0;
-				blit.dstSubresource.layerCount = layer_count;
+				VkImageBlit blit{
+					.srcSubresource = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.mipLevel = i - 1,
+						.baseArrayLayer = 0,
+						.layerCount = layer_count,
+					},
+					.srcOffsets = {
+						{0, 0, 0},
+						{mipWidth, mipHeight, 1}
+					},
+					.dstSubresource = {
+						.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
+						.mipLevel = i,
+						.baseArrayLayer = 0,
+						.layerCount = layer_count,
+					},
+					.dstOffsets = {
+						{ 0, 0, 0 },
+						{ mipWidth > 1 ? mipWidth / 2 : 1, mipHeight > 1 ? mipHeight / 2 : 1, 1 }
+					}
+				};
 
 				vkCmdBlitImage(command_buffer,
 					image, VK_IMAGE_LAYOUT_TRANSFER_SRC_OPTIMAL,
@@ -638,7 +656,12 @@ namespace engine {
 			}
 
 			if (mip_level == 0) {
-				texture = engine::Texture::create_cubemap_texture(engine, tex_width, VK_FORMAT_R32G32B32A32_SFLOAT, SWAPCHAIN_INDEPENDENT_BIT, file_path_layers.size());
+				texture = engine::Texture::create_cubemap_texture(
+					engine,
+					tex_width,
+					VK_FORMAT_R32G32B32A32_SFLOAT,
+					SWAPCHAIN_INDEPENDENT_BIT,
+					static_cast<uint32_t>(file_path_layers.size()));
 			}
 
 			texture->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL);
@@ -646,31 +669,17 @@ namespace engine {
 			texture->copy_from_buffer(staging_buffer->buffer, mip_level);
 		}
 
-		immediate_submit(engine, [=](VkCommandBuffer commandBuffer) {
-			//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
-			VkImageMemoryBarrier barrier{
-				.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER,
-				.srcAccessMask = VK_ACCESS_TRANSFER_WRITE_BIT,
-				.dstAccessMask = VK_ACCESS_SHADER_READ_BIT,
-				.oldLayout = VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
-				.newLayout = VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL,
-				.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED,
-				.image = texture->image,
-				.subresourceRange{
-					.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT,
-					.baseMipLevel = 0,
-					.levelCount = static_cast<uint32_t>(file_path_layers.size()),
-					.baseArrayLayer = 0,
-					.layerCount = texture->layer_count,
-				},
-			};
-
-			vkCmdPipelineBarrier(commandBuffer,
-				VK_PIPELINE_STAGE_TRANSFER_BIT, VK_PIPELINE_STAGE_FRAGMENT_SHADER_BIT, 0,
-				0, nullptr,
-				0, nullptr,
-				1, &barrier);
+		//transitioned to VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL while generating mipmaps
+		immediate_submit(engine, [=](VkCommandBuffer command_buffer) {
+			texture->insert_memory_barrier(
+				command_buffer,
+				VK_PIPELINE_STAGE_2_TRANSFER_BIT,
+				VK_ACCESS_2_TRANSFER_WRITE_BIT,
+				VK_PIPELINE_STAGE_2_FRAGMENT_SHADER_BIT,
+				VK_ACCESS_2_SHADER_READ_BIT,
+				VK_IMAGE_LAYOUT_TRANSFER_DST_OPTIMAL,
+				VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL
+			);
 			});
 		return texture;
 	}

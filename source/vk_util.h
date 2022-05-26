@@ -60,5 +60,7 @@ void insert_image_memory_barrier(
 	VkImageLayout              old_layout,
 	VkImageLayout              new_layout,
 	uint32_t                   src_queue_family_index = VK_QUEUE_FAMILY_IGNORED,
-	uint32_t                   dst_queue_family_index = VK_QUEUE_FAMILY_IGNORED
+	uint32_t                   dst_queue_family_index = VK_QUEUE_FAMILY_IGNORED,
+	uint32_t                   level_count = 1,
+	uint32_t                   layer_count = 1
 );
