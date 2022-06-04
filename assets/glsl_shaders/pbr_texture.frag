@@ -93,7 +93,7 @@ void main() {
 
     vec3 normal;
     if(ubo.src_normal_texture >= 0) {
-        normal = texture(textureArray[normal_texture_id], fragTexCoord).rgb;
+        normal = texture(textureArray[normal_texture_id], fragTexCoord).rgb * 2.0 - 1.0;
     } else {
         normal = normalize(fragNormal);
     }

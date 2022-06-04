@@ -31,8 +31,9 @@ enum class FormatEnum {
 };
 
 static constexpr inline StaticMap str_format_map{
-	std::pair{"C8 SRGB", VK_FORMAT_R8G8B8A8_SRGB},
-	std::pair{"R16 UNORM", VK_FORMAT_R16_UNORM}
+	std::pair{VK_FORMAT_R8G8B8A8_SRGB, "C8 SRGB", },
+	std::pair{VK_FORMAT_R8G8B8A8_UNORM, "C8 UNORM" },
+	std::pair{VK_FORMAT_R16_UNORM, "R16 UNORM" }
 };
 
-static constexpr inline auto format_str_array = str_format_map.keys();
+static constexpr inline auto format_str_array = str_format_map.values();

@@ -44,7 +44,6 @@ constexpr double MAX_FPS = 200.0;
 constexpr double MAX_PERIOD = 1.0 / MAX_FPS;
 
 
-
 const std::vector validationLayers{
 	"VK_LAYER_KHRONOS_validation",
 	"VK_LAYER_KHRONOS_synchronization2",
@@ -89,15 +88,14 @@ struct SwapChainSupportDetails {
 	std::vector<VkPresentModeKHR> present_modes;
 };
 
+constexpr SphericalCoord CAM_SPHERICAL_COORD{
+	.theta = glm::radians(0.0f) ,
+	.phi = glm::radians(90.0f),
+	.radius = 5.46f,
+	.target = glm::vec3(0.0f)
+};
 
-SphericalCoord camSphericalCoord{ glm::radians(0.0f) ,glm::radians(90.0f), 5.46f, glm::vec3(0.0f) };
-
-
-Camera VulkanEngine::camera = Camera(camSphericalCoord, glm::radians(45.0f), 1.0f, 0.01f, 1000.0f);
-glm::vec2 VulkanEngine::mouse_previous_pos = glm::vec2(0.0);
-glm::vec2 VulkanEngine::mouse_delta_pos = glm::vec2(0.0);
-bool VulkanEngine::mouse_hover_viewport = false;
-
+Camera VulkanEngine::camera = Camera(CAM_SPHERICAL_COORD, glm::radians(45.0f), 1.0f, 0.01f, 1000.0f);
 
 void VulkanEngine::init_window() {
 	glfwInit();
@@ -703,23 +701,14 @@ void VulkanEngine::parse_material_info() {
 				env_material_info_json["filePaths"].get<std::vector<std::string>>()));
 		env_mat->textureArrayIndex.emplace("cubemap", env_mat->paras.base_color_texture_id);
 
-		/*for (auto const& mat : loaded_materials) {
-			mat->paras.irradianceMapId = loaded_textures.size();
-		}*/
 		init_material_preview_ubo.irradiance_map_id = texture_manager->add_texture(
 			engine::Texture::load_cubemap_texture(this,
 				env_material_info_json["irradianceMapPaths"].get<std::vector<std::string>>()));
 
-		/*for (auto const& mat : loaded_materials) {
-			mat->paras.prefilteredMapId = loaded_textures.size();
-		}*/
 		init_material_preview_ubo.prefiltered_map_id = texture_manager->add_texture(
 			engine::Texture::load_prefiltered_map_texture(this,
 				env_material_info_json["prefilteredMapPaths"].get<std::vector<std::vector<std::string>>>()));
 
-		/*for (auto const& mat : loaded_materials) {
-			mat->paras.brdfLUTId = loaded_textures.size();
-		}*/
 		init_material_preview_ubo.brdf_LUT_id = texture_manager->add_texture(
 			engine::Texture::load_2d_texture(this,
 				env_material_info_json["BRDF_2D_LUT"].get<std::string>(),
@@ -1076,7 +1065,7 @@ VkSampleCountFlagBits VulkanEngine::get_max_usable_sample_count() const {
 	VkPhysicalDeviceProperties physicalDeviceProperties;
 	vkGetPhysicalDeviceProperties(physical_device, &physicalDeviceProperties);
 
-	VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
+	const VkSampleCountFlags counts = physicalDeviceProperties.limits.framebufferColorSampleCounts & physicalDeviceProperties.limits.framebufferDepthSampleCounts;
 	if (counts & VK_SAMPLE_COUNT_64_BIT) { return VK_SAMPLE_COUNT_64_BIT; }
 	if (counts & VK_SAMPLE_COUNT_32_BIT) { return VK_SAMPLE_COUNT_32_BIT; }
 	if (counts & VK_SAMPLE_COUNT_16_BIT) { return VK_SAMPLE_COUNT_16_BIT; }
@@ -1087,14 +1076,14 @@ VkSampleCountFlagBits VulkanEngine::get_max_usable_sample_count() const {
 	return VK_SAMPLE_COUNT_1_BIT;
 }
 
-VkImageView VulkanEngine::create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription) {
+VkImageView VulkanEngine::create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription) {
 	const VkImageViewCreateInfo image_view_create_info{
 		.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO,
 		.image = image,
 		.viewType = VK_IMAGE_VIEW_TYPE_2D,
 		.format = format,
 		.subresourceRange{
-			.aspectMask = aspectFlags,
+			.aspectMask = aspect_flags,
 			.baseMipLevel = 0,
 			.levelCount = mipLevels,
 			.baseArrayLayer = 0,

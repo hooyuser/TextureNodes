@@ -12,16 +12,10 @@ struct TextureManager {
 
 	VkDescriptorSetLayout descriptor_set_layout;
 	VkDescriptorSet descriptor_set;
-	//VkDescriptorSetLayout image_descriptor_set_layout;
-	//VkDescriptorSet image_descriptor_set;
 
 	void create_texture_array_descriptor_set_layouts(VulkanEngine* engine);
 
 	void create_texture_array_descriptor_set(VulkanEngine* engine);
-
-	//void create_image_array_descriptor_set_layouts(VulkanEngine* engine);
-
-	//void create_image_array_descriptor_set(VulkanEngine* engine);
 
 	TextureManager(VulkanEngine* engine, uint32_t max_textures);
 

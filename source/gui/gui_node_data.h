@@ -42,7 +42,7 @@ struct UboMixin {
 		}
 	}
 
-	void update_ubo(const PinVariant& value, size_t index) {  //use value to update the pin at the index  
+	void update_ubo(const PinVariant& value, const size_t index) {  //use value to update the pin at the index  
 		if constexpr (has_field_type_v<UboType, ColorRampData>) {
 			typename UboType::value_t::Class::FieldAt(index, [&](auto& field_v) {
 				using PinValueT = typename std::decay_t<decltype(field_v)>::Type;
@@ -97,7 +97,7 @@ struct UboMixin {
 	}
 
 	template<PinDataConcept StartPinT>
-	void update_ubo_by_value(const StartPinT& value, size_t index) {
+	void update_ubo_by_value(const StartPinT& value, const size_t index) {
 		UboType::Class::FieldAt(index, [&](auto& field) {
 			using PinT = typename std::decay_t<decltype(field)>::Type;
 			if constexpr (std::same_as<PinT, FloatTextureIdData>) {
@@ -825,9 +825,9 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 	VkCommandBufferSubmitInfo cmd_buffer_submit_info_0;
 	VkSemaphoreSubmitInfo signal_semaphore_submit_info_0;
 
-	VkSemaphoreSubmitInfo wait_semaphore_submit_info1;
-	VkCommandBufferSubmitInfo cmd_buffer_submit_info1;
-	VkSemaphoreSubmitInfo signal_semaphore_submit_info1;
+	VkSemaphoreSubmitInfo wait_semaphore_submit_info_1;
+	VkCommandBufferSubmitInfo cmd_buffer_submit_info_1;
+	VkSemaphoreSubmitInfo signal_semaphore_submit_info_1;
 
 	std::array<VkSubmitInfo2, 2> submit_info;
 
@@ -845,7 +845,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 
 	static void create_ubo_descriptor_set_layout(VulkanEngine* engine) {
 		std::array layout_bindings = {
-			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0)
+			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
 		};
 		engine->create_descriptor_set_layout(layout_bindings, ubo_descriptor_set_layout);
 	}
@@ -922,7 +922,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 			format,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT,
-			SWAPCHAIN_INDEPENDENT_BIT,
+			TEMP_BIT,
 			is_gray_scale);
 
 		texture->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -1119,7 +1119,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 
 	void update_command_buffer_submit_info() {
 		cmd_buffer_submit_info_0.commandBuffer = image_processing_cmd_buffer;
-		cmd_buffer_submit_info1.commandBuffer = generate_preview_cmd_buffer;
+		cmd_buffer_submit_info_1.commandBuffer = generate_preview_cmd_buffer;
 	}
 
 	void create_cmd_buffer_submit_info() {
@@ -1149,19 +1149,19 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 			.pSignalSemaphoreInfos = &signal_semaphore_submit_info_0,
 		};
 
-		wait_semaphore_submit_info1 = VkSemaphoreSubmitInfo{
+		wait_semaphore_submit_info_1 = VkSemaphoreSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 			.pNext = nullptr,
 			.semaphore = semaphore,
 			.stageMask = VK_PIPELINE_STAGE_2_ALL_COMMANDS_BIT,
 		};
 
-		cmd_buffer_submit_info1 = VkCommandBufferSubmitInfo{
+		cmd_buffer_submit_info_1 = VkCommandBufferSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
 			.commandBuffer = generate_preview_cmd_buffer,
 		};
 
-		signal_semaphore_submit_info1 = VkSemaphoreSubmitInfo{
+		signal_semaphore_submit_info_1 = VkSemaphoreSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_SUBMIT_INFO,
 			.pNext = nullptr,
 			.semaphore = semaphore,
@@ -1172,11 +1172,11 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 			.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO_2,
 			.pNext = nullptr,
 			.waitSemaphoreInfoCount = 1,
-			.pWaitSemaphoreInfos = &wait_semaphore_submit_info1,
+			.pWaitSemaphoreInfos = &wait_semaphore_submit_info_1,
 			.commandBufferInfoCount = 1,
-			.pCommandBufferInfos = &cmd_buffer_submit_info1,
+			.pCommandBufferInfos = &cmd_buffer_submit_info_1,
 			.signalSemaphoreInfoCount = 1,
-			.pSignalSemaphoreInfos = &signal_semaphore_submit_info1,
+			.pSignalSemaphoreInfos = &signal_semaphore_submit_info_1,
 		};
 	}
 
@@ -1303,7 +1303,7 @@ struct ImageData : NodeData, Component {
 		Component::create_cmd_buffer_submit_info();
 	}
 
-	void create_texture_resource(VkFormat format) {
+	void create_texture_resource(const VkFormat format) {
 		Component::create_textures(engine, format);
 		create_preview_texture(format);
 		update_image_descriptor_sets();
@@ -1314,7 +1314,7 @@ struct ImageData : NodeData, Component {
 		create_copy_image_cmd_buffers();
 	}
 
-	void recreate_texture_resource(VkFormat format) {
+	void recreate_texture_resource(const VkFormat format) {
 		Component::clear(engine);
 		vkFreeCommandBuffers(engine->device, engine->graphic_command_pool, 1, &this->generate_preview_cmd_buffer);
 		create_texture_resource(format);
@@ -1409,7 +1409,7 @@ struct ImageData : NodeData, Component {
 		}
 	}
 
-	void record_copy_image_cmd_buffers(size_t index) {
+	void record_copy_image_cmd_buffers(const size_t index) {
 		field_at(engine->pbr_material_texture_set, index, [&](auto dst_texture_id) {
 			auto& copy_image_cmd_buffer = copy_image_cmd_buffers[index];
 			auto& dst_texture = engine->texture_manager->textures[dst_texture_id];

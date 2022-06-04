@@ -182,9 +182,9 @@ public:
 	DeletionQueue swap_chain_deletion_queue;
 
 	static Camera camera;
-	static glm::vec2 mouse_previous_pos;
-	static glm::vec2 mouse_delta_pos;
-	static bool mouse_hover_viewport;
+	static inline glm::vec2 mouse_previous_pos = glm::vec2(0.0);
+	static inline glm::vec2 mouse_delta_pos = glm::vec2(0.0);
+	static inline bool mouse_hover_viewport = false;
 
 	std::shared_ptr<engine::GUI> gui;
 	std::shared_ptr<engine::NodeEditor> node_editor;
@@ -266,7 +266,7 @@ public:
 
 	VkSampleCountFlagBits get_max_usable_sample_count() const;
 
-	VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspectFlags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription);
+	VkImageView create_image_view(VkImage image, VkFormat format, VkImageAspectFlags aspect_flags, uint32_t mipLevels, CreateResourceFlagBits imageViewDescription);
 
 	void create_uniform_buffers();
 

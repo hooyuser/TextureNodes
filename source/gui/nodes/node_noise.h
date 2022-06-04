@@ -5,8 +5,8 @@ struct NodeNoise : NodeTypeImageBase {
 
 	struct UBO {
 		NOTE(format, format_str_array, FormatEnum::True)
-			EnumData format {
-			.value = 1
+		EnumData format {
+			.value = static_cast<EnumData::value_t>(str_format_map.index_of(VK_FORMAT_R16_UNORM)),
 		};
 
 		NOTE(dimension, std::array{ "1D", "2D", "3D" })

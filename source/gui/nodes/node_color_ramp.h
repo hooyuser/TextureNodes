@@ -18,7 +18,7 @@ struct NodeColorRamp : NodeTypeImageBase {
 
 		NOTE(format, format_str_array, FormatEnum::True)
 		EnumData format {
-			.value = 0
+			.value = static_cast<EnumData::value_t>(str_format_map.index_of(VK_FORMAT_R8G8B8A8_SRGB)),
 		};
 
 		TextureIdData texture{

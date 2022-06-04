@@ -47,7 +47,7 @@ std::string first_letter_to_upper(std::string_view str) {
 }
 
 namespace engine {
-	int NodeEditor::get_next_id() noexcept {
+	uint64_t NodeEditor::get_next_id() noexcept {
 		return next_id++;
 	}
 
@@ -121,8 +121,8 @@ namespace engine {
 					uint64_t last_signal_counter = counter + duration;
 
 					if constexpr (is_component_graphic<NodeDataT>) {
-						node_data->wait_semaphore_submit_info1.value = counter + 1;
-						node_data->signal_semaphore_submit_info1.value = last_signal_counter;
+						node_data->wait_semaphore_submit_info_1.value = counter + 1;
+						node_data->signal_semaphore_submit_info_1.value = last_signal_counter;
 						update_wait_semaphores(i, node_data, copy_image_submit_infos, last_signal_counter);
 						graphic_submits.push_back(node_data->submit_info[0]);
 						graphic_submits.push_back(node_data->submit_info[1]);
@@ -748,7 +748,7 @@ namespace engine {
 											if constexpr (image_data<NodeDataT>) {
 												if (field.template getAnnotation<FormatEnum>() == FormatEnum::True) {
 													wait_node_execute_fences();
-													node_data->recreate_texture_resource(str_format_map.at(items[i]));
+													node_data->recreate_texture_resource(str_format_map.get_key(i));
 												}
 												else {
 													node_data->update_ubo(enum_pin.default_value, *enum_pin_index);

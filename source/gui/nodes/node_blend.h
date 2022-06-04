@@ -5,17 +5,17 @@ struct NodeBlend : NodeTypeImageBase {
 
 	struct UBO {
 		NOTE(format, format_str_array, FormatEnum::True)
-			EnumData format {
-			.value = 0
+		EnumData format {
+			.value = static_cast<EnumData::value_t>(str_format_map.index_of(VK_FORMAT_R8G8B8A8_SRGB)),
 		};
 
 		NOTE(mode, std::array{ "Normal", "Add", "Substract", "Multiply", "Divide" })
-			EnumData mode {
+		EnumData mode {
 			.value = 0
 		};
 
 		NOTE(factor, NumberInputWidgetInfo{ .min = 0, .max = 1, .speed = 0.005f, .enable_slider = true })
-			FloatTextureIdData factor {
+		FloatTextureIdData factor {
 			.value = {
 				.number = 0.5f,
 				.id = -1

@@ -189,7 +189,8 @@ namespace engine {
 		icons_config.MergeMode = true;
 		icons_config.PixelSnapH = true;
 		icons_config.GlyphMinAdvanceX = 25.0f;
-		io.Fonts->AddFontFromFileTTF((std::filesystem::path("assets") / "fonts" / FONT_ICON_FILE_NAME_FAS).string().c_str(), 18.0f, &icons_config, icons_ranges);
+		auto const icon_font_path = std::filesystem::path("assets") / "fonts" / FONT_ICON_FILE_NAME_FAS;
+		io.Fonts->AddFontFromFileTTF(icon_font_path.string().c_str(), 18.0f, &icons_config, icons_ranges);
 
 		immediate_submit(engine, [&](VkCommandBuffer cmd) {
 			ImGui_ImplVulkan_CreateFontsTexture(cmd);
@@ -233,7 +234,7 @@ namespace engine {
 		vkBeginCommandBuffer(command_buffers[image_index], &command_buffer_begin_info);
 
 		constexpr VkClearValue clear_value{
-			.color = { {1.0f, 0.0f, 0.0f, 1.0f} }
+			.color = { {0.0f, 0.0f, 0.0f, 1.0f} }
 		};
 
 		const VkRenderPassBeginInfo render_pass_begin_info{

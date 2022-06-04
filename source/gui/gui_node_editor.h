@@ -51,7 +51,8 @@ using NodeMenuFilter = TypeList<
 	NodeColorRamp,
 	NodeBlur,
 	NodeSlopeBlur,
-	NodeUdf
+	NodeUdf,
+	NodeNormal
 >;
 
 using NodeMenuNumerical = TypeList<
@@ -196,13 +197,6 @@ inline void to_json(json& j, const Pin& p) {
 	j = p.default_value;
 }
 
-//enum class NodeState {
-//	Normal = 0,
-//	Updated = 1,
-//	Processing = 2,
-//	ADD_NODE = 3,
-//};
-
 struct Node {
 	ed::NodeId id;
 	std::string name;
@@ -252,7 +246,7 @@ struct Link {
 };
 
 namespace std {
-	template <> struct hash<Link> {
+	template<> struct hash<Link> {
 		size_t operator()(const Link& link) const noexcept {
 			return reinterpret_cast<size_t>(link.id.AsPointer());
 		}
@@ -275,7 +269,7 @@ namespace engine {
 		std::unordered_set<Link> links;
 		VkFence graphic_fence;
 		VkFence compute_fence;
-		int next_id = 1;
+		uint64_t next_id = 1;
 
 		std::optional<size_t> color_pin_index; //implies whether colorpicker should be open
 		std::optional<size_t> color_ramp_pin_index; //implies whether color ramp should be open
@@ -291,7 +285,7 @@ namespace engine {
 
 		constexpr static uint32_t preview_image_size = 128;
 
-		int get_next_id() noexcept;
+		uint64_t get_next_id() noexcept;
 
 		void update_from(uint32_t node_index);
 
