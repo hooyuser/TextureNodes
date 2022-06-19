@@ -363,6 +363,10 @@ namespace engine {
 
 		void draw();
 
+		void create_new_link();
+
+		void delete_node_or_link();
+
 		template<typename NodeTypeList, typename SetPos = void>
 		void node_menu() {
 			NodeTypeList::for_each([&]<typename T> () {

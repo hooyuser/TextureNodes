@@ -770,8 +770,23 @@ namespace engine {
 			ed::Resume();
 		}
 
+		create_new_link();
 
-		//Create new link
+		delete_node_or_link();
+
+		//shortcut
+		if (ImGui::IsKeyPressed(io.KeyMap[ImGuiKey_Space])) {
+			ed::NavigateToContent();
+		}
+		if (ImGui::IsKeyPressed('F')) {
+			ed::NavigateToSelection();
+		}
+
+		ed::End();
+		ed::SetCurrentEditor(nullptr);
+	}
+
+	void NodeEditor::create_new_link() {
 		if (ed::BeginCreate()) {
 			ed::PinId start_pin_id, end_pin_id;
 			if (ed::QueryNewLink(&start_pin_id, &end_pin_id)) {
@@ -960,9 +975,9 @@ namespace engine {
 
 		}
 		ed::EndCreate(); // Wraps up object creation action handling.
+	}
 
-
-
+	void NodeEditor::delete_node_or_link() {
 		if (ed::BeginDelete()) {
 			// There may be many links marked for deletion, let's loop over them.
 			ed::LinkId deleted_link_id;
@@ -1036,17 +1051,6 @@ namespace engine {
 			}
 		}
 		ed::EndDelete(); // Wrap up deletion action
-
-		//shortcut
-		if (ImGui::IsKeyPressed(io.KeyMap[ImGuiKey_Space])) {
-			ed::NavigateToContent();
-		}
-		if (ImGui::IsKeyPressed('F')) {
-			ed::NavigateToSelection();
-		}
-
-		ed::End();
-		ed::SetCurrentEditor(nullptr);
 	}
 
 	void NodeEditor::create_fence() {

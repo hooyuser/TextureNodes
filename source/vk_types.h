@@ -25,12 +25,6 @@ typedef enum CreateResourceFlagBits {
 	SWAPCHAIN_DEPENDENT_BIT = 0x00000003,  //resource should be recreated if the swapchain is recreated
 } CreateResourceFlagBits;
 
-//typedef enum TextureSetFlagBits {  //deprecated
-//None = 0x00000000,
-//	BASE_COLOR = 0x00000001,
-//} TextureSetFlagBits;
-//MAKE_ENUM_FLAGS(TextureSetFlagBits)
-
 typedef enum ShaderFlagBits {
 	FLAT = 0x00000000,
 	PBR = 0x00000001,
