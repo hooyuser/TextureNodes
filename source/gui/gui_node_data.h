@@ -259,7 +259,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 			format,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT | VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_TRANSFER_SRC_BIT | (is_gray_scale ? VK_IMAGE_USAGE_STORAGE_BIT : 0),
-			SWAPCHAIN_INDEPENDENT_BIT,
+			TEMP_BIT,
 			is_gray_scale);
 
 		texture->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
@@ -271,7 +271,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 				VK_FORMAT_R16G16_UINT,
 				VK_IMAGE_ASPECT_COLOR_BIT,
 				VK_IMAGE_USAGE_STORAGE_BIT,
-				SWAPCHAIN_INDEPENDENT_BIT);
+				TEMP_BIT);
 			ping_pong_images[i]->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_GENERAL, QueueFamilyCategory::COMPUTE);
 		}
 	}
@@ -1283,8 +1283,8 @@ struct ImageData : NodeData, Component {
 
 	int node_texture_id = -1;
 
-	void* gui_texture;
-	void* gui_preview_texture;
+	void* gui_texture = nullptr;
+	void* gui_preview_texture = nullptr;
 
 	std::array<VkCommandBuffer, PbrMaterialTextureNum> copy_image_cmd_buffers;
 
@@ -1374,9 +1374,6 @@ struct ImageData : NodeData, Component {
 		vkUpdateDescriptorSets(engine->device, descriptor_writes.size(), descriptor_writes.data(), 0, nullptr);
 	}
 
-
-
-
 	void create_preview_texture(const VkFormat format) {
 		const bool is_gray_scale = (format == VK_FORMAT_R16_UNORM || format == VK_FORMAT_R16_SFLOAT);
 		this->preview_texture = engine::Texture::create_device_texture(engine,
@@ -1385,13 +1382,23 @@ struct ImageData : NodeData, Component {
 			format,
 			VK_IMAGE_ASPECT_COLOR_BIT,
 			VK_IMAGE_USAGE_TRANSFER_DST_BIT | VK_IMAGE_USAGE_SAMPLED_BIT,
-			SWAPCHAIN_INDEPENDENT_BIT,
+			TEMP_BIT,
 			is_gray_scale);
 
 		this->preview_texture->transition_image_layout(VK_IMAGE_LAYOUT_UNDEFINED, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
 
-		gui_texture = ImGui_ImplVulkan_AddTexture(this->texture->sampler, this->texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
-		gui_preview_texture = ImGui_ImplVulkan_AddTexture(this->preview_texture->sampler, this->preview_texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		if(!gui_texture) {
+			gui_texture = ImGui_ImplVulkan_AddTexture(this->texture->sampler, this->texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		}
+		else {
+			ImGui_ImplVulkan_UpdateTexture(gui_texture, this->texture->sampler, this->texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		}
+		if(!gui_preview_texture) {
+			gui_preview_texture = ImGui_ImplVulkan_AddTexture(this->preview_texture->sampler, this->preview_texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		}
+		else {
+			ImGui_ImplVulkan_UpdateTexture(gui_preview_texture, this->texture->sampler, this->texture->image_view, VK_IMAGE_LAYOUT_SHADER_READ_ONLY_OPTIMAL);
+		}
 
 		if (node_texture_id == -1) {
 			node_texture_id = engine->texture_manager->add_texture(this->texture);

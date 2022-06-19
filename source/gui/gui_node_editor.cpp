@@ -177,7 +177,7 @@ namespace engine {
 		}
 	}
 
-	void NodeEditor::update_from(uint32_t updated_node_index) {
+	void NodeEditor::update_from(const uint32_t updated_node_index) {
 		if (vkGetFenceStatus(engine->device, graphic_fence) != VK_SUCCESS ||
 			vkGetFenceStatus(engine->device, compute_fence) != VK_SUCCESS) {
 			return;

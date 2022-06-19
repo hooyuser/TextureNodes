@@ -364,7 +364,8 @@ namespace engine {
 	}
 
 	TexturePtr Texture::create_2D_render_target(VulkanEngine* engine, uint32_t width, uint32_t height, VkFormat format, VkImageAspectFlags aspect_flags, CreateResourceFlagBits image_description, VkSampleCountFlagBits sample_count_flag) {
-		const VkImageUsageFlagBits usage_flag = (aspect_flags == VK_IMAGE_ASPECT_COLOR_BIT) ? VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
+		const VkImageUsageFlagBits usage_flag = (aspect_flags == VK_IMAGE_ASPECT_COLOR_BIT) ?
+			VK_IMAGE_USAGE_COLOR_ATTACHMENT_BIT : VK_IMAGE_USAGE_DEPTH_STENCIL_ATTACHMENT_BIT;
 		auto texture = std::make_shared<Texture>(
 			/*engine*/                 engine,
 			/*width*/	               width,

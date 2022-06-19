@@ -1452,11 +1452,7 @@ void VulkanEngine::init_imgui() {
 	node_editor = std::make_shared<engine::NodeEditor>(this);
 }
 
-void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
-	/*static auto start_time = std::chrono::high_resolution_clock::now();
-	auto const current_time = std::chrono::high_resolution_clock::now();
-	float time = std::chrono::duration<float, std::chrono::seconds::period>(current_time - start_time).count();*/
-
+void VulkanEngine::update_uniform_buffer(const uint32_t currentImage) {
 	set_camera();
 	UniformBufferObject ubo{
 		.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
@@ -1469,7 +1465,7 @@ void VulkanEngine::update_uniform_buffer(uint32_t currentImage) {
 	uniform_buffers[currentImage]->copy_from_host(&ubo);
 }
 
-void VulkanEngine::imgui_render(uint32_t image_index) {
+void VulkanEngine::imgui_render(const uint32_t image_index) {
 	const ImGuiIO& io = ImGui::GetIO();
 
 	constexpr ImGuiWindowFlags window_flags = ImGuiWindowFlags_MenuBar | ImGuiWindowFlags_NoDocking |

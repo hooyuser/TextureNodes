@@ -1764,3 +1764,24 @@ ImTextureID ImGui_ImplVulkan_AddTexture(VkSampler sampler, VkImageView image_vie
 
     return (ImTextureID)descriptor_set;
 }
+
+void ImGui_ImplVulkan_UpdateTexture(ImTextureID texture_handle, VkSampler sampler, VkImageView image_view, VkImageLayout image_layout){
+   
+    const ImGui_ImplVulkan_Data* bd = ImGui_ImplVulkan_GetBackendData();
+    const ImGui_ImplVulkan_InitInfo* v = &bd->VulkanInitInfo;
+
+    const VkDescriptorImageInfo desc_image{
+		.sampler = sampler,
+		.imageView = image_view,
+		.imageLayout = image_layout,
+    };
+    const VkWriteDescriptorSet write_desc{
+        .sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+        .dstSet = static_cast<VkDescriptorSet>(texture_handle),
+        .descriptorCount = 1,
+        .descriptorType = VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+        .pImageInfo = &desc_image,
+    };
+    vkUpdateDescriptorSets(v->Device, 1, &write_desc, 0, nullptr);
+   
+}

@@ -149,3 +149,5 @@ struct ImGui_ImplVulkanH_Window
     }
 };
 
+void ImGui_ImplVulkan_UpdateTexture(ImTextureID texture_handle, VkSampler sampler, VkImageView image_view, VkImageLayout image_layout);
+
