@@ -1,6 +1,7 @@
 cmake_minimum_required (VERSION 3.21)
 
 set(CMAKE_CXX_STANDARD 23)
+set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 
 get_filename_component(PROJECT_NAME ${CMAKE_CURRENT_SOURCE_DIR} NAME)
 string(REPLACE " " "_" PROJECT_NAME ${PROJECT_NAME})
@@ -10,9 +11,6 @@ add_subdirectory(extern)
 
 file(GLOB_RECURSE SRC
     "source/*.cpp"
-)
-
-file(GLOB_RECURSE HEADER
     "source/*.h"
 )
 
@@ -28,7 +26,6 @@ find_package(VendorIdentifier)
 
 add_executable(${PROJECT_NAME}
     ${SRC}
-    ${HEADER}
     ${SHADERS}
 )
 
@@ -53,9 +50,8 @@ add_custom_command(TARGET ${PROJECT_NAME} POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E $<${no_copy}:echo> $<${no_copy}:"copy omitted for non-release build, command would have been "> copy_directory ${CMAKE_SOURCE_DIR}/assets ${CMAKE_SOURCE_DIR}/build/bin/assets
 )
 
-source_group("Source Files"            FILES ${SRC})
-source_group("Header Files"            FILES ${HEADER})
-source_group("GLSL Shaders"        FILES ${SHADERS})
+source_group(TREE ${CMAKE_CURRENT_SOURCE_DIR} FILES ${SRC})
+source_group("GLSL Shaders" FILES ${SHADERS})
 
 set(EXTERN_DIR
     ${CMAKE_SOURCE_DIR}/extern
