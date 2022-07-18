@@ -4,14 +4,17 @@
 template <typename T>
 concept aggregate = std::is_aggregate_v<std::remove_cvref_t<T>>;
 
-template <size_t I>
-struct any_type {
-	template <class T>
-	constexpr operator T() const noexcept;
-};
+namespace field_counter {
+	template <size_t I>
+	struct any_type {
+		template <class T>
+		constexpr operator T() const noexcept;
+	};
+}
+
 template <aggregate S, size_t... Is>
 constexpr size_t detect_fields_count(std::index_sequence<Is...>) noexcept {
-	if constexpr (!requires { S{ std::declval<any_type<Is>>()... }; }) {
+	if constexpr (!requires { S{ std::declval<field_counter::any_type<Is>>()... }; }) {
 		return sizeof...(Is) - 1;
 	}
 	else {

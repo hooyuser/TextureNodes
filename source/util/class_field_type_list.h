@@ -130,6 +130,7 @@
 template <aggregate T>
 constexpr auto class_field_to_tuple(T&& s) noexcept {
 	constexpr auto count = count_member_v<T>;
+	static_assert(count <= 100);
 	MACRO_IF_FIELD_COUNT10(m, )
 	MACRO_IF_FIELD_COUNT10(m, 1)
 	MACRO_IF_FIELD_COUNT10(m, 2)
