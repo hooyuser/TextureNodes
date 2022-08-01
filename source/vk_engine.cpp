@@ -1820,17 +1820,20 @@ QueueFamilyIndices VulkanEngine::find_queue_families(VkPhysicalDevice device) co
 
 	int i = 0;
 	for (const auto& queueFamily : queue_families) {
-
-		if (queueFamily.queueFlags & VK_QUEUE_GRAPHICS_BIT) {
+		const VkQueueFlags queue_flags = queueFamily.queueFlags;
+		if (queue_flags & VK_QUEUE_TRANSFER_BIT) {
+			if (!indices.transfer_family.has_value() || !(queue_flags & (VK_QUEUE_GRAPHICS_BIT | VK_QUEUE_COMPUTE_BIT))) {
+				indices.transfer_family = i;
+			}
+		}
+		if (queue_flags & VK_QUEUE_COMPUTE_BIT) {
+			if (!indices.compute_family.has_value() || !(queue_flags & VK_QUEUE_GRAPHICS_BIT)) {
+				indices.compute_family = i;
+			}
+		}
+		if (queue_flags & VK_QUEUE_GRAPHICS_BIT) {
 			indices.graphics_family = i;
 		}
-		else if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
-			indices.compute_family = i;
-		}
-		else if (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT) {
-			indices.transfer_family = i;
-		}
-
 		if (indices.is_complete()) {
 			break;
 		}
