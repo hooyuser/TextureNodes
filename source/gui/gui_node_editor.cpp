@@ -343,9 +343,9 @@ namespace engine {
 
 				//Loop over input pins
 				for (std::size_t i = 0; i < node.inputs.size(); ++i) {
-					auto pin = &node.inputs[i];
+					Pin& pin = node.inputs[i];
 					ed::PushStyleVar(ed::StyleVar_PinCorners, 15);
-					ed::BeginPin(pin->id, ed::PinKind::Input);
+					ed::BeginPin(pin.id, ed::PinKind::Input);
 					//ed::PinPivotRect(rect.GetCenter(), rect.GetCenter());
 					//ed::PinRect(rect.GetTL(), rect.GetBR());
 
@@ -353,9 +353,9 @@ namespace engine {
 					std::visit([&](auto&& default_value) {
 						using PinT = std::decay_t<decltype(default_value)>;
 						if constexpr (std::is_same_v<PinT, FloatData> || std::is_same_v<PinT, IntData>) {
-							//ImGui::Text(pin->name.c_str());
+							//ImGui::Text(pin.name.c_str());
 
-							if (pin->connected_pins.empty()) {
+							if (pin.connected_pins.empty()) {
 								ImGui::PushItemWidth(150.f);
 								bool response_flag = false;
 								std::visit([&](auto&& node_data) {
@@ -366,40 +366,41 @@ namespace engine {
 										ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 3.0f, 1.0f });
 										if constexpr (std::is_same_v<PinT, FloatData>) {
 											if (widget_info.enable_slider) {
-												response_flag |= ImGui::SliderFloat(std::format("##{}", pin->id.Get()).c_str(),
-													&std::get_if<PinT>(&pin->default_value)->value,
+												response_flag |= ImGui::SliderFloat(std::format("##{}", pin.id.Get()).c_str(),
+													&std::get_if<PinT>(&pin.default_value)->value,
 													widget_info.min,
 													widget_info.max,
-													(pin->name + " : %.3f").c_str());
+													(pin.name + " : %.3f").c_str());
 											}
 											else {
-												response_flag |= ImGui::DragFloat(std::format("##{}", pin->id.Get()).c_str(),
-													&std::get_if<PinT>(&pin->default_value)->value,
+												response_flag |= ImGui::DragFloat(std::format("##{}", pin.id.Get()).c_str(),
+													&std::get_if<PinT>(&pin.default_value)->value,
 													widget_info.speed,
 													widget_info.min,
 													widget_info.max,
-													(pin->name + " : %.3f").c_str());
+													(pin.name + " : %.3f").c_str());
 											}
 										}
 										else if constexpr (std::is_same_v<PinT, IntData>) {
-											response_flag |= ImGui::DragInt(std::format("##{}", pin->id.Get()).c_str(),
-												&std::get_if<PinT>(&pin->default_value)->value,
+											response_flag |= ImGui::DragInt(std::format("##{}", pin.id.Get()).c_str(),
+												&std::get_if<PinT>(&pin.default_value)->value,
 												widget_info.speed,
 												static_cast<int>(widget_info.min),
 												static_cast<int>(widget_info.max),
-												(pin->name + " : %d").c_str());
+												(pin.name + " : %d").c_str());
 										}
 										ImGui::PopStyleVar(2);
 										if (response_flag) {
-											if constexpr (image_data<NodeDataT>) {
-												node_data->update_ubo(pin->default_value, i);
+											if constexpr (value_data<NodeDataT>) {
 												update_from(node_index);
 											}
-											else if constexpr (value_data<NodeDataT>) {
+											else if constexpr (image_data<NodeDataT> && requires { node_data->update_ubo(pin.default_value, i); }) {
+												node_data->update_ubo(pin.default_value, i);
 												update_from(node_index);
 											}
 											else if constexpr (shader_data<NodeDataT>) {
-												node_data.update_ubo(pin->default_value, i);
+												static_assert(!std::same_as<NodeDataT, ValueData<NodeAdd::UBO,NodeAdd::ResultData>>);
+												node_data.update_ubo(pin.default_value, i);
 											}
 										}
 										});
@@ -408,19 +409,19 @@ namespace engine {
 								ImGui::PopItemWidth();
 							}
 							else {
-								ImGui::Text(pin->name.c_str());
+								ImGui::Text(pin.name.c_str());
 							}
 							rect = imgui_get_item_rect();
 						}
 						else if constexpr (std::is_same_v<PinT, Color4Data>) {
-							ImGui::Text(pin->name.c_str());
+							ImGui::Text(pin.name.c_str());
 							rect = imgui_get_item_rect();
-							if (pin->connected_pins.empty()) {
+							if (pin.connected_pins.empty()) {
 								ImGui::PushItemWidth(100.f);
 								ImGui::SameLine();
 								ImGui::PopItemWidth();
 								ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
-								if (ImGui::ColorButton(std::format("ColorButton##{}", pin->id.Get()).c_str(), std::bit_cast<ImVec4>(default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 25 })) {
+								if (ImGui::ColorButton(std::format("ColorButton##{}", pin.id.Get()).c_str(), std::bit_cast<ImVec4>(default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 25 })) {
 									color_node_index = node_index;
 									color_pin_index = i;
 									hit_color_pin = true;
@@ -429,14 +430,14 @@ namespace engine {
 							}
 						}
 						else if constexpr (std::is_same_v<PinT, Color4TextureIdData>) {
-							ImGui::Text(pin->name.c_str());
+							ImGui::Text(pin.name.c_str());
 							rect = imgui_get_item_rect();
-							if (pin->connected_pins.empty()) {
+							if (pin.connected_pins.empty()) {
 								ImGui::PushItemWidth(100.f);
 								ImGui::SameLine();
 								ImGui::PopItemWidth();
 								ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
-								if (ImGui::ColorButton(std::format("ColorButton##{}", pin->id.Get()).c_str(), *reinterpret_cast<ImVec4*>(&default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 25 })) {
+								if (ImGui::ColorButton(std::format("ColorButton##{}", pin.id.Get()).c_str(), *reinterpret_cast<ImVec4*>(&default_value), ImGuiColorEditFlags_NoTooltip, ImVec2{ 50, 25 })) {
 									color_node_index = node_index;
 									color_pin_index = i;
 									hit_color_pin = true;
@@ -445,11 +446,11 @@ namespace engine {
 							}
 						}
 						else if constexpr (std::is_same_v<PinT, TextureIdData>) {
-							ImGui::Text(pin->name.c_str());
+							ImGui::Text(pin.name.c_str());
 							rect = imgui_get_item_rect();
 						}
 						else if constexpr (std::is_same_v<PinT, FloatTextureIdData>) {
-							if (pin->connected_pins.empty()) {
+							if (pin.connected_pins.empty()) {
 								ImGui::PushItemWidth(150.f);
 								//ImGui::SameLine();
 								bool response_flag = false;
@@ -459,28 +460,28 @@ namespace engine {
 										auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
 										ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 										if (widget_info.enable_slider) {
-											response_flag = ImGui::SliderFloat(std::format("##{}", pin->id.Get()).c_str(),
-												&(std::get_if<PinT>(&pin->default_value)->value.number),
+											response_flag = ImGui::SliderFloat(std::format("##{}", pin.id.Get()).c_str(),
+												&(std::get_if<PinT>(&pin.default_value)->value.number),
 												widget_info.min,
 												widget_info.max,
-												(pin->name + " : %.3f").c_str());
+												(pin.name + " : %.3f").c_str());
 										}
 										else {
-											response_flag = ImGui::DragFloat(std::format("##{}", pin->id.Get()).c_str(),
-												&(std::get_if<PinT>(&pin->default_value)->value.number),
+											response_flag = ImGui::DragFloat(std::format("##{}", pin.id.Get()).c_str(),
+												&(std::get_if<PinT>(&pin.default_value)->value.number),
 												widget_info.speed,
 												widget_info.min,
 												widget_info.max,
-												(pin->name + " : %.3f").c_str());
+												(pin.name + " : %.3f").c_str());
 										}
 										ImGui::PopStyleVar(1);
 										if (response_flag) {
-											if constexpr (image_data<NodeDataT>) {
-												node_data->update_ubo(pin->default_value, i);
+											if constexpr (image_data<NodeDataT> && requires { node_data->update_ubo(pin.default_value, i); }) {
+												node_data->update_ubo(pin.default_value, i);
 												update_from(node_index);
 											}
 											else if constexpr (shader_data<NodeDataT>) {
-												node_data.update_ubo(pin->default_value, i);
+												node_data.update_ubo(pin.default_value, i);
 												update_from(node_index);
 											}
 											else {
@@ -493,12 +494,12 @@ namespace engine {
 								ImGui::PopItemWidth();
 							}
 							else {
-								ImGui::Text(pin->name.c_str());
+								ImGui::Text(pin.name.c_str());
 							}
 							rect = imgui_get_item_rect();
 						}
 						else if constexpr (std::is_same_v<PinT, EnumData>) {
-							ImGui::Text(pin->name.c_str());
+							ImGui::Text(pin.name.c_str());
 							rect = imgui_get_item_rect();
 							ImGui::SameLine();
 							std::visit([&](auto&& node_data) {
@@ -510,8 +511,8 @@ namespace engine {
 											ImGui::PushItemWidth(50.f);
 											ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 											ImGui::PushStyleVar(ImGuiStyleVar_ButtonTextAlign, ImVec2{ 0.0f,0.0f });
-											auto const pin_name_width = ImGui::CalcTextSize(pin->name.c_str()).x;
-											if (ImGui::Button(std::format("{}##{}", items[default_value.value], pin->id.Get()).c_str(), ImVec2{ NODE_WIDTH - pin_name_width - 10,28 })) {
+											auto const pin_name_width = ImGui::CalcTextSize(pin.name.c_str()).x;
+											if (ImGui::Button(std::format("{}##{}", items[default_value.value], pin.id.Get()).c_str(), ImVec2{ NODE_WIDTH - pin_name_width - 10,28 })) {
 												enum_node_index = node_index;
 												enum_pin_index = i;
 												hit_enum_pin = true;
@@ -525,16 +526,16 @@ namespace engine {
 						}
 						else if constexpr (std::is_same_v<PinT, BoolData>) {
 							BoolData* bool_data = std::get_if<BoolData>(&node.inputs[i].default_value);
-							if (ImGui::Checkbox(std::format("{}##{}", pin->name, pin->id.Get()).c_str(), &bool_data->value)) {
+							if (ImGui::Checkbox(std::format("{}##{}", pin.name, pin.id.Get()).c_str(), &bool_data->value)) {
 								std::visit([&](auto&& node_data) {
 									using NodeT = std::decay_t<decltype(node_data)>;
 									if constexpr (image_data<NodeT>) {
-										node_data->update_ubo(pin->default_value, i);
+										node_data->update_ubo(pin.default_value, i);
 										update_from(node_index);
 									}
 									}, node.data);
 							}
-							//ImGui::Text(pin->name.c_str());
+							//ImGui::Text(pin.name.c_str());
 							rect = imgui_get_item_rect();
 						}
 						else if constexpr (std::is_same_v<PinT, ColorRampData>) {
@@ -542,13 +543,13 @@ namespace engine {
 							rect = imgui_get_item_rect();
 							ImGui::SameLine();
 							auto& color_ramp_data = *(std::get_if<ColorRampData>(&node.inputs[i].default_value)->ui_value);
-							if (ImGui::GradientButton(std::format("GradientBar##{}", pin->id.Get()).c_str(), &color_ramp_data, 140.0f)) {
+							if (ImGui::GradientButton(std::format("GradientBar##{}", pin.id.Get()).c_str(), &color_ramp_data, 140.0f)) {
 								color_ramp_node_index = node_index;
 								color_ramp_pin_index = i;
 								hit_color_ramp_pin = true;
 							}
 						}
-						}, pin->default_value);
+						}, pin.default_value);
 
 
 					auto const drawList = ImGui::GetWindowDrawList();

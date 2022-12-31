@@ -13,7 +13,7 @@ struct NodeAdd : NodeTypeValueBase {
 			.value = 0.0f
 		};
 
-		inline constexpr auto static operation = [](FloatData value1, FloatData value2) -> FloatData {
+		inline constexpr auto static operation = [](const FloatData value1, const FloatData value2) -> FloatData {
 			return { .value = value1.value + value2.value };
 		};
 

@@ -156,10 +156,7 @@ concept shader_data = is_node_data_of<T, NodeTypeShaderBase>;
 template <image_data T>
 constexpr auto get_ubo(T)->typename ref_t<T>::UboType;
 
-template <value_data T>
-constexpr auto get_ubo(T)->typename T::UboType;
-
-template <shader_data T>
+template <typename T> requires value_data<T> || shader_data<T>
 constexpr auto get_ubo(T)->typename T::UboType;
 
 template <typename NodeDataT>
