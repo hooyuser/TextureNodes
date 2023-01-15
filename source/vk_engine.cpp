@@ -36,9 +36,6 @@ using json = nlohmann::json;
 using namespace std::string_view_literals;
 using namespace engine;
 
-constexpr uint32_t WIDTH = 1200;
-constexpr uint32_t HEIGHT = 900;
-
 constexpr int MAX_FRAMES_IN_FLIGHT = 2;
 constexpr double MAX_FPS = 200.0;
 constexpr double MAX_PERIOD = 1.0 / MAX_FPS;
@@ -102,7 +99,15 @@ void VulkanEngine::init_window() {
 
 	glfwWindowHint(GLFW_CLIENT_API, GLFW_NO_API);
 
-	window = glfwCreateWindow(WIDTH, HEIGHT, "Texture Nodes", nullptr, nullptr);
+	GLFWmonitor* monitor = glfwGetPrimaryMonitor();
+	const GLFWvidmode* mode = glfwGetVideoMode(monitor);
+
+	const auto monitor_width = mode->width;
+	const auto monitor_height = mode->height;
+
+	window = glfwCreateWindow(monitor_width / 2, monitor_height / 2, "Texture Nodes", nullptr, nullptr);
+	glfwSetWindowPos(window, monitor_width / 4, monitor_height / 4);
+
 	glfwSetWindowUserPointer(window, this);
 	glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
 
@@ -1517,7 +1522,8 @@ void VulkanEngine::imgui_render(const uint32_t image_index) {
 			}
 			ImGui::EndMenu();
 		}
-		ImGui::SameLine(ImGui::GetWindowWidth() - 110);
+		const ImVec2 fps_text_size = ImGui::CalcTextSize("FPS: 100(100ms)");
+		ImGui::SameLine(ImGui::GetWindowWidth() - fps_text_size.x);
 		ImGui::Text("FPS: %.f (%.fms)", io.Framerate, io.Framerate ? 1000.0f / io.Framerate : 0.0f);
 		ImGui::EndMenuBar();
 	}

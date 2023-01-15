@@ -175,11 +175,17 @@ namespace engine {
 			0,
 		};
 
+		const float font_size = static_cast<float>(engine->screen_width) / 120.f;
 		ImFontConfig config{};
 		config.OversampleH = 7;
 		config.OversampleV = 4;
 		config.PixelSnapH = false;
-		ImFont* font = io.Fonts->AddFontFromFileTTF((std::filesystem::path(std::getenv("WINDIR")) / "Fonts" / "segoeui.ttf").string().c_str(), 22.0f, &config, ranges);
+		ImFont* font = io.Fonts->AddFontFromFileTTF(
+			(std::filesystem::path(std::getenv("WINDIR")) / "Fonts" / "segoeui.ttf").string().c_str(),
+			font_size,
+			&config, 
+			ranges
+		);
 		assert(font != NULL);
 
 		static constexpr ImWchar icons_ranges[] = { ICON_MIN_FA, ICON_MAX_FA, 0 };
@@ -190,7 +196,12 @@ namespace engine {
 		icons_config.PixelSnapH = true;
 		icons_config.GlyphMinAdvanceX = 25.0f;
 		auto const icon_font_path = std::filesystem::path("assets") / "fonts" / FONT_ICON_FILE_NAME_FAS;
-		io.Fonts->AddFontFromFileTTF(icon_font_path.string().c_str(), 18.0f, &icons_config, icons_ranges);
+		io.Fonts->AddFontFromFileTTF(
+			icon_font_path.string().c_str(),
+			font_size,
+			&icons_config,
+			icons_ranges
+		);
 
 		immediate_submit(engine, [&](VkCommandBuffer cmd) {
 			ImGui_ImplVulkan_CreateFontsTexture(cmd);
