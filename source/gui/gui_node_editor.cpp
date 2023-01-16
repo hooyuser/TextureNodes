@@ -420,7 +420,6 @@ namespace engine {
 												update_from(node_index);
 											}
 											else if constexpr (shader_data<NodeDataT>) {
-												static_assert(!std::same_as<NodeDataT, ValueData<NodeAdd::UBO,NodeAdd::ResultData>>);
 												node_data.update_ubo(pin.default_value, i);
 											}
 										}
@@ -452,27 +451,6 @@ namespace engine {
 								ImGui::PopStyleVar(1);
 							}
 						}
-/*						else if constexpr (std::is_same_v<PinT, Color4TextureIdData>) {
-							ImGui::Text(pin_text);
-							rect.Max = imgui_get_item_rect().Max;
-							if (pin.connected_pins.empty()) {
-								ImGui::PushItemWidth(100.f);
-								ImGui::SameLine();
-								ImGui::PopItemWidth();
-								ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
-								if (ImGui::ColorButton(
-									std::format("ColorButton##{}", pin.id.Get()).c_str(),
-									*reinterpret_cast<ImVec4*>(&default_value),
-									ImGuiColorEditFlags_NoTooltip, 
-									ImVec2{ 50, 25 }
-								)) {
-									color_node_index = node_index;
-									color_pin_index = i;
-									hit_color_pin = true;
-								}
-								ImGui::PopStyleVar(1);
-							}
-						}*/
 						else if constexpr (std::is_same_v<PinT, TextureIdData>) {
 							ImGui::Text(pin_text);
 							rect.Max = imgui_get_item_rect().Max;
@@ -506,16 +484,16 @@ namespace engine {
 										}
 										ImGui::PopStyleVar(2);
 										if (response_flag) {
-											if constexpr (image_data<NodeDataT> && requires { node_data->update_ubo(pin.default_value, i); }) {
+											if constexpr (shader_data<std::decay_t<decltype(node_data)>>) {
+												node_data.update_ubo(pin.default_value, i);
+												//update_from(node_index);
+											}
+											else if constexpr (image_data<NodeDataT> && requires { node_data->update_ubo(pin.default_value, i); }) {
 												node_data->update_ubo(pin.default_value, i);
 												update_from(node_index);
 											}
-											else if constexpr (shader_data<NodeDataT>) {
-												node_data.update_ubo(pin.default_value, i);
+											else if constexpr (value_data<NodeDataT>) {
 												update_from(node_index);
-											}
-											else {
-												assert(!"Error occurs during processing FloatTextureIdData");
 											}
 										}
 										});

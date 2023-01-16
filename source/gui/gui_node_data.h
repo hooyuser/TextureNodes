@@ -16,7 +16,7 @@ namespace engine {
 }
 
 template<typename UniformBufferType, typename ResultT>
-struct ValueData : NodeData {
+struct ValueData : PinData {
 	using UboType = UniformBufferType;
 	using ResultType = ResultT;
 
@@ -125,7 +125,7 @@ struct UboMixin {
 };
 
 template<typename UniformBufferType>
-struct ShaderData : NodeData, UboMixin<UniformBufferType> {
+struct ShaderData : PinData, UboMixin<UniformBufferType> {
 	using UboType = UniformBufferType;
 
 	explicit ShaderData(VulkanEngine* engine) : UboMixin<UniformBufferType>(engine, engine->material_preview_ubo) {}
@@ -1276,7 +1276,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 };
 
 template<typename Component>
-struct ImageData : NodeData, Component {
+struct ImageData : PinData, Component {
 	using UboType = typename Component::UboT;
 
 	VulkanEngine* engine;

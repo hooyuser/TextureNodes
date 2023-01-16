@@ -34,44 +34,44 @@ template <typename T, typename FieldType>
 static constexpr bool has_field_type_v = (count_field_type_v<T, FieldType>) > 0;
 
 //Define all kinds of NodeData, which serves as UBO member type or subtype of PinVaraint 
-struct NodeData {};
+struct PinData {};
 
-struct IntData : NodeData {
+struct IntData : PinData {
 	using value_t = int32_t;
 	value_t value = 0;
 };
 
-struct FloatData : NodeData {
+struct FloatData : PinData {
 	using value_t = float;
 	value_t value = 0.0f;
 };
 
-struct Float4Data : NodeData {
+struct Float4Data : PinData {
 	using value_t = float[4];
 	value_t value = { 0.0f };
 };
 
-struct Color4Data : NodeData {
+struct Color4Data : PinData {
 	using value_t = float[4];
 	value_t value = { 1.0f, 1.0f, 1.0f, 1.0f };
 };
 
-struct BoolData : NodeData {
+struct BoolData : PinData {
 	using value_t = bool;
 	value_t value;
 };
 
-struct EnumData : NodeData {
+struct EnumData : PinData {
 	using value_t = uint32_t;
 	value_t value;
 };
 
-struct TextureIdData : NodeData {
+struct TextureIdData : PinData {
 	using value_t = int32_t;
 	value_t value = -1;
 };
 
-struct FloatTextureIdData : NodeData {
+struct FloatTextureIdData : PinData {
 	using value_t = struct Value {
 		float number = 0.0f;
 		int32_t id = -1;
@@ -79,7 +79,7 @@ struct FloatTextureIdData : NodeData {
 	value_t value = Value{};
 };
 
-struct Color4TextureIdData : NodeData {
+struct Color4TextureIdData : PinData {
 	using value_t = struct Value {
 		float color[4] = { 1.0f, 1.0f, 1.0f, 1.0f };
 		int32_t id = -1;
@@ -103,7 +103,7 @@ struct RampTexture {
 
 };
 
-struct ColorRampData : NodeData {
+struct ColorRampData : PinData {
 	using value_t = int32_t;
 	value_t value = -1;
 	std::unique_ptr<ImGradient> ui_value;
@@ -145,7 +145,7 @@ inline void to_json(json& j, const ColorRampData& p) {
 }
 
 namespace nlohmann {
-	template <typename T> requires (std::derived_from<T, NodeData> && !std::same_as<T, ColorRampData>)
+	template <typename T> requires (std::derived_from<T, PinData> && !std::same_as<T, ColorRampData>)
 		struct adl_serializer<T> {
 		static void to_json(json& j, const T& data) {
 			j = data.value;
