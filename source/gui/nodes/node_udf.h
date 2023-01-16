@@ -9,7 +9,7 @@ struct NodeUdf : NodeTypeImageBase {
 			.value = -1
 		};
 
-		NOTE(max_distance, NumberInputWidgetInfo{ .min = 1, .max = 120000, .speed = 3.0f, .enable_slider = false })
+		NOTE(max_distance, NumberInputWidgetInfo{ .min = 1, .max = 120000, .speed = 3.0f, .enable_slider = false, .decimal_places = 1 })
 			FloatData max_distance {
 			.value = 150.0f
 		};

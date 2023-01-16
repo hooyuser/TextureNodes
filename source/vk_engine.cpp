@@ -105,8 +105,8 @@ void VulkanEngine::init_window() {
 	const auto monitor_width = mode->width;
 	const auto monitor_height = mode->height;
 
-	window = glfwCreateWindow(monitor_width / 2, monitor_height / 2, "Texture Nodes", nullptr, nullptr);
-	glfwSetWindowPos(window, monitor_width / 4, monitor_height / 4);
+	window = glfwCreateWindow(monitor_width / 2, monitor_height * 0.6 , "Texture Nodes", nullptr, nullptr);
+	glfwSetWindowPos(window, monitor_width / 4, monitor_height * 0.2);
 
 	glfwSetWindowUserPointer(window, this);
 	glfwSetFramebufferSizeCallback(window, framebuffer_resize_callback);
@@ -1597,7 +1597,6 @@ void VulkanEngine::imgui_render(const uint32_t image_index) {
 	ImGui::End();
 
 	ImGui::Begin("Node Editor", nullptr, ImGuiWindowFlags_MenuBar);
-	//ImGui::Begin("Node Editor");
 	{
 		node_editor->draw();
 	}

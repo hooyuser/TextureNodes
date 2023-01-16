@@ -18,6 +18,7 @@ struct NumberInputWidgetInfo {
 	float max;
 	float speed;
 	bool enable_slider;
+	uint16_t decimal_places = 3;
 };
 
 enum class AutoFormat {

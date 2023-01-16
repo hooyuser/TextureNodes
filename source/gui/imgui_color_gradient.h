@@ -101,7 +101,7 @@ inline void from_json(const json& j, ImColor& p) {
 };
 
 namespace ImGui {
-    bool GradientButton(const char* label, ImGradient* gradient, float max_width = 250.0f);
+    bool GradientButton(const char* label, ImGradient* gradient, float max_width = 250.0f, float height = 25.0f);
     
     bool GradientEditor(const char* label, ImGradient* gradient,
                         ImGradientMark* & draggingMark,

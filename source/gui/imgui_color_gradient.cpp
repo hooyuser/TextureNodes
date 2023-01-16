@@ -8,7 +8,6 @@
 #include "imgui_color_gradient.h"
 #include "imgui_internal.h"
 
-static constexpr float GRADIENT_BAR_WIDGET_HEIGHT = 25;
 static constexpr float GRADIENT_BAR_EDITOR_HEIGHT = 40;
 static constexpr float GRADIENT_MARK_DELETE_DIFF = 40;
 
@@ -319,7 +318,7 @@ namespace ImGui
 		ImGui::SetCursorScreenPos(ImVec2(bar_pos.x, bar_pos.y + height + 20.0f));
 	}
 
-	bool GradientButton(const char* label, ImGradient* gradient, float max_width)
+	bool GradientButton(const char* label, ImGradient* gradient, float max_width, float height)
 	{
 		if (!gradient) return false;
 
@@ -327,9 +326,9 @@ namespace ImGui
 		// ImDrawList* draw_list = ImGui::GetWindowDrawList();
 
 		//float maxWidth = ImMin(max_width, ImGui::GetContentRegionAvailWidth() - 100.0f);
-		bool clicked = ImGui::InvisibleButton(label, ImVec2(max_width, GRADIENT_BAR_WIDGET_HEIGHT));
+		bool clicked = ImGui::InvisibleButton(label, ImVec2(max_width, height));
 
-		DrawGradientBar(gradient, widget_pos, max_width, GRADIENT_BAR_WIDGET_HEIGHT);
+		DrawGradientBar(gradient, widget_pos, max_width, height);
 
 		return clicked;
 	}

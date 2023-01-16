@@ -280,7 +280,11 @@ namespace engine {
 			.semaphoreCount = 1,
 		};
 
-		constexpr static uint32_t preview_image_size = 128;
+		float preview_image_size;
+
+		const uint32_t node_width;
+		const float node_left_padding;
+		const float node_right_padding;
 
 		uint64_t get_next_id() noexcept;
 
