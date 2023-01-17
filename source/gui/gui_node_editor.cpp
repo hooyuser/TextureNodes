@@ -251,7 +251,7 @@ namespace engine {
 		ed::Begin("My Editor", ImVec2(0.0f, 0.0f));
 
 		ed::Suspend();
-		if (ImGui::IsKeyPressed(io.KeyMap[ImGuiKey_Tab])) {
+		if (ImGui::IsKeyPressed(ImGuiKey_Tab)) {
 			ImGui::OpenPopup("Add New Node");
 		}
 		if (ImGui::BeginPopup("Add New Node")) {
@@ -804,10 +804,10 @@ namespace engine {
 		delete_node_or_link();
 
 		//shortcut
-		if (ImGui::IsKeyPressed(io.KeyMap[ImGuiKey_Space])) {
+		if (ImGui::IsKeyPressed(ImGuiKey_Space)) {
 			ed::NavigateToContent();
 		}
-		if (ImGui::IsKeyPressed('F')) {
+		if (ImGui::IsKeyPressed(ImGuiKey_F)) {
 			ed::NavigateToSelection();
 		}
 

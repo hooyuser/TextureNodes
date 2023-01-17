@@ -343,7 +343,7 @@ namespace ImGui
 
 		ImVec2 bar_pos = ImGui::GetCursorScreenPos();
 		bar_pos.x += 10;
-		float maxWidth = ImGui::GetContentRegionAvailWidth() - 20;
+		float maxWidth = ImGui::GetContentRegionAvail().x - 20;
 		float barBottom = bar_pos.y + GRADIENT_BAR_EDITOR_HEIGHT;
 
 		ImGui::InvisibleButton(label, ImVec2(maxWidth, GRADIENT_BAR_EDITOR_HEIGHT));

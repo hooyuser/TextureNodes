@@ -55,18 +55,18 @@ namespace Detail {
         }                                                                                           \
     }
 
-DECLARE_KEY_TESTER(ImGuiKey_F);
-DECLARE_KEY_TESTER(ImGuiKey_D);
+//DECLARE_KEY_TESTER(ImGuiKey_F);
+//DECLARE_KEY_TESTER(ImGuiKey_D);
 
-static inline int GetKeyIndexForF()
-{
-    return KeyTester_ImGuiKey_F::Get<ImGuiKey_>(nullptr);
-}
+//static inline int GetKeyIndexForF()
+//{
+//    return KeyTester_ImGuiKey_F::Get<ImGuiKey_>(nullptr);
+//}
 
-static inline int GetKeyIndexForD()
-{
-    return KeyTester_ImGuiKey_D::Get<ImGuiKey_>(nullptr);
-}
+//static inline int GetKeyIndexForD()
+//{
+//    return KeyTester_ImGuiKey_D::Get<ImGuiKey_>(nullptr);
+//}
 
 } // namespace Detail
 } // namespace NodeEditor
@@ -2875,7 +2875,7 @@ ed::EditorAction::AcceptResult ed::NavigateAction::Accept(const Control& control
 
     auto& io = ImGui::GetIO();
 
-    if (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(GetKeyIndexForF()) && Editor->AreShortcutsEnabled())
+    if (ImGui::IsWindowFocused() && ImGui::IsKeyPressed(ImGuiKey_F) && Editor->AreShortcutsEnabled())
     {
         const auto allowZoomIn = io.KeyShift;
 
@@ -3886,7 +3886,7 @@ ed::EditorAction::AcceptResult ed::ShortcutAction::Accept(const Control& control
         candidateAction = Copy;
     if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_V)))
         candidateAction = Paste;
-    if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(GetKeyIndexForD()))
+    if (io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGuiKey_D))
         candidateAction = Duplicate;
     if (!io.KeyCtrl && !io.KeyShift && !io.KeyAlt && ImGui::IsKeyPressed(ImGui::GetKeyIndex(ImGuiKey_Space)))
         candidateAction = CreateNode;
