@@ -371,14 +371,13 @@ namespace engine {
 					std::visit([&](auto&& default_value) {
 						using PinT = std::decay_t<decltype(default_value)>;
 						if constexpr (std::is_same_v<PinT, FloatData> || std::is_same_v<PinT, IntData>) {
-
 							ImGui::SameLine(0,0);
 							if (pin.connected_pins.empty()) {
-								
 								bool response_flag = false;
 								std::visit([&](auto&& node_data) {
 									using NodeDataT = std::decay_t<decltype(node_data)>;
 									UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
+										using NodeDataT = std::decay_t<decltype(node_data)>;
 										auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
 										ImGui::PushItemWidth(node_width - node_left_padding - node_right_padding);
 										ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
@@ -411,11 +410,12 @@ namespace engine {
 										}
 										ImGui::PopStyleVar(2);
 										ImGui::PopItemWidth();
+
 										if (response_flag) {
 											if constexpr (value_data<NodeDataT>) {
 												update_from(node_index);
 											}
-											else if constexpr (image_data<NodeDataT> && requires { node_data->update_ubo(pin.default_value, i); }) {
+											else if constexpr (image_data<NodeDataT>) {
 												node_data->update_ubo(pin.default_value, i);
 												update_from(node_index);
 											}
@@ -462,6 +462,7 @@ namespace engine {
 								std::visit([&](auto&& node_data) {
 									using NodeDataT = std::decay_t<decltype(node_data)>;
 									UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
+										using NodeDataT = std::decay_t<decltype(node_data)>;
 										auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
 										ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 										ImGui::PushStyleVar(ImGuiStyleVar_FramePadding, ImVec2{ 3.0f, 1.0f });
@@ -484,11 +485,11 @@ namespace engine {
 										}
 										ImGui::PopStyleVar(2);
 										if (response_flag) {
-											if constexpr (shader_data<std::decay_t<decltype(node_data)>>) {
+											if constexpr (shader_data<NodeDataT>) {
 												node_data.update_ubo(pin.default_value, i);
 												//update_from(node_index);
 											}
-											else if constexpr (image_data<NodeDataT> && requires { node_data->update_ubo(pin.default_value, i); }) {
+											else if constexpr (image_data<NodeDataT>) {
 												node_data->update_ubo(pin.default_value, i);
 												update_from(node_index);
 											}
@@ -681,9 +682,6 @@ namespace engine {
 					ImGui::SetCursorPosX(preview_image_min_x);
 					ImGui::SetCursorPosY(preview_image_min_y - format_text_size.y);
 					ImGui::Text(format_text);  // draw the format text above the preview image
-
-					auto sdaf = "asd";
-
 				}
 				}, node.data);
 		}
@@ -770,6 +768,7 @@ namespace engine {
 					if constexpr (image_data<NodeDataT>) {
 						UboOf<NodeDataT>::Class::FieldAt(*enum_pin_index, [&](auto& field) {
 							field.forEachAnnotation([&](auto& items) {
+								using NodeDataT = std::decay_t<decltype(node_data)>;
 								using AnnotationT = std::remove_cvref_t<decltype(items)>;
 								if constexpr (std_array<AnnotationT, const char*>) {
 									for (size_t i = 0; i < items.size(); ++i) {
@@ -1067,6 +1066,9 @@ namespace engine {
 						enum_pin_index.reset();
 
 						wait_node_execute_fences();
+
+						vkQueueWaitIdle(engine->graphics_queue);
+
 						for (auto iter = deleted_node + 1; iter != nodes.end(); ++iter) {
 							for (auto& input : iter->inputs) {
 								--input.node_index;
@@ -1086,11 +1088,11 @@ namespace engine {
 	void NodeEditor::create_fence() {
 		auto const fence_info = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
 		if (vkCreateFence(engine->device, &fence_info, nullptr, &graphic_fence) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create fence!");
+			throw std::runtime_error("failed to create graphic fence!");
 		}
 
 		if (vkCreateFence(engine->device, &fence_info, nullptr, &compute_fence) != VK_SUCCESS) {
-			throw std::runtime_error("failed to create fence!");
+			throw std::runtime_error("failed to create compute fence!");
 		}
 	}
 

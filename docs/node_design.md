@@ -37,19 +37,19 @@ using PinVariant = PinTypeList::cast_to<std::variant>;
 ```
 The subtype of `PinTypeList` is called "pin data class". Every pin data class 
 consists of two parts of data: 
-- value data: the value of the pin, which can be uploaded to the uniform buffer on GPU
+- value data: numerical values, which can be uploaded to the uniform buffer on GPU
 - auxiliary data: the auxiliary data of the pin.
 
 Value data is necessary. Every pin data class is required to have the following members:
-- member type `value_t`: the type of the value of the pin
-- member variable `value_t value`: the value of the pin
+- member type `value_t`: the type of the value data of the pin
+- member variable `value_t value`: the value data of the pin
 
 Auxiliary data is optional and unconstrained.
 
 
 # Node Meta Class
 
-The compile time information about a node named `XXX` is stored in a `NodeXXX` class, which is called "node meta class". All nodes can be devide into three categories: `Image`, `Value` and `Shader`. Which category a node belongs to is determined by the following inheritance relationship:
+The compile time information about a node named `XXX` is stored in a `NodeXXX` class, which is called "node meta class". All nodes can be divided into three categories: `Image`, `Value` and `Shader`. Which category a node belongs to is determined by the following inheritance relationship:
 
 - `NodeTypeBase`: the base class of all nodes
   - `NodeTypeImageBase`: the base class of all nodes in the `Image` category
@@ -63,5 +63,9 @@ The compile time information about a node named `XXX` is stored in a `NodeXXX` c
     - `NodePbrShader`: the class of the `PbrShader` node
     - ...
   
-All the node meta classes are defined in the `node_XXX.h` file. A node meta class has the following members:
-- member class `UBO`: defines the inputs of the node
+All the node meta classes are defined in the `node_XXX.h` file. A node meta class must have the following members:
+- member class `UBO`: defines the input pins of the node
+- member type `data_type`: defines the type of the node data, which is a subtype of `NodeDataVariant`
+- static member function `constexpr char* static name()`: declares the name of the node
+
+

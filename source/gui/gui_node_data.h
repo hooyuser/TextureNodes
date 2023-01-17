@@ -16,7 +16,7 @@ namespace engine {
 }
 
 template<typename UniformBufferType, typename ResultT>
-struct ValueData : PinData {
+struct ValueData {
 	using UboType = UniformBufferType;
 	using ResultType = ResultT;
 

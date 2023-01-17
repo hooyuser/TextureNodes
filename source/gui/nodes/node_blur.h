@@ -11,7 +11,7 @@ struct NodeBlur : NodeTypeImageBase {
 		};
 
 		NOTE(intensity, NumberInputWidgetInfo{ .min = 0, .max = 10, .speed = 0.005f, .enable_slider = false })
-			FloatTextureIdData intensity {
+		FloatTextureIdData intensity {
 			.value = {
 				.number = 1.0f,
 				.id = -1
@@ -19,7 +19,7 @@ struct NodeBlur : NodeTypeImageBase {
 		};
 
 		NOTE(samples, NumberInputWidgetInfo{ .min = 0, .max = 256, .speed = 0.05f, .enable_slider = false })
-			IntData samples {
+		IntData samples {
 			.value = 50
 		};
 
