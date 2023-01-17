@@ -1904,8 +1904,10 @@ VKAPI_ATTR VkBool32 VKAPI_CALL VulkanEngine::debug_callback(
 	const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData,
 	void* pUserData) {
 
+	static uint32_t count = 0;
+
 	if (messageSeverity >= VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT) {
-		std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
+		std::cerr << std::format("[{}] {}\n\n", count++, pCallbackData->pMessage);
 	}
 
 	return VK_FALSE;
