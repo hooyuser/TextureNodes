@@ -180,18 +180,18 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 
 	static void create_ubo_descriptor_set_layout(VulkanEngine* engine) {
 		std::array preprocess_layout_bindings{
-			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 0),
-			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1),
+			vkinit::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 0),
+			vkinit::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1),
 		};
 		engine->create_descriptor_set_layout(
 			preprocess_layout_bindings,
 			ubo_descriptor_set_layouts[0]);
 
 		std::array layout_bindings{
-			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 0),
-			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1),
-			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 2),
-			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 3),
+			vkinit::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_COMPUTE_BIT, 0),
+			vkinit::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 1),
+			vkinit::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 2),
+			vkinit::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_SHADER_STAGE_COMPUTE_BIT, 3),
 		};
 		engine->create_descriptor_set_layout(layout_bindings,
 			ubo_descriptor_set_layouts[1]);
@@ -419,7 +419,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 	void create_image_processing_compute_command_buffer_func(const VulkanEngine* engine) {
 		record_image_processing_cmd_buffer_func = [=](int input_image_idx) {
 
-			VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
+			VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(engine->graphic_command_pool, 1);
 			if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &ownership_release_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to allocate command buffers!");
 			}
@@ -462,7 +462,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 			}
 
 			//record image_processing_cmd_buffer
-			cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->compute_command_pool, 1);
+			cmd_alloc_info = vkinit::command_buffer_allocate_info(engine->compute_command_pool, 1);
 			if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &image_processing_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to allocate command buffers!");
 			}
@@ -684,7 +684,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 
 	void create_preview_command_buffer(VulkanEngine* engine) {
 		record_preview_cmd_buffer_func = [=](int input_image_idx) {
-			const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
+			const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(engine->graphic_command_pool, 1);
 
 			if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &this->generate_preview_cmd_buffer) != VK_SUCCESS) {
 				throw std::runtime_error("failed to allocate command buffers!");
@@ -845,7 +845,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 
 	static void create_ubo_descriptor_set_layout(VulkanEngine* engine) {
 		std::array layout_bindings = {
-			vkinit::descriptorSetLayoutBinding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
+			vkinit::descriptor_set_layout_binding(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_SHADER_STAGE_FRAGMENT_BIT, 0),
 		};
 		engine->create_descriptor_set_layout(layout_bindings, ubo_descriptor_set_layout);
 	}
@@ -1034,7 +1034,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 	}
 
 	void create_image_processing_command_buffer(VulkanEngine* engine, const VkFormat format) {
-		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
+		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(engine->graphic_command_pool, 1);
 
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &image_processing_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
@@ -1074,7 +1074,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 			.pAttachments = &render_target_image_view,
 		};
 
-		VkRenderPassBeginInfo render_pass_info = vkinit::renderPassBeginInfo(image_processing_render_passes[format], image_extent, image_processing_framebuffer);
+		VkRenderPassBeginInfo render_pass_info = vkinit::render_pass_begin_info(image_processing_render_passes[format], image_extent, image_processing_framebuffer);
 		render_pass_info.pNext = &attachment_begin_info;
 
 		vkCmdBeginRenderPass(image_processing_cmd_buffer, &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
@@ -1181,7 +1181,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 	}
 
 	void create_preview_command_buffer(VulkanEngine* engine) {
-		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, 1);
+		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(engine->graphic_command_pool, 1);
 
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, &this->generate_preview_cmd_buffer) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
@@ -1409,7 +1409,7 @@ struct ImageData : PinData, Component {
 	}
 
 	void create_copy_image_cmd_buffers() {
-		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(engine->graphic_command_pool, copy_image_cmd_buffers.size());
+		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(engine->graphic_command_pool, copy_image_cmd_buffers.size());
 
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, copy_image_cmd_buffers.data()) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");

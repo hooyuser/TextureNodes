@@ -193,7 +193,7 @@ public:
 
 	uint32_t swapchain_image_count;
 
-	constexpr static inline uint32_t max_bindless_textures = 400;
+	constexpr static inline uint32_t max_bindless_textures = 800;
 	//constexpr static inline uint32_t max_bindless_node_1d_textures = 50;
 	VkDescriptorPool dynamic_descriptor_pool;
 	std::shared_ptr<TextureManager> texture_manager;
@@ -252,10 +252,6 @@ public:
 
 	void record_viewport_cmd_buffer(int command_buffer_index);
 
-	//void create_window_attachments();
-
-	void load_gltf();
-
 	void load_obj();
 
 	VkFormat find_supported_format(const std::vector<VkFormat>& candidates, VkImageTiling tiling, VkFormatFeatureFlags features) const;
@@ -282,7 +278,7 @@ public:
 
 	void init_imgui();
 
-	void update_uniform_buffer(uint32_t currentImage);
+	void update_uniform_buffer(uint32_t current_image) const;
 
 	void draw_frame();
 
@@ -296,7 +292,7 @@ public:
 
 	SwapChainSupportDetails query_swap_chain_support(VkPhysicalDevice device) const;
 
-	bool is_device_suitable(VkPhysicalDevice device);
+	bool is_device_suitable(VkPhysicalDevice device) const;
 
 	static bool check_device_extension_support(VkPhysicalDevice device);
 

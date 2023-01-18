@@ -3,7 +3,7 @@
 #include <array>
 
 
-VkCommandPoolCreateInfo vkinit::commandPoolCreateInfo(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags /*= 0*/) {
+VkCommandPoolCreateInfo vkinit::command_pool_create_info(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags /*= 0*/) {
 	VkCommandPoolCreateInfo commandPoolInfo = {
 		.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO,
 		.pNext = nullptr,
@@ -14,7 +14,7 @@ VkCommandPoolCreateInfo vkinit::commandPoolCreateInfo(uint32_t queueFamilyIndex,
 	return commandPoolInfo;
 }
 
-VkRenderPassBeginInfo vkinit::renderPassBeginInfo(VkRenderPass renderPass, VkExtent2D extent, VkFramebuffer framebuffer) {
+VkRenderPassBeginInfo vkinit::render_pass_begin_info(VkRenderPass renderPass, VkExtent2D extent, VkFramebuffer framebuffer) {
 
 	static const std::array clearValues{
 		VkClearValue{
@@ -40,7 +40,7 @@ VkRenderPassBeginInfo vkinit::renderPassBeginInfo(VkRenderPass renderPass, VkExt
 	return renderPassInfo;
 }
 
-VkCommandBufferAllocateInfo vkinit::commandBufferAllocateInfo(VkCommandPool pool, uint32_t count /*= 1*/, VkCommandBufferLevel level /*= VK_COMMAND_BUFFER_LEVEL_PRIMARY*/) {
+VkCommandBufferAllocateInfo vkinit::command_buffer_allocate_info(VkCommandPool pool, uint32_t count /*= 1*/, VkCommandBufferLevel level /*= VK_COMMAND_BUFFER_LEVEL_PRIMARY*/) {
 	VkCommandBufferAllocateInfo info{
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO ,
 		.pNext = nullptr,
@@ -52,7 +52,7 @@ VkCommandBufferAllocateInfo vkinit::commandBufferAllocateInfo(VkCommandPool pool
 	return info;
 }
 
-VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shaderModule) {
+VkPipelineShaderStageCreateInfo vkinit::pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shaderModule) {
 
 	VkPipelineShaderStageCreateInfo info{ VK_STRUCTURE_TYPE_PIPELINE_SHADER_STAGE_CREATE_INFO };
 
@@ -67,7 +67,7 @@ VkPipelineShaderStageCreateInfo vkinit::pipelineShaderStageCreateInfo(VkShaderSt
 }
 
 
-VkPipelineVertexInputStateCreateInfo vkinit::vertexInputStateCreateInfo(const std::vector<VkVertexInputBindingDescription>& bindingDescriptions, const std::vector<VkVertexInputAttributeDescription>& attributeDescriptions) {
+VkPipelineVertexInputStateCreateInfo vkinit::vertex_input_state_create_info(const std::vector<VkVertexInputBindingDescription>& bindingDescriptions, const std::vector<VkVertexInputAttributeDescription>& attributeDescriptions) {
 	VkPipelineVertexInputStateCreateInfo vertexInputInfo = { VK_STRUCTURE_TYPE_PIPELINE_VERTEX_INPUT_STATE_CREATE_INFO };
 
 	vertexInputInfo.pNext = nullptr;
@@ -81,7 +81,7 @@ VkPipelineVertexInputStateCreateInfo vkinit::vertexInputStateCreateInfo(const st
 	return vertexInputInfo;
 }
 
-VkPipelineInputAssemblyStateCreateInfo vkinit::inputAssemblyCreateInfo(VkPrimitiveTopology topology) {
+VkPipelineInputAssemblyStateCreateInfo vkinit::input_assembly_create_info(VkPrimitiveTopology topology) {
 	VkPipelineInputAssemblyStateCreateInfo inputAssemblyInfo = { VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO };
 
 	inputAssemblyInfo.pNext = nullptr;
@@ -91,7 +91,7 @@ VkPipelineInputAssemblyStateCreateInfo vkinit::inputAssemblyCreateInfo(VkPrimiti
 	return inputAssemblyInfo;
 }
 
-VkPipelineViewportStateCreateInfo vkinit::viewportStateCreateInfo(const VkViewport* pViewport, const VkRect2D* pScissor) {
+VkPipelineViewportStateCreateInfo vkinit::viewport_state_create_info(const VkViewport* pViewport, const VkRect2D* pScissor) {
 	VkPipelineViewportStateCreateInfo viewportState{ VK_STRUCTURE_TYPE_PIPELINE_VIEWPORT_STATE_CREATE_INFO };
 
 	viewportState.viewportCount = 1;
@@ -101,7 +101,7 @@ VkPipelineViewportStateCreateInfo vkinit::viewportStateCreateInfo(const VkViewpo
 	return viewportState;
 }
 
-VkPipelineRasterizationStateCreateInfo vkinit::rasterizationStateCreateInfo(VkPolygonMode polygonMode, VkCullModeFlagBits cullMode/*= VK_CULL_MODE_NONE*/) {
+VkPipelineRasterizationStateCreateInfo vkinit::rasterization_state_create_info(VkPolygonMode polygonMode, VkCullModeFlagBits cullMode/*= VK_CULL_MODE_NONE*/) {
 	VkPipelineRasterizationStateCreateInfo rasterizerInfo = { VK_STRUCTURE_TYPE_PIPELINE_RASTERIZATION_STATE_CREATE_INFO };
 
 	rasterizerInfo.pNext = nullptr;
@@ -143,7 +143,7 @@ VkPipelineColorBlendAttachmentState vkinit::color_blend_attachment_state() {
 	};
 }
 
-VkPipelineColorBlendStateCreateInfo vkinit::colorBlendAttachmentCreateInfo(VkPipelineColorBlendAttachmentState& colorBlendAttachment, uint32_t attachment_count) {
+VkPipelineColorBlendStateCreateInfo vkinit::color_blend_attachment_create_info(VkPipelineColorBlendAttachmentState& colorBlendAttachment, uint32_t attachment_count) {
 	return {
 		.sType = VK_STRUCTURE_TYPE_PIPELINE_COLOR_BLEND_STATE_CREATE_INFO,
 		.logicOpEnable = VK_FALSE,
@@ -166,7 +166,7 @@ VkPipelineLayoutCreateInfo vkinit::pipeline_layout_create_info(std::span<VkDescr
 	};
 }
 
-VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass render_pass, VkExtent2D extent, std::span<VkImageView> attachments) {
+VkFramebufferCreateInfo vkinit::framebuffer_create_info(VkRenderPass render_pass, VkExtent2D extent, std::span<VkImageView> attachments) {
 	return {
 		.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO ,
 		.pNext = nullptr,
@@ -179,7 +179,7 @@ VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass render_pass, 
 	};
 }
 
-VkDescriptorSetLayoutBinding vkinit::descriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount /*= 1*/) {
+VkDescriptorSetLayoutBinding vkinit::descriptor_set_layout_binding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount /*= 1*/) {
 	return {
 		.binding = binding,
 		.descriptorType = type,

@@ -9,7 +9,7 @@ namespace engine {
 		if (enable_vertex_input == ENABLE_VERTEX_INPUT) {
 			bindingDescriptions = Vertex::get_binding_descriptions();
 			attributeDescriptions = Vertex::get_attribute_descriptions();
-			vertexInput = vkinit::vertexInputStateCreateInfo(bindingDescriptions, attributeDescriptions);
+			vertexInput = vkinit::vertex_input_state_create_info(bindingDescriptions, attributeDescriptions);
 		}
 		else if (enable_vertex_input == DISABLE_VERTEX_INPUT) {
 			const VkPipelineVertexInputStateCreateInfo vertex_input_info = {
@@ -21,10 +21,10 @@ namespace engine {
 			};
 			vertexInput = vertex_input_info;
 		}
-		inputAssembly = vkinit::inputAssemblyCreateInfo(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
+		inputAssembly = vkinit::input_assembly_create_info(VK_PRIMITIVE_TOPOLOGY_TRIANGLE_LIST);
 
 		if (dynamic_viewport == ENABLE_DYNAMIC_VIEWPORT) {
-			viewportState = vkinit::viewportStateCreateInfo(VK_NULL_HANDLE, VK_NULL_HANDLE);
+			viewportState = vkinit::viewport_state_create_info(VK_NULL_HANDLE, VK_NULL_HANDLE);
 		}
 		else if (dynamic_viewport == DISABLE_DYNAMIC_VIEWPORT) {
 			/*viewport.x = 0.0f;
@@ -44,19 +44,19 @@ namespace engine {
 		}
 
 		if (enable_vertex_input == ENABLE_VERTEX_INPUT) {
-			rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL); // possibly set culling mode
+			rasterizer = vkinit::rasterization_state_create_info(VK_POLYGON_MODE_FILL); // possibly set culling mode
 		}
 		else {
-			rasterizer = vkinit::rasterizationStateCreateInfo(VK_POLYGON_MODE_FILL);
+			rasterizer = vkinit::rasterization_state_create_info(VK_POLYGON_MODE_FILL);
 		}
 
 		multisampling = vkinit::multisampling_state_create_info(VK_SAMPLE_COUNT_1_BIT);
 
-		depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
+		depthStencil = vkinit::depth_stencil_create_info(VK_COMPARE_OP_LESS);
 
 		colorBlendAttachment = vkinit::color_blend_attachment_state();
 
-		colorBlend = vkinit::colorBlendAttachmentCreateInfo(colorBlendAttachment);
+		colorBlend = vkinit::color_blend_attachment_create_info(colorBlendAttachment);
 
 		dynamicState.sType = VK_STRUCTURE_TYPE_PIPELINE_DYNAMIC_STATE_CREATE_INFO;
 		dynamicState.dynamicStateCount = static_cast<uint32_t>(dynamicStateEnables.size());
@@ -76,7 +76,7 @@ namespace engine {
 		scissor.offset = { 0, 0 };
 		scissor.extent = { static_cast<uint32_t>(width), static_cast<uint32_t>(height) };
 
-		viewportState = vkinit::viewportStateCreateInfo(&viewport, &scissor);
+		viewportState = vkinit::viewport_state_create_info(&viewport, &scissor);
 	}
 
 	void PipelineBuilder::set_msaa(VkSampleCountFlagBits msaaSamples) {

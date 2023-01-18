@@ -7,30 +7,30 @@
 class PbrParameters;
 
 namespace vkinit {
-	VkCommandPoolCreateInfo commandPoolCreateInfo(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = 0);
+	VkCommandPoolCreateInfo command_pool_create_info(uint32_t queueFamilyIndex, VkCommandPoolCreateFlags flags = 0);
 
-	VkRenderPassBeginInfo renderPassBeginInfo(VkRenderPass renderPass, VkExtent2D windowExtent, VkFramebuffer framebuffer);
+	VkRenderPassBeginInfo render_pass_begin_info(VkRenderPass renderPass, VkExtent2D windowExtent, VkFramebuffer framebuffer);
 
-	VkCommandBufferAllocateInfo commandBufferAllocateInfo(VkCommandPool pool, uint32_t count = 1, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
+	VkCommandBufferAllocateInfo command_buffer_allocate_info(VkCommandPool pool, uint32_t count = 1, VkCommandBufferLevel level = VK_COMMAND_BUFFER_LEVEL_PRIMARY);
 
-	VkPipelineShaderStageCreateInfo pipelineShaderStageCreateInfo(VkShaderStageFlagBits stage, VkShaderModule shaderModule);
+	VkPipelineShaderStageCreateInfo pipeline_shader_stage_create_info(VkShaderStageFlagBits stage, VkShaderModule shaderModule);
 
-	VkPipelineVertexInputStateCreateInfo vertexInputStateCreateInfo(const std::vector<VkVertexInputBindingDescription>& bindingDescriptions, const std::vector<VkVertexInputAttributeDescription>& attributeDescriptions);
+	VkPipelineVertexInputStateCreateInfo vertex_input_state_create_info(const std::vector<VkVertexInputBindingDescription>& bindingDescriptions, const std::vector<VkVertexInputAttributeDescription>& attributeDescriptions);
 
-	VkPipelineInputAssemblyStateCreateInfo inputAssemblyCreateInfo(VkPrimitiveTopology topology);
+	VkPipelineInputAssemblyStateCreateInfo input_assembly_create_info(VkPrimitiveTopology topology);
 
-	VkPipelineViewportStateCreateInfo viewportStateCreateInfo(const VkViewport* pViewport, const VkRect2D* pScissor);
+	VkPipelineViewportStateCreateInfo viewport_state_create_info(const VkViewport* pViewport, const VkRect2D* pScissor);
 
-	VkPipelineRasterizationStateCreateInfo rasterizationStateCreateInfo(VkPolygonMode polygonMode, VkCullModeFlagBits cullMode = VK_CULL_MODE_NONE);
+	VkPipelineRasterizationStateCreateInfo rasterization_state_create_info(VkPolygonMode polygonMode, VkCullModeFlagBits cullMode = VK_CULL_MODE_NONE);
 
 	VkPipelineMultisampleStateCreateInfo multisampling_state_create_info(VkSampleCountFlagBits msaa_samples);
 
-	constexpr VkPipelineDepthStencilStateCreateInfo depthStencilCreateInfo(VkCompareOp compareOp) noexcept {
+	constexpr VkPipelineDepthStencilStateCreateInfo depth_stencil_create_info(VkCompareOp compare_op) noexcept {
 		return {
 			.sType = VK_STRUCTURE_TYPE_PIPELINE_DEPTH_STENCIL_STATE_CREATE_INFO,
 			.depthTestEnable = VK_TRUE,
 			.depthWriteEnable = VK_TRUE,
-			.depthCompareOp = compareOp,
+			.depthCompareOp = compare_op,
 			.depthBoundsTestEnable = VK_FALSE,
 			.stencilTestEnable = VK_FALSE,
 		};
@@ -38,13 +38,13 @@ namespace vkinit {
 
 	VkPipelineColorBlendAttachmentState color_blend_attachment_state();
 
-	VkPipelineColorBlendStateCreateInfo colorBlendAttachmentCreateInfo(VkPipelineColorBlendAttachmentState& colorBlendAttachment, uint32_t attachment_count = 1);
+	VkPipelineColorBlendStateCreateInfo color_blend_attachment_create_info(VkPipelineColorBlendAttachmentState& colorBlendAttachment, uint32_t attachment_count = 1);
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info(std::span<VkDescriptorSetLayout> descriptorSetLayout);
 
-	VkFramebufferCreateInfo framebufferCreateInfo(VkRenderPass render_pass, VkExtent2D extent, std::span<VkImageView> attachments);
+	VkFramebufferCreateInfo framebuffer_create_info(VkRenderPass render_pass, VkExtent2D extent, std::span<VkImageView> attachments);
 
-	VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount = 1);
+	VkDescriptorSetLayoutBinding descriptor_set_layout_binding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount = 1);
 
 	constexpr VkSemaphoreCreateInfo semaphore_create_info(VkSemaphoreCreateFlags flags = 0) noexcept {
 		return {

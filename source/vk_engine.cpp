@@ -733,21 +733,21 @@ void VulkanEngine::parse_material_info() {
 	//		}, mat);
 	//}
 
-	RenderObject skyBoxObject;
-	skyBoxObject.mesh = Mesh::load_from_obj(this, "assets/obj_models/skybox.obj");
-	skyBoxObject.mesh->material = std::get<HDRiMaterialPtr>(materials["env_light"]);
-	skyBoxObject.transform_matrix = glm::mat4{ 1.0f };
-	renderables.emplace_back(std::move(skyBoxObject));
+	RenderObject sky_box_object;
+	sky_box_object.mesh = Mesh::load_from_obj(this, "assets/obj_models/skybox.obj");
+	sky_box_object.mesh->material = std::get<HDRiMaterialPtr>(materials["env_light"]);
+	sky_box_object.transform_matrix = glm::mat4{ 1.0f };
+	renderables.emplace_back(std::move(sky_box_object));
 }
 
 void VulkanEngine::create_descriptor_set_layouts() {
 
-	auto const cam_ubo_layout_binding = vkinit::descriptorSetLayoutBinding(
+	auto const cam_ubo_layout_binding = vkinit::descriptor_set_layout_binding(
 		VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 		VK_SHADER_STAGE_VERTEX_BIT | VK_SHADER_STAGE_FRAGMENT_BIT,
 		0);
 
-	auto const material_preview_layout_binding = vkinit::descriptorSetLayoutBinding(
+	auto const material_preview_layout_binding = vkinit::descriptor_set_layout_binding(
 		VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
 		VK_SHADER_STAGE_FRAGMENT_BIT,
 		1);
@@ -800,7 +800,7 @@ void VulkanEngine::create_mesh_pipeline() {
 	for (auto const& material : loaded_materials) {
 		pipeline_builder.set_shader_stages(material);
 
-		pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
+		pipeline_builder.depthStencil = vkinit::depth_stencil_create_info(VK_COMPARE_OP_LESS);
 
 		pipeline_builder.build_pipeline(device, viewport_3d.render_pass, mesh_pipeline_layout, material->pipeline);
 
@@ -826,7 +826,7 @@ void VulkanEngine::create_env_light_pipeline() {
 		throw std::runtime_error("failed to create pipeline layout!");
 	}
 
-	pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS_OR_EQUAL);
+	pipeline_builder.depthStencil = vkinit::depth_stencil_create_info(VK_COMPARE_OP_LESS_OR_EQUAL);
 
 	pipeline_builder.build_pipeline(device, viewport_3d.render_pass, env_pipeline_layout, env_pipeline);
 
@@ -847,14 +847,14 @@ void VulkanEngine::create_graphics_pipeline() {
 void VulkanEngine::create_command_pool() {
 
 	const uint32_t queue_family_index = queue_family_indices.graphics_family.value();
-	const VkCommandPoolCreateInfo command_pool_info = vkinit::commandPoolCreateInfo(queue_family_index, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+	const VkCommandPoolCreateInfo command_pool_info = vkinit::command_pool_create_info(queue_family_index, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 	if (vkCreateCommandPool(device, &command_pool_info, nullptr, &graphic_command_pool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics command pool!");
 	}
 
 	const uint32_t compute_queue_family_index = queue_family_indices.compute_family.value();
-	const VkCommandPoolCreateInfo compute_command_pool_info = vkinit::commandPoolCreateInfo(compute_queue_family_index, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+	const VkCommandPoolCreateInfo compute_command_pool_info = vkinit::command_pool_create_info(compute_queue_family_index, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 	if (vkCreateCommandPool(device, &compute_command_pool_info, nullptr, &compute_command_pool) != VK_SUCCESS) {
 		throw std::runtime_error("failed to create graphics command pool!");
@@ -1014,7 +1014,7 @@ void VulkanEngine::create_viewport_framebuffers() {
 			viewport_3d.color_resolve_textures[i]->image_view,
 		};
 
-		VkFramebufferCreateInfo framebuffer_info = vkinit::framebufferCreateInfo(viewport_3d.render_pass, VkExtent2D{ screen_width , screen_height }, attachments);
+		VkFramebufferCreateInfo framebuffer_info = vkinit::framebuffer_create_info(viewport_3d.render_pass, VkExtent2D{ screen_width , screen_height }, attachments);
 
 		if (vkCreateFramebuffer(device, &framebuffer_info, nullptr, &viewport_3d.framebuffers[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create framebuffer!");
@@ -1028,7 +1028,7 @@ void VulkanEngine::create_viewport_framebuffers() {
 
 void VulkanEngine::create_viewport_cmd_buffers() {
 	viewport_3d.cmd_buffers.resize(swapchain_image_count);
-	auto const cmd_alloc_info = vkinit::commandBufferAllocateInfo(graphic_command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()));
+	auto const cmd_alloc_info = vkinit::command_buffer_allocate_info(graphic_command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()));
 
 	if (vkAllocateCommandBuffers(device, &cmd_alloc_info, viewport_3d.cmd_buffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
@@ -1208,7 +1208,7 @@ void VulkanEngine::create_descriptor_sets() {
 		if (vkAllocateDescriptorSets(device, &alloc_scene_info, &scene_descriptor_sets[i]) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate descriptor sets!");
 		}
-		VkDescriptorBufferInfo uniformBufferInfo{
+		VkDescriptorBufferInfo uniform_buffer_info{
 			.buffer = uniform_buffers[i]->buffer,
 			.offset = 0,
 			.range = sizeof(UniformBufferObject),
@@ -1222,7 +1222,7 @@ void VulkanEngine::create_descriptor_sets() {
 				.dstArrayElement = 0,
 				.descriptorCount = 1,
 				.descriptorType = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-				.pBufferInfo = &uniformBufferInfo,
+				.pBufferInfo = &uniform_buffer_info,
 			},
 			VkWriteDescriptorSet{
 				.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -1251,7 +1251,7 @@ void VulkanEngine::create_descriptor_sets() {
 
 void VulkanEngine::create_command_buffers() {
 	viewport_3d.cmd_buffers.resize(swapchain_image_count);
-	const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(graphic_command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()));
+	const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(graphic_command_pool, static_cast<uint32_t>(viewport_3d.cmd_buffers.size()));
 
 	if (vkAllocateCommandBuffers(device, &cmd_alloc_info, viewport_3d.cmd_buffers.data()) != VK_SUCCESS) {
 		throw std::runtime_error("failed to allocate command buffers!");
@@ -1275,7 +1275,7 @@ void VulkanEngine::record_viewport_cmd_buffer(const int command_buffer_index) {
 
 	const VkExtent2D viewport_extent{ static_cast<uint32_t>(viewport_3d.width), static_cast<uint32_t>(viewport_3d.height) };
 
-	const VkRenderPassBeginInfo render_pass_info = vkinit::renderPassBeginInfo(viewport_3d.render_pass, viewport_extent, viewport_3d.framebuffers[i]);
+	const VkRenderPassBeginInfo render_pass_info = vkinit::render_pass_begin_info(viewport_3d.render_pass, viewport_extent, viewport_3d.framebuffers[i]);
 
 	vkCmdBeginRenderPass(viewport_3d.cmd_buffers[i], &render_pass_info, VK_SUBPASS_CONTENTS_INLINE);
 
@@ -1380,7 +1380,7 @@ void VulkanEngine::load_obj() {
 		vkDestroyPipelineLayout(device, material_preview_pipeline_layout, nullptr);
 		});
 
-	pipeline_builder.depthStencil = vkinit::depthStencilCreateInfo(VK_COMPARE_OP_LESS);
+	pipeline_builder.depthStencil = vkinit::depth_stencil_create_info(VK_COMPARE_OP_LESS);
 
 	pipeline_builder.build_pipeline(device, viewport_3d.render_pass, material_preview_pipeline_layout, material->pipeline);
 
@@ -1458,9 +1458,9 @@ void VulkanEngine::init_imgui() {
 	node_editor = std::make_shared<engine::NodeEditor>(this);
 }
 
-void VulkanEngine::update_uniform_buffer(const uint32_t currentImage) {
+void VulkanEngine::update_uniform_buffer(const uint32_t current_image) const {
 	set_camera();
-	UniformBufferObject ubo{
+	const UniformBufferObject ubo{
 		.model = glm::rotate(glm::mat4(1.0f), glm::radians(0.0f), glm::vec3(1.0f, 0.0f, 0.0f)),
 		.view = camera.view_matrix(),
 		//.view = glm::mat4(glm::mat3(camera.viewMatrix())),
@@ -1468,7 +1468,7 @@ void VulkanEngine::update_uniform_buffer(const uint32_t currentImage) {
 		.pos = camera.get_position(),
 	};
 
-	uniform_buffers[currentImage]->copy_from_host(&ubo);
+	uniform_buffers[current_image]->copy_from_host(&ubo);
 }
 
 void VulkanEngine::imgui_render(const uint32_t image_index) {
@@ -1751,19 +1751,19 @@ VkExtent2D VulkanEngine::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capa
 	else {
 		glfwGetFramebufferSize(window, &window_width, &window_height);
 
-		VkExtent2D actualExtent = {
+		VkExtent2D actual_extent = {
 			static_cast<uint32_t>(std::max(window_width, 0)),
 			static_cast<uint32_t>(std::max(window_height, 0))
 		};
 
-		actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
-		actualExtent.height = std::clamp(actualExtent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
+		actual_extent.width = std::clamp(actual_extent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);
+		actual_extent.height = std::clamp(actual_extent.height, capabilities.minImageExtent.height, capabilities.maxImageExtent.height);
 
-		return actualExtent;
+		return actual_extent;
 	}
 }
 
-SwapChainSupportDetails VulkanEngine::query_swap_chain_support(VkPhysicalDevice device) const {
+SwapChainSupportDetails VulkanEngine::query_swap_chain_support(const VkPhysicalDevice device) const {
 	SwapChainSupportDetails details;
 
 	vkGetPhysicalDeviceSurfaceCapabilitiesKHR(device, surface, &details.capabilities);
@@ -1787,7 +1787,7 @@ SwapChainSupportDetails VulkanEngine::query_swap_chain_support(VkPhysicalDevice 
 	return details;
 }
 
-bool VulkanEngine::is_device_suitable(VkPhysicalDevice device) {
+bool VulkanEngine::is_device_suitable(const VkPhysicalDevice device) const {
 
 	const bool extensions_supported = check_device_extension_support(device);
 

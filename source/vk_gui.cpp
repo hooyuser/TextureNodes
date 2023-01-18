@@ -69,7 +69,7 @@ namespace engine {
 				engine->swapchain_image_views[i]
 			};
 
-			VkFramebufferCreateInfo framebuffer_info = vkinit::framebufferCreateInfo(render_pass, engine->swapchain_extent, attachments);
+			VkFramebufferCreateInfo framebuffer_info = vkinit::framebuffer_create_info(render_pass, engine->swapchain_extent, attachments);
 
 			if (vkCreateFramebuffer(engine->device, &framebuffer_info, nullptr, &framebuffers[i]) != VK_SUCCESS) {
 				throw std::runtime_error("failed to create framebuffer!");
@@ -83,7 +83,7 @@ namespace engine {
 
 	void GUI::init_command_pool() {
 		const uint32_t queue_family_index = engine->queue_family_indices.graphics_family.value();
-		auto const command_pool_info = vkinit::commandPoolCreateInfo(queue_family_index, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
+		auto const command_pool_info = vkinit::command_pool_create_info(queue_family_index, VK_COMMAND_POOL_CREATE_RESET_COMMAND_BUFFER_BIT);
 
 		if (vkCreateCommandPool(engine->device, &command_pool_info, nullptr, &command_pool) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create graphics command pool!");
@@ -96,7 +96,7 @@ namespace engine {
 
 	void GUI::init_command_buffers() {
 		command_buffers.resize(engine->swapchain_image_count);
-		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::commandBufferAllocateInfo(command_pool, static_cast<uint32_t>(command_buffers.size()));
+		const VkCommandBufferAllocateInfo cmd_alloc_info = vkinit::command_buffer_allocate_info(command_pool, static_cast<uint32_t>(command_buffers.size()));
 
 		if (vkAllocateCommandBuffers(engine->device, &cmd_alloc_info, command_buffers.data()) != VK_SUCCESS) {
 			throw std::runtime_error("failed to allocate command buffers!");
