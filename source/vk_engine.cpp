@@ -185,6 +185,7 @@ void VulkanEngine::cleanup() {
 	if (is_initialized) {
 		vkDeviceWaitIdle(device);
 
+		node_editor->clear();
 		swap_chain_deletion_queue.flush();
 		main_deletion_queue.flush();
 

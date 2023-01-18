@@ -813,6 +813,14 @@ namespace engine {
 
 		ed::End();
 		ed::SetCurrentEditor(nullptr);
+
+		garbage_collection();
+	}
+
+	void NodeEditor::garbage_collection() {
+		if (internal_clock % garbage_collection_delay == 0) {
+			garbage_nodes.clear();
+		}
 	}
 
 	void NodeEditor::create_new_link() {
@@ -1067,8 +1075,6 @@ namespace engine {
 
 						wait_node_execute_fences();
 
-						vkQueueWaitIdle(engine->graphics_queue);
-
 						for (auto iter = deleted_node + 1; iter != nodes.end(); ++iter) {
 							for (auto& input : iter->inputs) {
 								--input.node_index;
@@ -1077,6 +1083,7 @@ namespace engine {
 								--output.node_index;
 							}
 						}
+						garbage_nodes.emplace_back(std::move(deleted_node->data));
 						nodes.erase(deleted_node);
 					}
 				}
@@ -1298,6 +1305,7 @@ namespace engine {
 		enum_pin_index.reset();
 		links.clear();
 		nodes.clear();
+		garbage_nodes.clear_all();
 		next_id = 1;
 	}
 };

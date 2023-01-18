@@ -3,7 +3,7 @@
 #include "../vk_util.h"
 #include "../vk_image.h"
 #include "../vk_initializers.h"
-#include "../vk_types.h"
+
 
 constexpr uint32_t RAMP_TEXTURE_SIZE = 256;
 

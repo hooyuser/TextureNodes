@@ -257,6 +257,32 @@ struct CopyImageSubmitInfo {
 
 struct SetNodePositionTag {};
 
+template <typename T> 
+struct GarbagePingPongBuffer {
+	std::unique_ptr<std::vector<T>> garbage_nodes_in;
+	std::unique_ptr<std::vector<T>> garbage_nodes_out;
+
+	GarbagePingPongBuffer() {
+		garbage_nodes_in = std::make_unique_for_overwrite<std::vector<T>>();
+		garbage_nodes_out = std::make_unique_for_overwrite<std::vector<T>>();
+	}
+
+	template <typename ...Args> 
+	constexpr void emplace_back(Args&&... args) {
+		garbage_nodes_in->emplace_back(FWD(args)...);
+	}
+
+	void clear() {
+		garbage_nodes_out->clear();
+		std::swap(garbage_nodes_in, garbage_nodes_out);
+	}
+
+	void clear_all() {
+		garbage_nodes_out->clear();
+		garbage_nodes_in->clear();
+	}
+};
+
 namespace engine {
 	class NodeEditor {
 	private:
@@ -264,9 +290,15 @@ namespace engine {
 		ed::EditorContext* context = nullptr;
 		std::vector<Node> nodes;
 		std::unordered_set<Link> links;
+		
 		VkFence graphic_fence;
 		VkFence compute_fence;
-		uint64_t next_id = 1;
+		uint32_t next_id = 1;
+
+		uint32_t internal_clock = 1;
+
+		GarbagePingPongBuffer<NodeDataVariant> garbage_nodes = GarbagePingPongBuffer<NodeDataVariant>();
+		constexpr inline static uint32_t garbage_collection_delay = 256;
 
 		std::optional<size_t> color_pin_index; //implies whether colorpicker should be open
 		std::optional<size_t> color_ramp_pin_index; //implies whether color ramp should be open
@@ -367,6 +399,8 @@ namespace engine {
 		void create_new_link();
 
 		void delete_node_or_link();
+
+		void garbage_collection();
 
 		template<typename NodeTypeList, typename SetPos = void>
 		void node_menu() {

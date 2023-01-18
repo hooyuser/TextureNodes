@@ -1283,8 +1283,8 @@ struct ImageData : PinData, Component {
 
 	int node_texture_id = -1;
 
-	void* gui_texture = nullptr;
-	void* gui_preview_texture = nullptr;
+	void* gui_texture = nullptr;  // ImTextureID handle
+	void* gui_preview_texture = nullptr;  // ImTextureID handle
 
 	std::array<VkCommandBuffer, PbrMaterialTextureNum> copy_image_cmd_buffers;
 
