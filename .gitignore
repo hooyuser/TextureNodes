@@ -10,8 +10,8 @@ build[0-9]*/*
 *.bin
 *.ini
 *.json
-*.exe
 *.txg
+
 
 # User-specific files
 *.rsuser
@@ -37,7 +37,6 @@ x86/
 [Aa][Rr][Mm]/
 [Aa][Rr][Mm]64/
 bld/
-[Bb]in/
 [Oo]bj/
 [Ll]og/
 [Ll]ogs/
