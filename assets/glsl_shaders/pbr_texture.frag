@@ -72,7 +72,8 @@ vec3 F_SchlickR(float cosTheta, vec3 F0, float roughness){
 void main() {
     vec3 base_color;
     if(ubo.src_base_color_texture >= 0) {
-        base_color = texture(textureArray[base_color_texture_id], fragTexCoord).rgb;
+        vec4 get_base_color = texture(textureArray[base_color_texture_id], fragTexCoord);
+        base_color = get_base_color.rgb;
     } else {
         base_color = ubo.base_color.rgb;
     }

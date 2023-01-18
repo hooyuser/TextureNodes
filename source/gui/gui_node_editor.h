@@ -259,27 +259,27 @@ struct SetNodePositionTag {};
 
 template <typename T> 
 struct GarbagePingPongBuffer {
-	std::unique_ptr<std::vector<T>> garbage_nodes_in;
-	std::unique_ptr<std::vector<T>> garbage_nodes_out;
+	std::unique_ptr<std::vector<T>> garbage_in;
+	std::unique_ptr<std::vector<T>> garbage_out;
 
 	GarbagePingPongBuffer() {
-		garbage_nodes_in = std::make_unique_for_overwrite<std::vector<T>>();
-		garbage_nodes_out = std::make_unique_for_overwrite<std::vector<T>>();
+		garbage_in = std::make_unique_for_overwrite<std::vector<T>>();
+		garbage_out = std::make_unique_for_overwrite<std::vector<T>>();
 	}
 
 	template <typename ...Args> 
 	constexpr void emplace_back(Args&&... args) {
-		garbage_nodes_in->emplace_back(FWD(args)...);
+		garbage_in->emplace_back(FWD(args)...);
 	}
 
 	void clear() {
-		garbage_nodes_out->clear();
-		std::swap(garbage_nodes_in, garbage_nodes_out);
+		garbage_out->clear();
+		std::swap(garbage_in, garbage_out);
 	}
 
 	void clear_all() {
-		garbage_nodes_out->clear();
-		garbage_nodes_in->clear();
+		garbage_out->clear();
+		garbage_in->clear();
 	}
 };
 
