@@ -1633,8 +1633,8 @@ void VulkanEngine::imgui_render(const uint32_t image_index) {
 	//::PopStyleColor(2);
 	//ImGui::Text("io.WantCaptureMouse = %d", ImGui::IsItemHovered());
 
-	viewport_3d.width = viewport_panel_size.x;
-	viewport_3d.height = viewport_panel_size.y;
+	viewport_3d.width = std::max(viewport_panel_size.x, 0.0f);
+	viewport_3d.height = std::max(viewport_panel_size.y, 0.0f);
 	update_uniform_buffer(image_index);
 	const ImVec2 uv{ viewport_panel_size.x / screen_width , viewport_panel_size.y / screen_height };
 
@@ -1649,6 +1649,10 @@ void VulkanEngine::draw_frame() {
 	//draw_frame() will first acquire the index of the available swapchain image, then render into this image, and finally request to prensent this image
 
 	vkWaitForFences(device, 1, &frame_data[current_frame].in_flight_fence, VK_TRUE, VULKAN_WAIT_TIMEOUT); // begin draw i+2 frame if we've complete rendering at frame i
+
+	if (glfwGetWindowAttrib(window, GLFW_ICONIFIED)) {
+		return;
+	}
 
 	uint32_t image_index;
 	VkResult result = vkAcquireNextImageKHR(device, swapchain, UINT64_MAX, frame_data[current_frame].image_available_semaphore, VK_NULL_HANDLE, &image_index);
@@ -1748,8 +1752,8 @@ VkExtent2D VulkanEngine::choose_swap_extent(const VkSurfaceCapabilitiesKHR& capa
 		glfwGetFramebufferSize(window, &window_width, &window_height);
 
 		VkExtent2D actualExtent = {
-			static_cast<uint32_t>(window_width),
-			static_cast<uint32_t>(window_height)
+			static_cast<uint32_t>(std::max(window_width, 0)),
+			static_cast<uint32_t>(std::max(window_height, 0))
 		};
 
 		actualExtent.width = std::clamp(actualExtent.width, capabilities.minImageExtent.width, capabilities.maxImageExtent.width);

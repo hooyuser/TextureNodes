@@ -42,7 +42,7 @@ namespace vkinit {
 
 	VkPipelineLayoutCreateInfo pipeline_layout_create_info(std::span<VkDescriptorSetLayout> descriptorSetLayout);
 
-	VkFramebufferCreateInfo framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent, std::span<VkImageView> attachments);
+	VkFramebufferCreateInfo framebufferCreateInfo(VkRenderPass render_pass, VkExtent2D extent, std::span<VkImageView> attachments);
 
 	VkDescriptorSetLayoutBinding descriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount = 1);
 

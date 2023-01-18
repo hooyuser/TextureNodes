@@ -25,7 +25,7 @@ VkRenderPassBeginInfo vkinit::renderPassBeginInfo(VkRenderPass renderPass, VkExt
 		},
 	};
 
-	VkRenderPassBeginInfo renderPassInfo{
+	const VkRenderPassBeginInfo renderPassInfo{
 		.sType = VK_STRUCTURE_TYPE_RENDER_PASS_BEGIN_INFO,
 		.renderPass = renderPass,
 		.framebuffer = framebuffer,
@@ -166,18 +166,17 @@ VkPipelineLayoutCreateInfo vkinit::pipeline_layout_create_info(std::span<VkDescr
 	};
 }
 
-VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass renderPass, VkExtent2D extent, std::span<VkImageView> attachments) {
-	VkFramebufferCreateInfo framebufferInfo = { VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO };
-
-	framebufferInfo.pNext = nullptr;
-	framebufferInfo.renderPass = renderPass;
-	framebufferInfo.attachmentCount = static_cast<uint32_t>(attachments.size());
-	framebufferInfo.pAttachments = attachments.data();
-	framebufferInfo.width = extent.width;
-	framebufferInfo.height = extent.height;
-	framebufferInfo.layers = 1;
-
-	return framebufferInfo;
+VkFramebufferCreateInfo vkinit::framebufferCreateInfo(VkRenderPass render_pass, VkExtent2D extent, std::span<VkImageView> attachments) {
+	return {
+		.sType = VK_STRUCTURE_TYPE_FRAMEBUFFER_CREATE_INFO ,
+		.pNext = nullptr,
+		.renderPass = render_pass,
+		.attachmentCount = static_cast<uint32_t>(attachments.size()),
+		.pAttachments = attachments.data(),
+		.width = extent.width,
+		.height = extent.height,
+		.layers = 1,
+	};
 }
 
 VkDescriptorSetLayoutBinding vkinit::descriptorSetLayoutBinding(VkDescriptorType type, VkShaderStageFlags stageFlags, uint32_t binding, uint32_t descriptorCount /*= 1*/) {
