@@ -2,8 +2,8 @@
 #include <cstdint>
 #include <format>
 
-#include "gui_node_pin_data.h"
-#include "gui_node_pin.h"
+#include "gui_pin_data.h"
+#include "gui_pin.h"
 
 
 struct ImVec2;

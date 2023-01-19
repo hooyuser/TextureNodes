@@ -4,7 +4,7 @@
 #include "../vk_initializers.h"
 #include "../vk_engine.h"
 #include "../vk_util.h"
-#include "gui_node_pin_data.h"
+#include "gui_pin_data.h"
 #include <imgui_impl_vulkan.h>
 #include <unordered_map>
 

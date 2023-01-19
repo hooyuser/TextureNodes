@@ -11,7 +11,7 @@
 
 #include "all_node_headers.h"
 #include "gui_node_editor_ui.h"
-#include "gui_node_pin.h"
+#include "gui_pin.h"
 #include "../util/class_field_type_list.h"
 #include "../util/cpp_type.h"
 #include "../util/hash_str.h"

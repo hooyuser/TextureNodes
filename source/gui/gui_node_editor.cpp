@@ -205,7 +205,7 @@ namespace engine {
 		std::vector<uint32_t> sorted_nodes;
 		sorted_nodes.reserve(nodes.size());
 
-		for (auto i : std::views::iota(0u, nodes.size())) {
+		for (auto const i : std::views::iota(0u, nodes.size())) {
 			if (visited_nodes[i] == 0) {
 				topological_sort(i, visited_nodes, sorted_nodes);
 			}
@@ -683,10 +683,11 @@ namespace engine {
 
 		//Processing color pin popup
 		if (color_node_index.has_value() && color_pin_index.has_value()) {
+			auto const pin_index = *color_pin_index;
 			ed::Suspend();
 			auto& color_node = nodes[*color_node_index];
-			auto& color_pin = color_node.inputs[*color_pin_index];
-			ui.draw_pin_popup(color_pin, hit_color_pin, [&] (Pin& pin) {
+			auto& color_pin = color_node.inputs[pin_index];
+			ui.draw_pin_popup(color_pin, hit_color_pin, [this, pin_index, &data=color_node.data] (Pin& pin) {
 
 				if (ImGui::ColorPicker4(
 					std::format("##ColorPicker{}", pin.id.Get()).c_str(),
@@ -697,13 +698,13 @@ namespace engine {
 				std::visit([&](auto&& node_data) {
 					using NodeDataT = std::decay_t<decltype(node_data)>;
 					if constexpr (image_data<NodeDataT>) {
-						node_data->update_ubo(pin.default_value, *color_pin_index);
+						node_data->update_ubo(pin.default_value, pin_index);
 						update_from(*color_node_index);
 					}
 					else if constexpr (shader_data<NodeDataT>) {
-						node_data.update_ubo(pin.default_value, *color_pin_index);
+						node_data.update_ubo(pin.default_value, pin_index);
 					}
-					}, color_node.data);
+					}, data);
 				}
 				});
 			ed::Resume();
@@ -725,7 +726,7 @@ namespace engine {
 					color_ramp_data.selected_mark
 				)) {
 					std::visit(Overloaded {
-						[&](image_data auto& node_data) {
+						[&](image_data auto&& node_data) {
 						node_data->update_ubo(pin.default_value, *color_ramp_pin_index);
 						if (vkGetFenceStatus(engine->device, graphic_fence) == VK_SUCCESS) {
 							const VkSubmitInfo submit_info{
