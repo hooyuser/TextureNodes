@@ -10,6 +10,7 @@
 #include <imgui_impl_vulkan.h>
 
 #include "all_node_headers.h"
+#include "gui_node_editor_ui.h"
 #include "../util/class_field_type_list.h"
 #include "../util/cpp_type.h"
 #include "../util/hash_str.h"
@@ -28,8 +29,6 @@ using to_data_type = std::invoke_result_t<
 	decltype([] <template<typename...> typename TypeList, typename... Ts>
 		(TypeList<Ts...>) consteval -> TypeList<typename Ts::data_type...> {}),
 	T > ;
-
-template<class... Ts> struct overloaded : Ts... { using Ts::operator()...; };
 
 enum class PinInOut {
 	INPUT,
@@ -290,6 +289,11 @@ namespace engine {
 		ed::EditorContext* context = nullptr;
 		std::vector<Node> nodes;
 		std::unordered_set<Link> links;
+
+		const uint32_t node_width;
+		const float node_left_padding;
+		const float node_right_padding;
+		NodeEditorUIManager ui;
 		
 		VkFence graphic_fence;
 		VkFence compute_fence;
@@ -314,9 +318,7 @@ namespace engine {
 
 		float preview_image_size;
 
-		const uint32_t node_width;
-		const float node_left_padding;
-		const float node_right_padding;
+		
 
 		uint64_t get_next_id() noexcept;
 

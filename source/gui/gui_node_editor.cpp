@@ -7,6 +7,7 @@
 #include <json.hpp>
 #include <ranges>
 #include <fstream>
+#include<iostream>
 
 using json = nlohmann::json;
 
@@ -45,6 +46,8 @@ std::string first_letter_to_upper(std::string_view str) {
 }
 
 namespace engine {
+
+
 	uint64_t NodeEditor::get_next_id() noexcept {
 		return next_id++;
 	}
@@ -333,19 +336,7 @@ namespace engine {
 
 					auto const pin_center = ImVec2(node_rect.Max.x + 8.0f, rect.GetCenter().y);
 
-					draw_list->AddCircleFilled(  // Draw output pin circle
-						pin_center,
-						radius,
-						ImColor(68, 129, 196, 160),
-						24
-					);
-					draw_list->AddCircle(
-						pin_center,
-						radius,
-						ImColor(68, 129, 196, 255),
-						24,
-						1.8
-					);
+					ui.draw_node_pin(pin_center, pin.default_value);  //draw output pin circle
 
 					ed::PinPivotRect(pin_center, pin_center);
 					ed::PinRect(ImVec2(pin_center.x - radius, pin_center.y - radius), ImVec2(pin_center.x + radius, pin_center.y + radius));
@@ -569,10 +560,9 @@ namespace engine {
 						}, pin.default_value);
 
 
-					auto const drawList = ImGui::GetWindowDrawList();
-					ImVec2 pin_center = ImVec2(rect.Min.x - 8.0f, rect.GetCenter().y);
-					drawList->AddCircleFilled(pin_center, radius, ImColor(68, 129, 196, 160), 24);
-					drawList->AddCircle(pin_center, radius, ImColor(68, 129, 196, 255), 24, 1.8);
+					const ImVec2 pin_center = ImVec2(rect.Min.x - 8.0f, rect.GetCenter().y);
+
+					ui.draw_node_pin(pin_center, pin.default_value);  //draw input pin circle
 
 					ed::PinPivotRect(pin_center, pin_center);
 					ed::PinRect(ImVec2(pin_center.x - radius, pin_center.y - radius), ImVec2(pin_center.x + radius, pin_center.y + radius));
@@ -1107,7 +1097,8 @@ namespace engine {
 		engine(engine),
 		node_width(100 + engine->screen_width / 25),
 		node_left_padding(node_width * 0.03f),
-		node_right_padding(node_width * 0.015f)
+		node_right_padding(node_width * 0.015f),
+		ui(node_width)
 	{
 		ed::Config config;
 		//disable writing json

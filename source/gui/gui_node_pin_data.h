@@ -111,7 +111,7 @@ struct ColorRampData : PinData {
 	ImGradientMark* dragging_mark = nullptr;
 	ImGradientMark* selected_mark = nullptr;
 
-	ColorRampData() {
+	constexpr ColorRampData() {
 		ui_value = nullptr;
 		ubo_value = nullptr;
 	}
