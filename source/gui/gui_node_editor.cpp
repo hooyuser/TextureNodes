@@ -279,7 +279,7 @@ namespace engine {
 
 
 
-		// Start drawing nodes.
+		// Start drawing nodes
 		for (std::size_t node_index = 0; node_index < nodes.size(); ++node_index) {
 			auto& node = nodes[node_index];
 			if (!node.display_panel) {
@@ -676,6 +676,7 @@ namespace engine {
 				}, node.data);
 		}
 
+		// Start drawing links
 		for (auto& link : links) {
 			ed::Link(link.id, link.start_pin->id, link.end_pin->id, ImColor(123, 174, 111, 245), 2.5f);
 		}
@@ -685,25 +686,26 @@ namespace engine {
 			ed::Suspend();
 			auto& color_node = nodes[*color_node_index];
 			auto& color_pin = color_node.inputs[*color_pin_index];
-			if (hit_color_pin) {
-				ImGui::OpenPopup(std::format("ColorPopup##{}", color_pin.id.Get()).c_str());
-			}
+			ui.draw_pin_popup(color_pin, hit_color_pin, [&] (Pin& pin) {
 
-			if (ImGui::BeginPopup(std::format("ColorPopup##{}", color_pin.id.Get()).c_str())) {
-				if (ImGui::ColorPicker4(std::format("##ColorPicker{}", color_pin.id.Get()).c_str(), reinterpret_cast<float*>(&color_pin.default_value), ImGuiColorEditFlags_None, nullptr)) {
-					std::visit([&](auto&& node_data) {
-						using NodeDataT = std::decay_t<decltype(node_data)>;
-						if constexpr (image_data<NodeDataT>) {
-							node_data->update_ubo(color_pin.default_value, *color_pin_index);
-							update_from(*color_node_index);
-						}
-						else if constexpr (shader_data<NodeDataT>) {
-							node_data.update_ubo(color_pin.default_value, *color_pin_index);
-						}
-						}, color_node.data);
+				if (ImGui::ColorPicker4(
+					std::format("##ColorPicker{}", pin.id.Get()).c_str(),
+					reinterpret_cast<float*>(&pin.default_value),
+					ImGuiColorEditFlags_None,
+					nullptr
+				)) {
+				std::visit([&](auto&& node_data) {
+					using NodeDataT = std::decay_t<decltype(node_data)>;
+					if constexpr (image_data<NodeDataT>) {
+						node_data->update_ubo(pin.default_value, *color_pin_index);
+						update_from(*color_node_index);
+					}
+					else if constexpr (shader_data<NodeDataT>) {
+						node_data.update_ubo(pin.default_value, *color_pin_index);
+					}
+					}, color_node.data);
 				}
-				ImGui::EndPopup();
-			}
+				});
 			ed::Resume();
 		}
 
@@ -712,33 +714,34 @@ namespace engine {
 			ed::Suspend();
 			auto& color_ramp_node = nodes[*color_ramp_node_index];
 			auto& color_ramp_pin = color_ramp_node.inputs[*color_ramp_pin_index];
-			if (hit_color_ramp_pin) {
-				ImGui::OpenPopup(std::format("ColorRampPopup##{}", color_ramp_pin.id.Get()).c_str());
-			}
+			ui.draw_pin_popup(color_ramp_pin, hit_color_ramp_pin, [&](Pin& pin) {
 
-			if (ImGui::BeginPopup(std::format("ColorRampPopup##{}", color_ramp_pin.id.Get()).c_str())) {
 				auto& color_ramp_data = *std::get_if<ColorRampData>(&color_ramp_pin.default_value);
-				if (ImGui::GradientEditor(std::format("ColorRampEditor##{}", color_ramp_pin.id.Get()).c_str(), color_ramp_data.ui_value.get(), color_ramp_data.dragging_mark, color_ramp_data.selected_mark)) {
-					std::visit([&](auto&& node_data) {
-						using NodeDataT = std::decay_t<decltype(node_data)>;
-						if constexpr (image_data<NodeDataT>) {
-							node_data->update_ubo(color_ramp_pin.default_value, *color_ramp_pin_index);
-							if (vkGetFenceStatus(engine->device, graphic_fence) == VK_SUCCESS) {
-								const VkSubmitInfo submit_info{
-									.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
-									.commandBufferCount = 1,
-									.pCommandBuffers = &color_ramp_data.ubo_value->command_buffer,
-								};
-								vkResetFences(engine->device, 1, &graphic_fence);
-								vkQueueSubmit(engine->graphics_queue, 1, &submit_info, graphic_fence);
-								wait_node_execute_fences();
-								update_from(*color_ramp_node_index);
-							}
-						}
+				if (ImGui::GradientEditor(
+					std::format("ColorRampEditor##{}",
+					color_ramp_pin.id.Get()).c_str(),
+					color_ramp_data.ui_value.get(),
+					color_ramp_data.dragging_mark,
+					color_ramp_data.selected_mark
+				)) {
+					std::visit(Overloaded {
+						[&](image_data auto& node_data) {
+						node_data->update_ubo(pin.default_value, *color_ramp_pin_index);
+						if (vkGetFenceStatus(engine->device, graphic_fence) == VK_SUCCESS) {
+							const VkSubmitInfo submit_info{
+								.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO,
+								.commandBufferCount = 1,
+								.pCommandBuffers = &color_ramp_data.ubo_value->command_buffer,
+							};
+							vkResetFences(engine->device, 1, &graphic_fence);
+							vkQueueSubmit(engine->graphics_queue, 1, &submit_info, graphic_fence);
+							wait_node_execute_fences();
+							update_from(*color_ramp_node_index);
+						}},
+						[] (auto&&){ assert("ColorRampEditor type error: only image node can have colorRamp pins"); }
 						}, color_ramp_node.data);
 				}
-				ImGui::EndPopup();
-			}
+				});
 			ed::Resume();
 		}
 
@@ -747,45 +750,40 @@ namespace engine {
 			ed::Suspend();
 			auto& enum_node = nodes[*enum_node_index];
 			auto& enum_pin = enum_node.inputs[*enum_pin_index];
+			ui.draw_pin_popup(enum_pin, hit_enum_pin, [&](Pin& pin) {
 
-			if (hit_enum_pin) {
-				ImGui::OpenPopup(std::format("EnumPopup##{}", enum_pin.id.Get()).c_str());
-			}
-
-			if (ImGui::BeginPopup(std::format("EnumPopup##{}", enum_pin.id.Get()).c_str())) {
 				std::visit([&](auto&& node_data) {
-					using NodeDataT = std::decay_t<decltype(node_data)>;
-					if constexpr (image_data<NodeDataT>) {
-						UboOf<NodeDataT>::Class::FieldAt(*enum_pin_index, [&](auto& field) {
-							field.forEachAnnotation([&](auto& items) {
-								using NodeDataT = std::decay_t<decltype(node_data)>;
-								using AnnotationT = std::remove_cvref_t<decltype(items)>;
-								if constexpr (std_array<AnnotationT, const char*>) {
-									for (size_t i = 0; i < items.size(); ++i) {
-										if (ImGui::MenuItem((std::string(" ")+items[i]).c_str())) {
-											std::get_if<EnumData>(&enum_pin.default_value)->value = i;
-											if constexpr (image_data<NodeDataT>) {
-												if (field.template getAnnotation<FormatEnum>() == FormatEnum::True) {
-													wait_node_execute_fences();
-													node_data->recreate_texture_resource(str_format_map.get_key(i));
-												}
-												else {
-													node_data->update_ubo(enum_pin.default_value, *enum_pin_index);
-												}
+				using NodeDataT = std::decay_t<decltype(node_data)>;
+				if constexpr (image_data<NodeDataT>) {
+					UboOf<NodeDataT>::Class::FieldAt(*enum_pin_index, [&](auto& field) {
+						field.forEachAnnotation([&](auto& items) {
+							using NodeDataT = std::decay_t<decltype(node_data)>;
+							using AnnotationT = std::remove_cvref_t<decltype(items)>;
+							if constexpr (std_array<AnnotationT, const char*>) {
+								for (size_t i = 0; i < items.size(); ++i) {
+									if (ImGui::MenuItem((std::string(" ")+items[i]).c_str())) {
+										std::get_if<EnumData>(&pin.default_value)->value = i;
+										if constexpr (image_data<NodeDataT>) {
+											if (field.template getAnnotation<FormatEnum>() == FormatEnum::True) {
+												wait_node_execute_fences();
+												node_data->recreate_texture_resource(str_format_map.get_key(i));
 											}
-											update_from(*enum_node_index);
-											ImGui::CloseCurrentPopup();
-											enum_node_index.reset();
-											enum_pin_index.reset();
+											else {
+												node_data->update_ubo(pin.default_value, *enum_pin_index);
+											}
 										}
+										update_from(*enum_node_index);
+										ImGui::CloseCurrentPopup();
+										enum_node_index.reset();
+										enum_pin_index.reset();
 									}
 								}
-								});
+							}
 							});
-					}
-					}, enum_node.data);
-				ImGui::EndPopup();
-			}
+						});
+				}
+				}, enum_node.data);
+				});
 			ed::Resume();
 		}
 

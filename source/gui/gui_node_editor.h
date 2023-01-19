@@ -6,16 +6,16 @@
 #include <functional>
 #define IMGUI_DEFINE_MATH_OPERATORS
 
-#include <imgui_node_editor.h>
+
 #include <imgui_impl_vulkan.h>
 
 #include "all_node_headers.h"
 #include "gui_node_editor_ui.h"
+#include "gui_node_pin.h"
 #include "../util/class_field_type_list.h"
 #include "../util/cpp_type.h"
 #include "../util/hash_str.h"
 
-namespace ed = ax::NodeEditor;
 
 static std::string first_letter_to_upper(std::string_view str);
 
@@ -30,10 +30,7 @@ using to_data_type = std::invoke_result_t<
 		(TypeList<Ts...>) consteval -> TypeList<typename Ts::data_type...> {}),
 	T > ;
 
-enum class PinInOut {
-	INPUT,
-	OUTPUT
-};
+
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 //Node Menus
@@ -165,29 +162,6 @@ template <typename UboT>
 using FieldTypeList = typename to_type_list<FieldTypeTuple<UboT>>::remove_ref;
 
 ////////////////////////////////////////////////////////////////////////////////////////////
-
-struct Node;
-struct Pin {
-	ed::PinId id;
-	uint32_t node_index;
-	std::unordered_set<Pin*> connected_pins;
-	std::string name;
-	PinInOut flow_direction = PinInOut::INPUT;
-	PinVariant default_value;
-
-	template<typename T> requires std::constructible_from<PinVariant, T>
-	Pin(const ed::PinId id, const uint32_t node_index, std::string name, const T&) :
-		id(id), node_index(node_index), name(name), default_value(T()) {
-	}
-
-	bool operator==(const Pin& pin) const noexcept {
-		return (this->id == pin.id);
-	}
-
-	Pin* connected_pin() const noexcept {
-		return *(connected_pins.begin());
-	}
-};
 
 inline void to_json(json& j, const Pin& p) {
 	j = p.default_value;

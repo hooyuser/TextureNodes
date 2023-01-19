@@ -7,6 +7,11 @@
 
 #define AS_LAMBDA(func) [&](auto&&... args) -> decltype(func(FWD(args)...)) { return func(FWD(args)...); }
 
+template<typename ... Ts>                                               
+struct Overloaded : Ts ... { 
+    using Ts::operator() ...;
+};
+
 template <bool cond_v, typename Then, typename OrElse>
 constexpr decltype(auto) constexpr_if(Then&& then, OrElse&& or_else) {
     if constexpr (cond_v) {

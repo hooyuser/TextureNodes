@@ -2,11 +2,9 @@
 #include "gui_node_editor.h"
 
 #include <imgui.h>
+#include <format>
 
-template<typename ... Ts>                                               
-struct Overloaded : Ts ... { 
-    using Ts::operator() ...;
-};
+
 
 auto constexpr pin_color_visitor = Overloaded {
 	[](const TextureIdData&)       { return ImColor(227,  52,  47); },
@@ -20,7 +18,7 @@ auto constexpr pin_color_visitor = Overloaded {
 	[](const Color4TextureIdData&) { return ImColor(246, 109, 155); },
 };
 
-void NodeEditorUIManager::draw_node_pin(const ImVec2& center, const PinVariant& pin_data) {
+void NodeEditorUIManager::draw_node_pin(const ImVec2& center, const PinVariant& pin_data) const {
 	auto const draw_list = ImGui::GetWindowDrawList();
 	ImColor output_pin_color = std::visit(pin_color_visitor, pin_data);
 	draw_list->AddCircle(  // Draw output pin circle
@@ -38,3 +36,7 @@ void NodeEditorUIManager::draw_node_pin(const ImVec2& center, const PinVariant& 
 		24
 	);
 }
+
+
+
+
