@@ -86,8 +86,8 @@ struct SwapChainSupportDetails {
 };
 
 constexpr SphericalCoord CAM_SPHERICAL_COORD{
-	.theta = glm::radians(0.0f) ,
-	.phi = glm::radians(90.0f),
+	.theta = glm::radians(30.0f) ,
+	.phi = glm::radians(60.0f),
 	.radius = 5.46f,
 	.target = glm::vec3(0.0f)
 };

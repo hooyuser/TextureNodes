@@ -44,11 +44,15 @@ struct UboMixin {
 
 	void update_ubo(const PinVariant& value, const size_t index) {  //use value to update the pin at the index  
 		if constexpr (has_field_type_v<InfoT, ColorRampData>) {
-			typename InfoT::value_t::Class::FieldAt(index, [&](auto& field_v) {
-				using PinValueT = typename std::decay_t<decltype(field_v)>::Type;
-				InfoT::Class::FieldAt(index, [&](auto& field) {
-					using PinT = typename std::decay_t<decltype(field)>::Type;
-					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(std::get_if<PinT>(&value)), sizeof(PinValueT), field_v.getOffset());
+			typename InfoT::UBO::Class::FieldAt(index, [&, index] (auto&& field_ubo) {
+				using PinUboT = typename std::decay_t<decltype(field_ubo)>::Type;
+				InfoT::Class::FieldAt(index, [&](auto&& field_ubo) {
+					using PinT = typename std::decay_t<decltype(field_ubo)>::Type;
+					uniform_buffer->copy_from_host(
+						reinterpret_cast<const char*>(std::get_if<PinT>(&value)),
+						sizeof(PinUboT),
+						field_ubo.getOffset()
+					);
 					});
 				});
 		}
@@ -139,15 +143,15 @@ struct SubmitInfoMembers {
 
 template<typename InfoType>
 struct ComponentUdf : UboMixin<InfoType> {
-	using UboT = InfoType;
-	inline constexpr static auto shader_num = UboT::shader_file_paths.size();
+	using InfoT = InfoType;
+	inline constexpr static auto shader_num = InfoT::shader_file_paths.size();
 	inline static std::array<VkDescriptorSetLayout, shader_num> ubo_descriptor_set_layouts{ nullptr };
 	inline static std::array<VkPipelineLayout, shader_num> image_processing_pipeline_layouts{ nullptr };
 	inline static std::array<VkPipeline, shader_num> image_processing_compute_pipelines{ nullptr };
 
 	TexturePtr texture;
 	TexturePtr preview_texture;
-	std::array<VkDescriptorSet, UboT::shader_file_paths.size()> ubo_descriptor_sets;
+	std::array<VkDescriptorSet, InfoT::shader_file_paths.size()> ubo_descriptor_sets;
 	std::array<TexturePtr, 2> ping_pong_images;
 	VkImageView result_image_view;
 	std::function<void(int)> record_image_processing_cmd_buffer_func;
@@ -314,7 +318,7 @@ struct ComponentUdf : UboMixin<InfoType> {
 		const VkDescriptorBufferInfo uniform_buffer_info{
 			.buffer = this->uniform_buffer->buffer,
 			.offset = 0,
-			.range = sizeof(UboT)
+			.range = sizeof(InfoT)
 		};
 
 		auto const descriptor_writes = std::array{
@@ -386,7 +390,7 @@ struct ComponentUdf : UboMixin<InfoType> {
 
 	void create_image_processing_compute_pipelines(VulkanEngine* engine) {
 
-		auto shader = engine::Shader::createFromSpv(engine, UboT::shader_file_paths);
+		auto shader = engine::Shader::createFromSpv(engine, InfoT::shader_file_paths);
 
 		for (size_t i = 0; i < shader->shader_modules.size(); ++i) {
 			const VkComputePipelineCreateInfo compute_pipeline_create_info{
@@ -804,7 +808,7 @@ struct ComponentUdf : UboMixin<InfoType> {
 
 template<typename InfoType>
 struct ComponentGraphicPipeline : UboMixin<InfoType> {
-	using UboT = InfoType;
+	using InfoT = InfoType;
 
 	inline static VkDescriptorSetLayout ubo_descriptor_set_layout = nullptr;
 	inline static VkPipelineLayout image_processing_pipeline_layout = nullptr;
@@ -867,7 +871,7 @@ struct ComponentGraphicPipeline : UboMixin<InfoType> {
 		const VkDescriptorBufferInfo uniform_buffer_info{
 			.buffer = this->uniform_buffer->buffer,
 			.offset = 0,
-			.range = sizeof(UboT)
+			.range = sizeof(InfoT)
 		};
 
 		const std::array descriptor_writes{
@@ -891,7 +895,7 @@ struct ComponentGraphicPipeline : UboMixin<InfoType> {
 		}
 
 		auto descriptor_set_layouts = [&] {
-			if constexpr (has_texture_field<UboT>) {
+			if constexpr (has_texture_field<InfoT>) {
 				return std::array{
 					ubo_descriptor_set_layout,
 					engine->texture_manager->descriptor_set_layout,
@@ -981,7 +985,7 @@ struct ComponentGraphicPipeline : UboMixin<InfoType> {
 		}
 		engine::PipelineBuilder pipeline_builder(engine, engine::ENABLE_DYNAMIC_VIEWPORT, engine::DISABLE_VERTEX_INPUT);
 
-		auto shaders = engine::Shader::createFromSpv(engine, UboT::shader_file_paths);
+		auto shaders = engine::Shader::createFromSpv(engine, InfoT::shader_file_paths);
 
 		for (auto shader_module : shaders->shader_modules) {
 			VkPipelineShaderStageCreateInfo shader_info{
@@ -1094,7 +1098,7 @@ struct ComponentGraphicPipeline : UboMixin<InfoType> {
 		};
 
 		auto descriptor_sets = [&] {
-			if constexpr (has_texture_field<UboT>) {
+			if constexpr (has_texture_field<InfoT>) {
 				return std::array{
 					ubo_descriptor_set,
 					engine->texture_manager->descriptor_set,
@@ -1277,7 +1281,7 @@ struct ComponentGraphicPipeline : UboMixin<InfoType> {
 
 template<typename Component>
 struct ImageData : PinData, Component {
-	using InfoT = typename Component::UboT;
+	using InfoT = typename Component::InfoT;
 
 	VulkanEngine* engine;
 

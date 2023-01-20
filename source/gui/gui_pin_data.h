@@ -225,8 +225,8 @@ using PinVariant = PinTypeList::cast_to<std::variant>;
 template <typename T>
 concept PinDataConcept = PinTypeList::has_type<T>;
 
-template <typename UboType>
-constexpr static inline bool has_texture_field = has_field_type_v<UboType, ColorRampData> ||
-has_field_type_v<UboType, TextureIdData> ||
-has_field_type_v<UboType, Color4TextureIdData> ||
-has_field_type_v<UboType, FloatTextureIdData>;
+template <typename InfoT>
+constexpr static inline bool has_texture_field = has_field_type_v<InfoT, ColorRampData> ||
+has_field_type_v<InfoT, TextureIdData> ||
+has_field_type_v<InfoT, Color4TextureIdData> ||
+has_field_type_v<InfoT, FloatTextureIdData>;

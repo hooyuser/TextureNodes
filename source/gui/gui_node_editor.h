@@ -150,16 +150,16 @@ template <typename T>
 concept shader_data = is_node_data_of<T, NodeTypeShaderBase>;
 
 template <image_data T>
-constexpr auto get_ubo(T)->typename ref_t<T>::InfoT;
+constexpr auto get_info(T)->typename ref_t<T>::InfoT;
 
 template <typename T> requires value_data<T> || shader_data<T>
-constexpr auto get_ubo(T)->typename T::InfoT;
+constexpr auto get_info(T)->typename T::InfoT;
 
 template <typename NodeDataT>
-using UboOf = std::decay_t<decltype(get_ubo(std::declval<NodeDataT>()))>;
+using MetaInfo = std::decay_t<decltype(get_info(std::declval<NodeDataT>()))>;
 
-template <typename UboT>
-using FieldTypeList = typename to_type_list<FieldTypeTuple<UboT>>::remove_ref;
+template <typename T>
+using FieldTypeList = typename to_type_list<FieldTypeTuple<T>>::remove_ref;
 
 ////////////////////////////////////////////////////////////////////////////////////////////
 
@@ -173,8 +173,6 @@ struct Node {
 	std::vector<Pin> inputs;
 	std::vector<Pin> outputs;
 	bool display_panel = true;
-	//ImColor Color ;
-	//std::string type_name;
 	ImVec2 size = { 0, 0 };
 	NodeDataVariant data;
 
@@ -307,12 +305,12 @@ namespace engine {
 			auto& node = nodes.back();
 
 			using NodeDataType = typename NodeType::data_type;
-			using UboT = typename NodeType::Info;
-			UboT ubo{};
+			using InfoT = typename NodeType::Info;
+			InfoT ubo{};
 
-			node.inputs.reserve(UboT::Class::TotalFields);
-			for (size_t index = 0; index < UboT::Class::TotalFields; ++index) {
-				UboT::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
+			node.inputs.reserve(InfoT::Class::TotalFields);
+			for (size_t index = 0; index < InfoT::Class::TotalFields; ++index) {
+				InfoT::Class::FieldAt(ubo, index, [&](auto& field, auto& value) {
 					using PinType = typename std::decay_t<decltype(field)>::Type;
 					node.inputs.emplace_back(get_next_id(), node_index, first_letter_to_upper(field.name), std::in_place_type<PinType>);
 					auto& pin_value = node.inputs[index].default_value;
@@ -334,7 +332,7 @@ namespace engine {
 						pin_value = value;
 					}
 
-					if constexpr (image_data<NodeDataType> && has_field_type_v<UboT, ColorRampData>) {
+					if constexpr (image_data<NodeDataType> && has_field_type_v<InfoT, ColorRampData>) {
 						(*std::get_if<NodeDataType>(&node.data))->update_ubo(pin_value, index);
 					}
 					});
@@ -344,7 +342,7 @@ namespace engine {
 				node.outputs.emplace_back(get_next_id(), node_index, "Result", std::in_place_type<TextureIdData>);
 				auto& node_data = *std::get_if<NodeDataType>(&node.data);
 				node.outputs[0].default_value = TextureIdData{ .value = node_data->node_texture_id };
-				if constexpr (!has_field_type_v<UboT, ColorRampData>) {
+				if constexpr (!has_field_type_v<InfoT, ColorRampData>) {
 					node_data->uniform_buffer->copy_from_host(&ubo);
 				}
 			}

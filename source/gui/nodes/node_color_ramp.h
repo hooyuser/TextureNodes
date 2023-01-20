@@ -14,7 +14,7 @@ struct NodeColorRamp : NodeTypeImageBase {
 	};
 
 	struct Info {
-		using value_t = UboValue;
+		using UBO = UboValue;
 
 		NOTE(format, format_str_array, FormatEnum::True)
 		EnumData format {

@@ -367,7 +367,7 @@ namespace engine {
 								bool response_flag = false;
 								std::visit([&](auto&& node_data) {
 									using NodeDataT = std::decay_t<decltype(node_data)>;
-									UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
+									MetaInfo<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
 										using NodeDataT = std::decay_t<decltype(node_data)>;
 										auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
 										ImGui::PushItemWidth(node_width - node_left_padding - node_right_padding);
@@ -452,7 +452,7 @@ namespace engine {
 								bool response_flag = false;
 								std::visit([&](auto&& node_data) {
 									using NodeDataT = std::decay_t<decltype(node_data)>;
-									UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
+									MetaInfo<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
 										using NodeDataT = std::decay_t<decltype(node_data)>;
 										auto widget_info = field.template getAnnotation<NumberInputWidgetInfo>();
 										ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
@@ -503,7 +503,7 @@ namespace engine {
 							ImGui::SameLine(0, node_left_padding); // add padding between pin text and enum widget
 							std::visit([&](auto&& node_data) {
 								using NodeDataT = std::decay_t<decltype(node_data)>;
-								UboOf<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
+								MetaInfo<NodeDataT>::Class::FieldAt(i, [&](auto& field) {
 									field.forEachAnnotation([&](auto& items) {
 										using T = std::remove_cvref_t<decltype(items)>;
 										if constexpr (std_array<T, const char*>) {
@@ -756,7 +756,7 @@ namespace engine {
 				std::visit([&](auto&& node_data) {
 				using NodeDataT = std::decay_t<decltype(node_data)>;
 				if constexpr (image_data<NodeDataT>) {
-					UboOf<NodeDataT>::Class::FieldAt(*enum_pin_index, [&](auto& field) {
+					MetaInfo<NodeDataT>::Class::FieldAt(*enum_pin_index, [&](auto& field) {
 						field.forEachAnnotation([&](auto& items) {
 							using NodeDataT = std::decay_t<decltype(node_data)>;
 							using AnnotationT = std::remove_cvref_t<decltype(items)>;
@@ -912,7 +912,7 @@ namespace engine {
 							using EndNodeT = std::decay_t<decltype(end_node_data)>;
 							if constexpr (image_data<EndNodeT>) {
 
-								UboOf<EndNodeT>::Class::FieldAt(end_pin_index, [&](auto& field) {
+								MetaInfo<EndNodeT>::Class::FieldAt(end_pin_index, [&](auto& field) {
 									if (field.template getAnnotation<AutoFormat>() == AutoFormat::True) {
 										std::visit([&](auto&& start_node_data) {
 											using StartNodeT = std::decay_t<decltype(start_node_data)>;
@@ -1177,8 +1177,8 @@ namespace engine {
 					create_node<NodeType>();
 
 					using NodeDataT = typename NodeType::data_type;
-					using UboT = UboOf<NodeDataT>;
-					using FieldTypes = FieldTypeList<UboT>;
+					using InfoT = MetaInfo<NodeDataT>;
+					using FieldTypes = FieldTypeList<InfoT>;
 
 					UNROLL<FieldTypes::size>([&] <size_t pin_index>() {
 						using PinType = typename FieldTypes::template at<pin_index>;
@@ -1278,12 +1278,12 @@ namespace engine {
 		std::visit([=](auto&& node_data) {
 			using NodeDataT = std::decay_t<decltype(node_data)>;
 			if constexpr (value_data<NodeDataT>) {
-				using UboT = UboOf<NodeDataT>;
-				using FieldTypes = FieldTypeList<UboT>;
+				using InfoT = MetaInfo<NodeDataT>;
+				using FieldTypes = FieldTypeList<InfoT>;
 				nodes[index].outputs[0].default_value = [&] <std::size_t... I> (std::index_sequence<I...>) {
 					return NodeDataT::calculate(
 						*std::get_if<FieldTypes::template at<I>>(&nodes[index].evaluate_input(I))...);
-				}(std::make_index_sequence<UboT::Class::TotalFields>{});
+				}(std::make_index_sequence<InfoT::Class::TotalFields>{});
 			}
 			}, nodes[index].data);
 	}
