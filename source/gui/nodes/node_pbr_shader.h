@@ -3,7 +3,7 @@
 
 struct NodePbrShader : NodeTypeShaderBase {
 
-	struct UBO {
+	struct Info {
 		NOTE(base_color, NumberInputWidgetInfo{ .min = 0, .max = 1, .speed = 0.005f, .enable_slider = true })
 		Color4TextureIdData base_color {
 			.value = {
@@ -40,7 +40,7 @@ struct NodePbrShader : NodeTypeShaderBase {
 			}
 		};
 
-		REFLECT(UBO,
+		REFLECT(Info,
 			base_color,
 			metallic,
 			roughness,
@@ -49,7 +49,7 @@ struct NodePbrShader : NodeTypeShaderBase {
 		)
 	};
 
-	using data_type = ShaderData<UBO>;
+	using data_type = ShaderData<Info>;
 
 	constexpr auto static name() { return "Pbr Shader"; }
 };

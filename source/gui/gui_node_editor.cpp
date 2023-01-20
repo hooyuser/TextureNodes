@@ -14,10 +14,10 @@ using json = nlohmann::json;
 constexpr bool SHOW_IMGUI_DEMO = false;
 
 template<typename NodeDataT>
-constexpr static bool is_component_graphic = std::derived_from<ref_t<NodeDataT>, ComponentGraphicPipeline<typename ref_t<NodeDataT>::UboType>>;
+constexpr static bool is_component_graphic = std::derived_from<ref_t<NodeDataT>, ComponentGraphicPipeline<typename ref_t<NodeDataT>::InfoT>>;
 
 template<typename NodeDataT>
-constexpr static bool is_component_udf = std::derived_from<ref_t<NodeDataT>, ComponentUdf<typename ref_t<NodeDataT>::UboType>>;
+constexpr static bool is_component_udf = std::derived_from<ref_t<NodeDataT>, ComponentUdf<typename ref_t<NodeDataT>::InfoT>>;
 
 template <typename T, typename ArrayElementT>
 concept std_array = requires (std::remove_cvref_t<T> t) {

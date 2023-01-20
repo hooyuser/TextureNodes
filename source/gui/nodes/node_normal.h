@@ -3,7 +3,7 @@
 
 struct NodeNormal : NodeTypeImageBase {
 
-	struct UBO {
+	struct Info {
 
 		NOTE(texture, AutoFormat::False)
 		TextureIdData texture {
@@ -24,7 +24,7 @@ struct NodeNormal : NodeTypeImageBase {
 			.value = true
 		};
 
-		REFLECT(UBO,
+		REFLECT(Info,
 			texture,
 			strength,
 			max_range,
@@ -39,7 +39,7 @@ struct NodeNormal : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R8G8B8A8_UNORM;
 	};
 
-	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<Info>>>;
 
 	constexpr auto static name() { return "Normal"; }
 };

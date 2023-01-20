@@ -3,7 +3,7 @@
 
 struct NodeNoise : NodeTypeImageBase {
 
-	struct UBO {
+	struct Info {
 		NOTE(format, format_str_array, FormatEnum::True)
 		EnumData format {
 			.value = static_cast<EnumData::value_t>(str_format_map.index_of(VK_FORMAT_R16_UNORM)),
@@ -49,7 +49,7 @@ struct NodeNoise : NodeTypeImageBase {
 			.value = 0.0f
 		};
 
-		REFLECT(UBO,
+		REFLECT(Info,
 			format,
 			dimension,
 			x,
@@ -69,7 +69,7 @@ struct NodeNoise : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R16_UNORM;
 	};
 
-	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<Info>>>;
 
 	constexpr auto static name() { return "Noise"; }
 };

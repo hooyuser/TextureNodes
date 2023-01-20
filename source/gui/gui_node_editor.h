@@ -150,10 +150,10 @@ template <typename T>
 concept shader_data = is_node_data_of<T, NodeTypeShaderBase>;
 
 template <image_data T>
-constexpr auto get_ubo(T)->typename ref_t<T>::UboType;
+constexpr auto get_ubo(T)->typename ref_t<T>::InfoT;
 
 template <typename T> requires value_data<T> || shader_data<T>
-constexpr auto get_ubo(T)->typename T::UboType;
+constexpr auto get_ubo(T)->typename T::InfoT;
 
 template <typename NodeDataT>
 using UboOf = std::decay_t<decltype(get_ubo(std::declval<NodeDataT>()))>;
@@ -307,7 +307,7 @@ namespace engine {
 			auto& node = nodes.back();
 
 			using NodeDataType = typename NodeType::data_type;
-			using UboT = typename NodeType::UBO;
+			using UboT = typename NodeType::Info;
 			UboT ubo{};
 
 			node.inputs.reserve(UboT::Class::TotalFields);

@@ -3,7 +3,7 @@
 
 struct NodeBlur : NodeTypeImageBase {
 
-	struct UBO {
+	struct Info {
 
 		NOTE(texture, AutoFormat::True)
 		TextureIdData texture{
@@ -23,7 +23,7 @@ struct NodeBlur : NodeTypeImageBase {
 			.value = 50
 		};
 
-		REFLECT(UBO,
+		REFLECT(Info,
 			texture,
 			intensity,
 			samples
@@ -37,7 +37,7 @@ struct NodeBlur : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R8G8B8A8_SRGB;
 	};
 
-	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<Info>>>;
 
 	constexpr auto static name() { return "Blur"; }
 };

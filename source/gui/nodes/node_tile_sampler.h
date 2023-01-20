@@ -3,7 +3,7 @@
 
 struct NodeTileSampler : NodeTypeImageBase {
 
-	struct UBO {
+	struct Info {
 		NOTE(input, AutoFormat::True)
 		TextureIdData input{
 			.value = -1
@@ -31,7 +31,7 @@ struct NodeTileSampler : NodeTypeImageBase {
 			}
 		};
 
-		REFLECT(UBO,
+		REFLECT(Info,
 			input,
 			mode,
 			factor,
@@ -47,7 +47,7 @@ struct NodeTileSampler : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R8G8B8A8_SRGB;
 	};
 
-	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<Info>>>;
 
 	constexpr auto static name() { return "Tile Sampler"; }
 };

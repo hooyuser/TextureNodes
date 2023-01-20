@@ -3,7 +3,7 @@
 
 struct NodePolygon : NodeTypeImageBase {
 
-	struct UBO {
+	struct Info {
 		NOTE(radius, NumberInputWidgetInfo{ .min = 0, .max = 2, .speed = 0.005f, .enable_slider = true })
 			FloatData radius {
 			.value = 0.75f
@@ -24,7 +24,7 @@ struct NodePolygon : NodeTypeImageBase {
 			.value = 0.0f
 		};
 
-		REFLECT(UBO,
+		REFLECT(Info,
 			radius,
 			angle,
 			sides,
@@ -39,7 +39,7 @@ struct NodePolygon : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R16_UNORM; 
 	};
 
-	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<Info>>>;
 
 	constexpr auto static name() { return "Polygon"; }
 };

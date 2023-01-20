@@ -3,7 +3,7 @@
 
 struct NodeBlend : NodeTypeImageBase {
 
-	struct UBO {
+	struct Info {
 		NOTE(format, format_str_array, FormatEnum::True)
 		EnumData format {
 			.value = static_cast<EnumData::value_t>(str_format_map.index_of(VK_FORMAT_R8G8B8A8_SRGB)),
@@ -36,7 +36,7 @@ struct NodeBlend : NodeTypeImageBase {
 			}
 		};
 
-		REFLECT(UBO,
+		REFLECT(Info,
 			format,
 			mode,
 			factor,
@@ -52,7 +52,7 @@ struct NodeBlend : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R8G8B8A8_SRGB;
 	};
 
-	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<Info>>>;
 
 	constexpr auto static name() { return "Blend"; }
 };

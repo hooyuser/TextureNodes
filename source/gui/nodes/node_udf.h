@@ -3,7 +3,7 @@
 
 struct NodeUdf : NodeTypeImageBase {
 
-	struct UBO {
+	struct Info {
 
 		TextureIdData texture{
 			.value = -1
@@ -14,7 +14,7 @@ struct NodeUdf : NodeTypeImageBase {
 			.value = 150.0f
 		};
 
-		REFLECT(UBO,
+		REFLECT(Info,
 			texture,
 			max_distance
 		)
@@ -27,7 +27,7 @@ struct NodeUdf : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R16_UNORM; 
 	};
 
-	using data_type = std::shared_ptr<ImageData<ComponentUdf<UBO>>>;
+	using data_type = std::shared_ptr<ImageData<ComponentUdf<Info>>>;
 
 	constexpr auto static name() { return "Udf"; }
 };

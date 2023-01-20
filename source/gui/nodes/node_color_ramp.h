@@ -13,7 +13,7 @@ struct NodeColorRamp : NodeTypeImageBase {
 		)
 	};
 
-	struct UBO {
+	struct Info {
 		using value_t = UboValue;
 
 		NOTE(format, format_str_array, FormatEnum::True)
@@ -27,7 +27,7 @@ struct NodeColorRamp : NodeTypeImageBase {
 
 		ColorRampData color_ramp;
 
-		REFLECT(UBO,
+		REFLECT(Info,
 			format,
 			texture,
 			color_ramp
@@ -41,7 +41,7 @@ struct NodeColorRamp : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R8G8B8A8_SRGB; 
 	};
 
-	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<Info>>>;
 
 	constexpr auto static name() { return "Color Ramp"; }
 };

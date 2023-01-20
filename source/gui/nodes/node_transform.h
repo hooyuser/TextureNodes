@@ -3,7 +3,7 @@
 
 struct NodeTransform : NodeTypeImageBase {
 
-	struct UBO {
+	struct Info {
 
 		NOTE(texture, AutoFormat::True)
 		TextureIdData texture{
@@ -39,7 +39,7 @@ struct NodeTransform : NodeTypeImageBase {
 			.value = false
 		};
 
-		REFLECT(UBO,
+		REFLECT(Info,
 			texture,
 			shift_x,
 			shift_y,
@@ -57,7 +57,7 @@ struct NodeTransform : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R16_UNORM; 
 	};
 
-	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<Info>>>;
 
 	constexpr auto static name() { return "Transform"; }
 };

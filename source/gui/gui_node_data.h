@@ -15,17 +15,17 @@ namespace engine {
 	class Shader;
 }
 
-template<typename UniformBufferType, typename ResultT>
+template<typename InfoType, typename ResultT>
 struct ValueData {
-	using UboType = UniformBufferType;
+	using InfoT = InfoType;
 	using ResultType = ResultT;
 
-	inline constexpr static auto calculate = UniformBufferType::operation;
+	inline constexpr static auto calculate = InfoType::operation;
 };
 
-template<typename UniformBufferType>
+template<typename InfoType>
 struct UboMixin {
-	using UboType = UniformBufferType;
+	using InfoT = InfoType;
 
 	BufferPtr uniform_buffer;
 
@@ -35,7 +35,7 @@ struct UboMixin {
 		}
 		else {
 			uniform_buffer = engine::Buffer::create_buffer(engine,
-				sizeof(UboType),
+				sizeof(InfoT),
 				VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
 				PreferredMemoryType::VRAM_MAPPABLE,
 				SWAPCHAIN_INDEPENDENT_BIT);
@@ -43,17 +43,17 @@ struct UboMixin {
 	}
 
 	void update_ubo(const PinVariant& value, const size_t index) {  //use value to update the pin at the index  
-		if constexpr (has_field_type_v<UboType, ColorRampData>) {
-			typename UboType::value_t::Class::FieldAt(index, [&](auto& field_v) {
+		if constexpr (has_field_type_v<InfoT, ColorRampData>) {
+			typename InfoT::value_t::Class::FieldAt(index, [&](auto& field_v) {
 				using PinValueT = typename std::decay_t<decltype(field_v)>::Type;
-				UboType::Class::FieldAt(index, [&](auto& field) {
+				InfoT::Class::FieldAt(index, [&](auto& field) {
 					using PinT = typename std::decay_t<decltype(field)>::Type;
 					uniform_buffer->copy_from_host(reinterpret_cast<const char*>(std::get_if<PinT>(&value)), sizeof(PinValueT), field_v.getOffset());
 					});
 				});
 		}
 		else {
-			UboType::Class::FieldAt(index, [&](auto& field) {
+			InfoT::Class::FieldAt(index, [&](auto& field) {
 				using PinT = typename std::decay_t<decltype(field)>::Type;
 				if constexpr (std::same_as<PinT, FloatTextureIdData>) {
 					std::visit([&](auto&& v) {
@@ -98,7 +98,7 @@ struct UboMixin {
 
 	template<PinDataConcept StartPinT>
 	void update_ubo_by_value(const StartPinT& value, const size_t index) {
-		UboType::Class::FieldAt(index, [&](auto& field) {
+		InfoT::Class::FieldAt(index, [&](auto& field) {
 			using PinT = typename std::decay_t<decltype(field)>::Type;
 			if constexpr (std::same_as<PinT, FloatTextureIdData>) {
 				std::visit([&](auto&& v) {
@@ -124,11 +124,11 @@ struct UboMixin {
 	}
 };
 
-template<typename UniformBufferType>
-struct ShaderData : PinData, UboMixin<UniformBufferType> {
-	using UboType = UniformBufferType;
+template<typename InfoType>
+struct ShaderData : PinData, UboMixin<InfoType> {
+	using InfoT = InfoType;
 
-	explicit ShaderData(VulkanEngine* engine) : UboMixin<UniformBufferType>(engine, engine->material_preview_ubo) {}
+	explicit ShaderData(VulkanEngine* engine) : UboMixin<InfoType>(engine, engine->material_preview_ubo) {}
 };
 
 struct SubmitInfoMembers {
@@ -137,9 +137,9 @@ struct SubmitInfoMembers {
 	VkSemaphoreSubmitInfo signal_semaphore_submit_info;
 };
 
-template<typename UniformBufferType>
-struct ComponentUdf : UboMixin<UniformBufferType> {
-	using UboT = UniformBufferType;
+template<typename InfoType>
+struct ComponentUdf : UboMixin<InfoType> {
+	using UboT = InfoType;
 	inline constexpr static auto shader_num = UboT::shader_file_paths.size();
 	inline static std::array<VkDescriptorSetLayout, shader_num> ubo_descriptor_set_layouts{ nullptr };
 	inline static std::array<VkPipelineLayout, shader_num> image_processing_pipeline_layouts{ nullptr };
@@ -170,7 +170,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 
 	std::array<VkSubmitInfo2, 3> submit_info;
 
-	explicit ComponentUdf(VulkanEngine* engine) :UboMixin<UniformBufferType>(engine) {}
+	explicit ComponentUdf(VulkanEngine* engine) :UboMixin<InfoType>(engine) {}
 
 	void create_image_processing_pipeline_resource(VulkanEngine* engine, VkFormat format) {
 		//update_ubo_descriptor_sets(engine);
@@ -605,7 +605,7 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 
 	void create_cmd_buffer_submit_info() {
 		//std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
-		//wait_semaphore_submit_info1.reserve(count_field_type_v<UboType, TextureIdData>);
+		//wait_semaphore_submit_info1.reserve(count_field_type_v<InfoT, TextureIdData>);
 
 		cmd_buffer_submit_info_0 = VkCommandBufferSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
@@ -802,9 +802,9 @@ struct ComponentUdf : UboMixin<UniformBufferType> {
 	}
 };
 
-template<typename UniformBufferType>
-struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
-	using UboT = UniformBufferType;
+template<typename InfoType>
+struct ComponentGraphicPipeline : UboMixin<InfoType> {
+	using UboT = InfoType;
 
 	inline static VkDescriptorSetLayout ubo_descriptor_set_layout = nullptr;
 	inline static VkPipelineLayout image_processing_pipeline_layout = nullptr;
@@ -834,7 +834,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 	uint32_t width = TEXTURE_IMAGE_SIZE;
 	uint32_t height = TEXTURE_IMAGE_SIZE;
 
-	explicit ComponentGraphicPipeline(VulkanEngine* engine) : UboMixin<UniformBufferType>(engine) {}
+	explicit ComponentGraphicPipeline(VulkanEngine* engine) : UboMixin<InfoType>(engine) {}
 
 	void create_image_processing_pipeline_resource(VulkanEngine* engine, VkFormat format) {
 		create_image_processing_render_pass(engine, format);
@@ -1124,7 +1124,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 
 	void create_cmd_buffer_submit_info() {
 		//std::vector<VkSemaphoreSubmitInfo> wait_semaphore_submit_info1;
-		//wait_semaphore_submit_info1.reserve(count_field_type_v<UboType, TextureIdData>);
+		//wait_semaphore_submit_info1.reserve(count_field_type_v<InfoT, TextureIdData>);
 
 		cmd_buffer_submit_info_0 = VkCommandBufferSubmitInfo{
 			.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_SUBMIT_INFO,
@@ -1277,7 +1277,7 @@ struct ComponentGraphicPipeline : UboMixin<UniformBufferType> {
 
 template<typename Component>
 struct ImageData : PinData, Component {
-	using UboType = typename Component::UboT;
+	using InfoT = typename Component::UboT;
 
 	VulkanEngine* engine;
 
@@ -1298,7 +1298,7 @@ struct ImageData : PinData, Component {
 
 		Component::create_image_processing_pipeline_layouts(engine);
 
-		create_texture_resource(UboType::default_format);
+		create_texture_resource(InfoT::default_format);
 
 		Component::create_cmd_buffer_submit_info();
 	}
@@ -1325,7 +1325,7 @@ struct ImageData : PinData, Component {
 		engine->texture_manager->delete_id(node_texture_id);
 		Component::clear(engine);
 		vkFreeCommandBuffers(engine->device, engine->graphic_command_pool, 1, &this->generate_preview_cmd_buffer);
-		if constexpr (std::same_as<Component, ComponentUdf<UboType>>) {
+		if constexpr (std::same_as<Component, ComponentUdf<InfoT>>) {
 			vkFreeDescriptorSets(engine->device, engine->dynamic_descriptor_pool, this->ubo_descriptor_sets.size(), this->ubo_descriptor_sets.data());
 			vkDestroyImageView(engine->device, this->result_image_view, nullptr);
 		}
@@ -1626,5 +1626,5 @@ struct ImageData : PinData, Component {
 	//}
 };
 
-template<typename UboType>
-using ImageDataPtr = std::shared_ptr<ImageData<UboType>>;
+template<typename InfoT>
+using ImageDataPtr = std::shared_ptr<ImageData<InfoT>>;

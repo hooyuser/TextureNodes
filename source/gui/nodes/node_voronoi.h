@@ -3,7 +3,7 @@
 
 struct NodeVoronoi : NodeTypeImageBase {
 
-	struct UBO {
+	struct Info {
 		NOTE(dimension, std::array{ "2D", "3D" })
 			EnumData dimension {
 			.value = 0
@@ -54,7 +54,7 @@ struct NodeVoronoi : NodeTypeImageBase {
 			.value = 1.0f
 		};
 
-		REFLECT(UBO,
+		REFLECT(Info,
 			dimension,
 			method,
 			metric,
@@ -75,7 +75,7 @@ struct NodeVoronoi : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R16_UNORM;
 	};
 
-	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<Info>>>;
 
 	constexpr auto static name() { return "Voronoi"; }
 };

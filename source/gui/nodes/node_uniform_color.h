@@ -3,10 +3,10 @@
 
 struct NodeUniformColor : NodeTypeImageBase {
 
-	struct UBO {
+	struct Info {
 		Color4Data color;
 		
-		REFLECT(UBO,
+		REFLECT(Info,
 			color
 		)
 
@@ -18,7 +18,7 @@ struct NodeUniformColor : NodeTypeImageBase {
 		constexpr auto static default_format = VK_FORMAT_R8G8B8A8_SRGB;
 	};
 
-	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<UBO>>>;
+	using data_type = std::shared_ptr<ImageData<ComponentGraphicPipeline<Info>>>;
 
 	constexpr auto static name() { return "Uniform Color"; }
 };
