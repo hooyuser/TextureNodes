@@ -144,7 +144,7 @@ namespace engine {
 				else if constexpr (value_data<NodeDataT>) {
 					recalculate_node(i);
 					for (auto& output : nodes[i].outputs) {
-						for (Pin* connected_pin : output.connected_pins) {
+						for (const Pin* connected_pin : output.connected_pins) {
 							auto& connected_node = nodes[connected_pin->node_index];
 							update_node_ubo(connected_node.data, output.default_value, get_input_pin_index(*connected_pin));
 						}
@@ -1290,6 +1290,7 @@ namespace engine {
 
 	void NodeEditor::clear() {
 		wait_node_execute_fences();
+		vkDeviceWaitIdle(engine->device);
 		color_pin_index.reset();
 		color_ramp_pin_index.reset();
 		enum_pin_index.reset();
