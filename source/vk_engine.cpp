@@ -1338,7 +1338,7 @@ void VulkanEngine::record_viewport_cmd_buffer(const int command_buffer_index) {
 			last_mesh = mesh;
 		}
 		//we can now draw
-		vkCmdDrawIndexed(cmd, static_cast<uint32_t>(mesh->_indices.size()), 1, 0, 0, 0);
+		vkCmdDrawIndexed(cmd, mesh->_indices.size(), 1, 0, 0, 0);
 	}
 
 	vkCmdEndRenderPass(viewport_3d.cmd_buffers[i]);
@@ -1607,7 +1607,7 @@ void VulkanEngine::imgui_render(const uint32_t image_index) {
 	ImGui::Begin("Texture Viewer");
 	ImGui::PopStyleColor();
 	{
-		if (auto const handle = static_cast<ImTextureID>(node_editor->get_gui_display_texture_handle())) {
+		if (auto const handle = node_editor->get_gui_display_texture_handle()) {
 			const ImVec2 window_size = ImGui::GetWindowSize();  //include menu height
 			const ImVec2 viewer_size = ImGui::GetContentRegionAvail();
 			constexpr static float scale_factor = 0.975f;

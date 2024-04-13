@@ -5,9 +5,9 @@
 
 class VulkanEngine;
 
-uint32_t find_memory_type(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties);
+uint32_t find_memory_type(VkPhysicalDevice physical_device, uint32_t type_filter, VkMemoryPropertyFlags properties);
 
-void immediate_submit(VkDevice device, VkCommandPool command_pool, VkQueue queue, VkFence fence, std::invocable<VkCommandBuffer> auto&& function) {
+void immediate_submit(const VkDevice device, const VkCommandPool command_pool, const VkQueue queue, const VkFence fence, std::invocable<VkCommandBuffer> auto&& function) {
 	const VkCommandBufferAllocateInfo alloc_info{
 		.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO,
 		.commandPool = command_pool,

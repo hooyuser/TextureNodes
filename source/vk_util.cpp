@@ -2,12 +2,17 @@
 
 #include <stdexcept>
 
-uint32_t find_memory_type(VkPhysicalDevice physicalDevice, uint32_t typeFilter, VkMemoryPropertyFlags properties) {
-	VkPhysicalDeviceMemoryProperties memProperties;
-	vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memProperties);
+uint32_t find_memory_type(
+	const VkPhysicalDevice physical_device,
+	const uint32_t type_filter,
+	const VkMemoryPropertyFlags properties
+) {
+	VkPhysicalDeviceMemoryProperties memory_properties;
+	vkGetPhysicalDeviceMemoryProperties(physical_device, &memory_properties);
 
-	for (uint32_t i = 0; i < memProperties.memoryTypeCount; i++) {
-		if ((typeFilter & (1 << i)) && (memProperties.memoryTypes[i].propertyFlags & properties) == properties) {
+	for (uint32_t i = 0; i < memory_properties.memoryTypeCount; i++) {
+		if ((type_filter & (1 << i)) &&
+			(memory_properties.memoryTypes[i].propertyFlags & properties) == properties) {
 			return i;
 		}
 	}
@@ -16,18 +21,18 @@ uint32_t find_memory_type(VkPhysicalDevice physicalDevice, uint32_t typeFilter, 
 }
 
 void insert_image_memory_barrier(
-	VkCommandBuffer            command_buffer,
-	VkImage                    image,
-	VkPipelineStageFlags2      src_stage_mask,
-	VkAccessFlags2             src_access_mask,
-	VkPipelineStageFlags2      dst_stage_mask,
-	VkAccessFlags2             dst_access_mask,
-	VkImageLayout              old_layout,
-	VkImageLayout              new_layout,
-	uint32_t                   src_queue_family_index,
-	uint32_t                   dst_queue_family_index,
-	uint32_t                   level_count,
-	uint32_t                   layer_count
+	const VkCommandBuffer            command_buffer,
+	const VkImage                    image,
+	const VkPipelineStageFlags2      src_stage_mask,
+	const VkAccessFlags2             src_access_mask,
+	const VkPipelineStageFlags2      dst_stage_mask,
+	const VkAccessFlags2             dst_access_mask,
+	const VkImageLayout              old_layout,
+	const VkImageLayout              new_layout,
+	const uint32_t                   src_queue_family_index,
+	const uint32_t                   dst_queue_family_index,
+	const uint32_t                   level_count,
+	const uint32_t                   layer_count
 ) {
 	const VkImageMemoryBarrier2 image_memory_barrier{
 		.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER_2,

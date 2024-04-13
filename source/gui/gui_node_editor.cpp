@@ -7,7 +7,7 @@
 #include <json.hpp>
 #include <ranges>
 #include <fstream>
-#include<iostream>
+
 
 using json = nlohmann::json;
 
@@ -40,7 +40,8 @@ std::string first_letter_to_upper(std::string_view str) {
 	std::string upper_str = "";
 	std::string_view separator = "";
 	for (auto&& word : split) {
-		upper_str += std::exchange(separator, " ").data() + (static_cast<char>(std::toupper(word[0])) + std::string(word.substr(1, word.size() - 1)));
+		upper_str += std::exchange(separator, " ").data() +
+			         (static_cast<char>(std::toupper(word[0])) + std::string(word.substr(1, word.size() - 1)));
 	}
 	return upper_str;
 }
@@ -66,13 +67,12 @@ namespace engine {
 
 	void NodeEditor::topological_sort(const uint32_t index, std::vector<char>& visited_nodes, std::vector<uint32_t>& sorted_nodes) const {
 		std::stack<int64_t> topo_sort_stack;
-		int64_t idx;
 
 		visited_nodes[index] = 1;
 		topo_sort_stack.push(index);
 
 		while (!topo_sort_stack.empty()) { //topological sorting
-			idx = topo_sort_stack.top();
+			const int64_t idx = topo_sort_stack.top();
 			topo_sort_stack.pop();
 
 			if (idx < 0) {
@@ -298,13 +298,13 @@ namespace engine {
 			auto arrow_right_corner = ImVec2{ dummy_rect.Min.x + 0.55f * button_width,dummy_rect.GetCenter().y };
 			constexpr float line_thickness = 2;
 			draw_list->AddLine(
-				arrow_right_corner + ImVec2{ -button_width,button_width } * 0.25f,
+				arrow_right_corner + ImVec2{ -button_width,button_width } *0.25f,
 				arrow_right_corner,
 				ImColor(255, 255, 255, 255),
 				line_thickness);
 			draw_list->AddLine(
-				arrow_right_corner + ImVec2{ -button_width,-button_width } * 0.25f,
-				arrow_right_corner + ImVec2{ line_thickness,line_thickness } * 0.35355339f,
+				arrow_right_corner + ImVec2{ -button_width,-button_width } *0.25f,
+				arrow_right_corner + ImVec2{ line_thickness,line_thickness } *0.35355339f,
 				ImColor(255, 255, 255, 255),
 				line_thickness);
 			ImGui::SameLine();
@@ -357,12 +357,12 @@ namespace engine {
 					auto const pin_text_size = ImGui::CalcTextSize(pin_text);
 					ImGui::Dummy(ImVec2{ node_left_padding, pin_text_size.y * 1.1f }); // add padding before pin text
 					ImRect rect = imgui_get_item_rect();  // get the rect of the dummy item
-					ImGui::SameLine(0,0);
+					ImGui::SameLine(0, 0);
 
 					std::visit([&](auto&& default_value) {
 						using PinT = std::decay_t<decltype(default_value)>;
 						if constexpr (std::is_same_v<PinT, FloatData> || std::is_same_v<PinT, IntData>) {
-							ImGui::SameLine(0,0);
+							ImGui::SameLine(0, 0);
 							if (pin.connected_pins.empty()) {
 								bool response_flag = false;
 								std::visit([&](auto&& node_data) {
@@ -420,14 +420,14 @@ namespace engine {
 							else {
 								ImGui::Text(pin_text);
 							}
-							rect.Max = imgui_get_item_rect().Max; 
+							rect.Max = imgui_get_item_rect().Max;
 						}
 						else if constexpr (std::is_same_v<PinT, Color4Data> || std::is_same_v<PinT, Color4TextureIdData>) {
 							ImGui::Text(pin_text);
 							rect.Max = imgui_get_item_rect().Max;
 							if (pin.connected_pins.empty()) {
-	
-								ImGui::SameLine(0,node_left_padding);
+
+								ImGui::SameLine(0, node_left_padding);
 								ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 								if (ImGui::ColorButton(
 									std::format("ColorButton##{}", pin.id.Get()).c_str(),
@@ -513,8 +513,8 @@ namespace engine {
 											ImGui::PushStyleVar(ImGuiStyleVar_FrameRounding, 3.0f);
 
 											if (ImGui::Button(
-													std::format("{}##{}", items[default_value.value], pin.id.Get()).c_str(),
-													ImVec2{ node_width - pin_text_size.x - node_left_padding * 2  - node_right_padding,pin_text_size.y }
+												std::format("{}##{}", items[default_value.value], pin.id.Get()).c_str(),
+												ImVec2{ node_width - pin_text_size.x - node_left_padding * 2 - node_right_padding,pin_text_size.y }
 											)) {
 												enum_node_index = node_index;
 												enum_pin_index = i;
@@ -549,7 +549,7 @@ namespace engine {
 								&color_ramp_data,
 								node_width - node_left_padding - node_right_padding,
 								node_width * 0.13
-								)) {
+							)) {
 								color_ramp_node_index = node_index;
 								color_ramp_pin_index = i;
 								hit_color_ramp_pin = true;
@@ -687,7 +687,7 @@ namespace engine {
 			ed::Suspend();
 			auto& color_node = nodes[*color_node_index];
 			auto& color_pin = color_node.inputs[pin_index];
-			ui.draw_pin_popup(color_pin, hit_color_pin, [this, pin_index, &data=color_node.data] (Pin& pin) {
+			ui.draw_pin_popup(color_pin, hit_color_pin, [this, pin_index, &data = color_node.data](Pin& pin) {
 
 				if (ImGui::ColorPicker4(
 					std::format("##ColorPicker{}", pin.id.Get()).c_str(),
@@ -695,16 +695,16 @@ namespace engine {
 					ImGuiColorEditFlags_None,
 					nullptr
 				)) {
-				std::visit([&](auto&& node_data) {
-					using NodeDataT = std::decay_t<decltype(node_data)>;
-					if constexpr (image_data<NodeDataT>) {
-						node_data->update_ubo(pin.default_value, pin_index);
-						update_from(*color_node_index);
-					}
-					else if constexpr (shader_data<NodeDataT>) {
-						node_data.update_ubo(pin.default_value, pin_index);
-					}
-					}, data);
+					std::visit([&](auto&& node_data) {
+						using NodeDataT = std::decay_t<decltype(node_data)>;
+						if constexpr (image_data<NodeDataT>) {
+							node_data->update_ubo(pin.default_value, pin_index);
+							update_from(*color_node_index);
+						}
+						else if constexpr (shader_data<NodeDataT>) {
+							node_data.update_ubo(pin.default_value, pin_index);
+						}
+						}, data);
 				}
 				});
 			ed::Resume();
@@ -720,12 +720,12 @@ namespace engine {
 				auto& color_ramp_data = *std::get_if<ColorRampData>(&color_ramp_pin.default_value);
 				if (ImGui::GradientEditor(
 					std::format("ColorRampEditor##{}",
-					color_ramp_pin.id.Get()).c_str(),
+						color_ramp_pin.id.Get()).c_str(),
 					color_ramp_data.ui_value.get(),
 					color_ramp_data.dragging_mark,
 					color_ramp_data.selected_mark
 				)) {
-					std::visit(Overloaded {
+					std::visit(Overloaded{
 						[&](image_data auto&& node_data) {
 						node_data->update_ubo(pin.default_value, *color_ramp_pin_index);
 						if (vkGetFenceStatus(engine->device, graphic_fence) == VK_SUCCESS) {
@@ -739,7 +739,7 @@ namespace engine {
 							wait_node_execute_fences();
 							update_from(*color_ramp_node_index);
 						}},
-						[] (auto&&){ assert("ColorRampEditor type error: only image node can have colorRamp pins"); }
+						[](auto&&) { assert("ColorRampEditor type error: only image node can have colorRamp pins"); }
 						}, color_ramp_node.data);
 				}
 				});
@@ -754,36 +754,36 @@ namespace engine {
 			ui.draw_pin_popup(enum_pin, hit_enum_pin, [&](Pin& pin) {
 
 				std::visit([&](auto&& node_data) {
-				using NodeDataT = std::decay_t<decltype(node_data)>;
-				if constexpr (image_data<NodeDataT>) {
-					MetaInfo<NodeDataT>::Class::FieldAt(*enum_pin_index, [&](auto& field) {
-						field.forEachAnnotation([&](auto& items) {
-							using NodeDataT = std::decay_t<decltype(node_data)>;
-							using AnnotationT = std::remove_cvref_t<decltype(items)>;
-							if constexpr (std_array<AnnotationT, const char*>) {
-								for (size_t i = 0; i < items.size(); ++i) {
-									if (ImGui::MenuItem((std::string(" ")+items[i]).c_str())) {
-										std::get_if<EnumData>(&pin.default_value)->value = i;
-										if constexpr (image_data<NodeDataT>) {
-											if (field.template getAnnotation<FormatEnum>() == FormatEnum::True) {
-												wait_node_execute_fences();
-												node_data->recreate_texture_resource(str_format_map.get_key(i));
+					using NodeDataT = std::decay_t<decltype(node_data)>;
+					if constexpr (image_data<NodeDataT>) {
+						MetaInfo<NodeDataT>::Class::FieldAt(*enum_pin_index, [&](auto& field) {
+							field.forEachAnnotation([&](auto& items) {
+								using NodeDataT = std::decay_t<decltype(node_data)>;
+								using AnnotationT = std::remove_cvref_t<decltype(items)>;
+								if constexpr (std_array<AnnotationT, const char*>) {
+									for (size_t i = 0; i < items.size(); ++i) {
+										if (ImGui::MenuItem((std::string(" ") + items[i]).c_str())) {
+											std::get_if<EnumData>(&pin.default_value)->value = i;
+											if constexpr (image_data<NodeDataT>) {
+												if (field.template getAnnotation<FormatEnum>() == FormatEnum::True) {
+													wait_node_execute_fences();
+													node_data->recreate_texture_resource(str_format_map.get_key(i));
+												}
+												else {
+													node_data->update_ubo(pin.default_value, *enum_pin_index);
+												}
 											}
-											else {
-												node_data->update_ubo(pin.default_value, *enum_pin_index);
-											}
+											update_from(*enum_node_index);
+											ImGui::CloseCurrentPopup();
+											enum_node_index.reset();
+											enum_pin_index.reset();
 										}
-										update_from(*enum_node_index);
-										ImGui::CloseCurrentPopup();
-										enum_node_index.reset();
-										enum_pin_index.reset();
 									}
 								}
-							}
+								});
 							});
-						});
-				}
-				}, enum_node.data);
+					}
+					}, enum_node.data);
 				});
 			ed::Resume();
 		}
@@ -866,7 +866,7 @@ namespace engine {
 
 						ImGui::GetWindowDrawList()->AddRectFilled(rect_min, rect_max, color, size.y * 0.15f);
 						ImGui::TextUnformatted(label);
-					};
+						};
 
 					if (start_pin == end_pin) {
 						ed::RejectNewItem(ImColor(255, 0, 0), 2.0f);
@@ -1082,7 +1082,7 @@ namespace engine {
 	}
 
 	void NodeEditor::create_fence() {
-		auto const fence_info = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
+		auto constexpr fence_info = vkinit::fence_create_info(VK_FENCE_CREATE_SIGNALED_BIT);
 		if (vkCreateFence(engine->device, &fence_info, nullptr, &graphic_fence) != VK_SUCCESS) {
 			throw std::runtime_error("failed to create graphic fence!");
 		}
@@ -1103,18 +1103,18 @@ namespace engine {
 		//disable writing json
 		config.SaveSettings = [](const char*, size_t, ed::SaveReasonFlags, void*) {
 			return false;
-		};
+			};
 
 		config.SaveNodeSettings = [](ed::NodeId, const char*, size_t, ed::SaveReasonFlags, void*) {
 			return false;
-		};
+			};
 		context = ed::CreateEditor(&config);
 
 		create_fence();
 
 		preview_image_size = node_width * 0.8;
 
-		engine->main_deletion_queue.push_function([&nodes = nodes, device = engine->device, c_fence = compute_fence, g_fence = graphic_fence, context = context]{
+		engine->main_deletion_queue.push_function([&nodes = nodes, device = engine->device, c_fence = compute_fence, g_fence = graphic_fence, context = context] {
 			nodes.clear();
 			vkDestroyFence(device, c_fence, nullptr);
 			vkDestroyFence(device, g_fence, nullptr);

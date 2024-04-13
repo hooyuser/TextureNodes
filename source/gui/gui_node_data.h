@@ -952,7 +952,7 @@ struct ComponentGraphicPipeline : UboMixin<InfoType> {
 			.layout = VK_IMAGE_LAYOUT_COLOR_ATTACHMENT_OPTIMAL,
 		};
 
-		constexpr VkSubpassDescription subpass{
+		const VkSubpassDescription subpass{
 			.pipelineBindPoint = VK_PIPELINE_BIND_POINT_GRAPHICS,
 			.colorAttachmentCount = 1,
 			.pColorAttachments = &color_attachment_ref,
@@ -960,7 +960,7 @@ struct ComponentGraphicPipeline : UboMixin<InfoType> {
 
 		const std::array attachments{ color_attachment };
 
-		constexpr VkRenderPassCreateInfo render_pass_info{
+		const VkRenderPassCreateInfo render_pass_info{
 			.sType = VK_STRUCTURE_TYPE_RENDER_PASS_CREATE_INFO,
 			.attachmentCount = static_cast<uint32_t>(attachments.size()),
 			.pAttachments = attachments.data(),
@@ -1347,7 +1347,7 @@ struct ImageData : PinData, Component {
 			.initialValue = 0,
 		};
 
-		constexpr VkSemaphoreCreateInfo semaphore_create_info{
+		const VkSemaphoreCreateInfo semaphore_create_info{
 			.sType = VK_STRUCTURE_TYPE_SEMAPHORE_CREATE_INFO,
 			.pNext = &timeline_semaphore_create_info,
 			.flags = 0,
