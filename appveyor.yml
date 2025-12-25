@@ -6,11 +6,7 @@ environment:
 
 shallow_clone: true
 
-# Ensure this matches where you are running CMake
 clone_folder: c:\projects\source
-
-# This is the critical line to stop the "No project files found" error
-build: off
 
 build_script:
   - cmd: >-
